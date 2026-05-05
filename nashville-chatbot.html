@@ -1069,7 +1069,7 @@ const NASHVILLE_DATA = {
     "Tip: Most honky tonks on Broadway have free live music starting at 10am.",
     "Tip: Book Bluebird Cafe shows weeks in advance - they sell out fast.",
     "Tip: Hot chicken comes in heat levels from mild to 'shut the cluck up' - start mild.",
-    "Tip: Uber/Lyft surge prices badly downtown on weekends. Walk if you can.",
+    "Tip: Uber/Lyft surge late at night on weekends downtown. If you can walk, it's often faster than waiting on a ride.",
     "Tip: The free Music City Circuit bus runs through downtown.",
     "Tip: Tennessee has no state income tax but expect ~9.25% sales tax."
   ]
@@ -1692,11 +1692,68 @@ function dismissLocationPrompt() {
   addMessage("No worries. You can share your location anytime by tapping 'Share location' at the bottom of the chat.", 'bot');
 }
 
-// Voice input via Web Speech API
+// Voice input.
+// In the Capacitor iOS wrapper, we use the native @capacitor-community/speech-recognition
+// plugin (SFSpeechRecognizer under the hood). In a regular browser we fall back to
+// the Web Speech API, which works on Chrome/Edge desktop and Safari macOS.
+function isCapacitor() {
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+function isIOS() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+async function startVoiceInputCapacitor() {
+  const voiceBtn = document.getElementById('voiceBtn');
+  const input = document.getElementById('userInput');
+  const SR = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SpeechRecognition;
+  if (!SR) {
+    // Plugin not registered in this build, fall back to the iOS keyboard hint.
+    addMessage("For voice input, tap the input field then tap the microphone key on your iPhone keyboard. iOS handles voice-to-text natively.", 'bot');
+    return;
+  }
+  try {
+    const avail = await SR.available();
+    if (!avail.available) {
+      addMessage("Speech recognition isn't available on this device.", 'bot');
+      return;
+    }
+    const perm = await SR.requestPermissions();
+    if (perm.speechRecognition !== 'granted') {
+      addMessage("Microphone permission was declined. Open Settings, find Howdy Nash, and enable Microphone and Speech Recognition.", 'bot');
+      return;
+    }
+    if (voiceBtn) voiceBtn.textContent = '🔴';
+    const result = await SR.start({
+      language: 'en-US',
+      maxResults: 1,
+      prompt: '',
+      partialResults: false,
+      popup: false
+    });
+    if (voiceBtn) voiceBtn.textContent = '🎤';
+    const text = (result && result.matches && result.matches[0]) ? result.matches[0] : '';
+    if (text) {
+      if (input) input.value = text;
+      handleSend();
+    } else {
+      addMessage("Didn't catch that. Tap the mic and try again.", 'bot');
+    }
+  } catch (e) {
+    if (voiceBtn) voiceBtn.textContent = '🎤';
+    addMessage("Voice input failed. Type your question instead.", 'bot');
+  }
+}
+
 function startVoiceInput() {
+  if (isCapacitor()) {
+    startVoiceInputCapacitor();
+    return;
+  }
+  // Web fallback - works on Chrome/Edge/Safari macOS, not iOS Safari.
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    addMessage("Voice input is not supported on this browser. Try Chrome or Safari.", 'bot');
+  if (!SpeechRecognition || isIOS()) {
+    addMessage("For voice input on iPhone, tap the input field then tap the microphone key on your keyboard. iOS handles voice-to-text natively.", 'bot');
     return;
   }
   const recognition = new SpeechRecognition();
@@ -1713,11 +1770,17 @@ function startVoiceInput() {
   };
   recognition.onerror = () => {
     addMessage("Could not hear you. Try tapping the mic again.", 'bot');
+    if (voiceBtn) voiceBtn.textContent = '🎤';
   };
   recognition.onend = () => {
     if (voiceBtn) voiceBtn.textContent = '🎤';
   };
-  recognition.start();
+  try {
+    recognition.start();
+  } catch (e) {
+    addMessage("Voice input couldn't start. Type your question instead.", 'bot');
+    if (voiceBtn) voiceBtn.textContent = '🎤';
+  }
 }
 
 // Menu-based back navigation
