@@ -96,4 +96,12 @@ API costs: roughly $5 to $30 per month at low traffic.
 
 ## Documentation
 
-See the docs in this repo for setup, best practices, financials, and expansion strategy.
+- `SETUP_GUIDE.md` - first-time setup walkthrough
+- `SETUP_DEPLOY.md` - deploy script setup
+- `POST_LAUNCH_PLAYBOOK.md` - press page, domain forwarding, content updates, channel attribution (added May 5, 2026)
+- `BEST_PRACTICES.md` - patterns and pitfalls
+- `EVALUATION.md` - honest project review
+- `NEXT_CITY_PLAYBOOK.md` - replication guide
+- `CITY_RECOMMENDATIONS.md` - which cities to expand to next
+- `FINANCIAL_PROJECTIONS.md` - costs and revenue
+- `MARKETING_PLAN.md` - traffic and revenue strategy
