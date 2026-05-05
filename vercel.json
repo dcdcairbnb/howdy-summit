@@ -3,7 +3,8 @@
     { "path": "/api/subscribe?cron=newsletter", "schedule": "0 14 * * 5" }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/nashville-chatbot.html" }
+    { "source": "/", "destination": "/nashville-chatbot.html" },
+    { "source": "/press", "destination": "/press.html" }
   ],
   "headers": [
     {
