@@ -2322,8 +2322,13 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['tip', 'advice', 'know before', 'first time'])) {
-    addMessage("Here are some local tips:", 'bot');
+  if (matches(lower, ['tip', 'advice', 'know before', 'first time', 'local tips'])) {
+    const tipCard = `<div class="card" style="background: #fff8f0; border-left: 3px solid #f77f00;">
+      <div class="card-title" style="color: #d62828; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">🎸 Today's Nashville Tip</div>
+      <div class="card-desc" style="margin-top: 6px;">${getTipOfTheDay()}</div>
+    </div>`;
+    addMessage(tipCard, 'bot', true);
+    addMessage("More local tips:", 'bot');
     NASHVILLE_DATA.tips.forEach(tip => addMessage(tip, 'bot'));
     return;
   }
@@ -4379,7 +4384,32 @@ const CURATED_DAILY_TIPS = [
   "Cooter's Place near the Grand Ole Opry is a Dukes of Hazzard museum run by Ben Jones, who played Cooter on the show.",
   "Honky tonks on Broadway nearly went bankrupt in the 1980s. Downtown revival in the 2000s saved them.",
   "Jack White's Third Man Records on 7th Ave South has the only working letterpress in any record label HQ.",
-  "Nashville's first hot chicken festival, the Music City Hot Chicken Festival, started in 2007 and is now annual on July 4."
+  "Nashville's first hot chicken festival, the Music City Hot Chicken Festival, started in 2007 and is now annual on July 4.",
+
+  // Neighborhood lore
+  "Lower Broadway was nearly empty and dangerous in the 1980s. The 2000s revival was driven by Bridgestone Arena opening in 1996 and the Country Music Hall of Fame moving to SoBro in 2001.",
+  "The Gulch was a railroad yard for over a century. Industrial wasteland until early-2000s development turned it into Nashville's first LEED-certified neighborhood.",
+  "The famous \"I Believe in Nashville\" mural was painted in 2012 by Adrien Saporiti. There are now multiple versions, but the original is in The Gulch.",
+  "East Nashville was nearly leveled by a tornado in 1998. The rebuild attracted a wave of artists, musicians, and small businesses, creating the bohemian neighborhood we see today.",
+  "Five Points in East Nashville is named for the convergence of five streets at a small triangle intersection. It's the heart of the neighborhood's restaurants and bars.",
+  "12 South gets its name from being on 12th Avenue South. The 12 South water tower is one of the most-Instagrammed spots in Nashville.",
+  "Reese Witherspoon's Draper James boutique opened in 12 South in 2015. The pink-and-white striped facade became a tourist photo magnet.",
+  "Germantown is Nashville's oldest neighborhood, settled by German immigrants in the 1850s. Today it has some of Nashville's best high-end restaurants: City House, Rolf and Daughters, Henrietta Red.",
+  "Midtown contains Music Row at its core, plus Vanderbilt University. The Patterson House speakeasy in Midtown is the most awarded cocktail bar in town.",
+  "SoBro (South of Broadway) is Nashville's newest neighborhood, mostly developed in the last 15 years. The Country Music Hall of Fame's 2001 move kicked it off.",
+  "Wedgewood-Houston, locals call it WeHo, was an industrial district. Most galleries and restaurants there are in converted warehouses. First Saturday Art Crawl runs through monthly.",
+  "Marathon Village sits in the building of the former Marathon Motor Works, an early American automobile manufacturer that operated from 1907 to 1914.",
+  "Antique Archaeology, the American Pickers shop from the History Channel, is in Marathon Village. Mike Wolfe still drops in occasionally.",
+  "Berry Hill is technically a separate independent city within Nashville. It's known for songwriter bungalows, where many country songs were written.",
+  "Hillsboro Village's Pancake Pantry has had a line out the door since 1961. The Belcourt Theatre, an indie cinema next door, has been the village's cultural anchor since 1925.",
+  "Fido in Hillsboro Village is named after the dog that inspired its sister restaurant Bongo Java. The dog's portrait still hangs by the door.",
+  "Green Hills doesn't have honky tonks. It's Nashville's most affluent residential pocket plus The Mall at Green Hills, Tennessee's most upscale shopping center.",
+  "Bastion in Wedgewood-Houston has only 24 seats in its tasting room. Reservations open one month out and sell within minutes.",
+
+  // Recent openings (verify and add new ones as they appear)
+  "Chief's opened on Lower Broadway in 2024. Eric Church's six-floor venue includes a restaurant, two music halls, and a rooftop bar.",
+  "The Pinnacle at Nashville Yards opened in 2024 as a major concert venue. It seats 4,500 and has hosted everyone from Phish to Billie Eilish.",
+  "Garth Brooks's Friends in Low Places Bar and Honky-Tonk opened on Lower Broadway in 2023. Three floors, his name in giant letters out front."
 ];
 
 function getTipOfTheDay() {
@@ -6012,12 +6042,6 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
-    // Daily Nashville tip card - rotates by date
-    const tipCard = `<div class="card" style="background: #fff8f0; border-left: 3px solid #f77f00; margin-top: 4px;">
-      <div class="card-title" style="color: #d62828; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">🎸 Today's Nashville Tip</div>
-      <div class="card-desc" style="margin-top: 6px;">${getTipOfTheDay()}</div>
-    </div>`;
-    addMessage(tipCard, 'bot', true);
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
