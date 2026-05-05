@@ -4330,6 +4330,66 @@ function getTimeContext() {
   return { mode: 'night', greeting: 'Howdy. Nashville comes alive after dark. Honky tonks or rooftop bar?' };
 }
 
+// Daily Nashville tip. Rotates by date. Edit and grow this list anytime.
+const CURATED_DAILY_TIPS = [
+  "Dolly Parton wrote \"I Will Always Love You\" and \"Jolene\" on the same day in 1973.",
+  "The Grand Ole Opry began as the WSM Barn Dance in 1925. It is the longest-running radio broadcast in U.S. history.",
+  "Hot chicken was invented in the 1930s when Thornton Prince's girlfriend tried to punish him with extra spice. He loved it. The dish was born.",
+  "Hank Williams Sr. died at age 29 in the back of a Cadillac on his way to a New Year's Day show in Ohio.",
+  "Nashville's nickname Music City was coined by WSM radio announcer David Cobb in 1950.",
+  "Centennial Park's Parthenon is the only full-scale replica of the Athenian original anywhere in the world.",
+  "Willie Nelson wrote \"Crazy\" in 30 minutes at a Nashville bar, then couldn't find a buyer for it until Patsy Cline cut it in 1961.",
+  "Tootsie's Orchid Lounge is purple by accident. A paint mixer made a mistake and Tootsie liked it.",
+  "Goo Goo Cluster, invented in Nashville in 1912, was the first combination candy bar in America.",
+  "Taylor Swift wrote \"Tim McGraw\" at age 14, sitting on her bedroom floor in a Nashville suburb.",
+  "Robert's Western World started as a cowboy boot store before becoming a honky tonk.",
+  "The Ryman Auditorium opened in 1892 as the Union Gospel Tabernacle. The horseshoe balcony was built for revival meetings, not music.",
+  "Loretta Lynn married at 15, had four kids by 19, and did not start singing professionally until 24.",
+  "Music Row started as ordinary residential homes that producers converted into recording studios in the 1950s.",
+  "Elvis recorded over 200 songs at RCA Studio B in Nashville, more than any other studio in his career.",
+  "Patsy Cline took her first singing lessons from a stripper because that was the only voice teacher she could afford in her hometown.",
+  "Hattie B's is named after the founder's grandmother. The chain didn't open until 2012, despite the heritage feel.",
+  "Andrew Jackson lived at The Hermitage just 10 miles east of downtown Nashville. Self-tour the property in under two hours.",
+  "Nashville was the first major Southern city to peacefully desegregate its lunch counters, in 1960.",
+  "Prince's Hot Chicken started in 1945 in a small East Nashville shack. The original recipe is still served today.",
+  "Garth Brooks's \"Friends in Low Places\" was nearly cut by another singer first. He held out, recorded it himself, and it became his signature song.",
+  "Bolton's Hot Chicken was founded by a former Prince's employee who left to start his own spot.",
+  "Free live music plays on Lower Broadway from 10am to 3am, every single day. Cover charge is rare.",
+  "Reba McEntire's first big break came from singing the national anthem at the 1974 National Finals Rodeo.",
+  "The Country Music Hall of Fame's curved roof is meant to evoke a Cadillac fin.",
+  "Loveless Cafe's biscuits use a recipe that hasn't changed since 1951.",
+  "The Bluebird Cafe gained fame from the TV show Nashville, but it was a songwriter's haven for decades before.",
+  "Belmont Mansion was once owned by Adelicia Acklen, one of the wealthiest women in 19th-century America.",
+  "Vanderbilt University was founded with a gift from Cornelius Vanderbilt. He never visited Nashville.",
+  "Pancake Pantry has had a line out the door for breakfast since 1961.",
+  "The Centennial Park Parthenon houses a 42-foot gold-leafed statue of Athena Parthenos, one of the largest indoor sculptures in the Western Hemisphere.",
+  "Printer's Alley downtown was Nashville's bootlegging center during Prohibition. Today it's nightlife.",
+  "Carrie Underwood was the first American Idol winner with a country music background. She auditioned in St. Louis in 2004.",
+  "Music Row's Studio A was nearly demolished in 2014. A grassroots Save Studio A campaign rescued it.",
+  "Keith Urban was born in New Zealand and raised in Australia, but he has lived in Nashville since the early 1990s.",
+  "The Frist Art Museum sits inside Nashville's old Art Deco post office, finished in 1934.",
+  "Johnny Cash's lakeside home in Hendersonville burned down in 2007 during a renovation by Barry Gibb of the Bee Gees.",
+  "Nashville is the second-largest music recording center in the U.S., trailing only New York.",
+  "The state capital was Knoxville until 1843, when it moved to Nashville permanently.",
+  "Layla's Honky Tonk is one of the few Broadway spots where bluegrass and old country still rule the stage.",
+  "Maren Morris worked at a Nashville BBQ joint before signing her record deal.",
+  "The Ryman holds 2,362 seats. Many performers say its acoustics are still the best in country music.",
+  "Kid Rock's Big Honky Tonk Steakhouse on Broadway has six floors. The rooftop is the highest on the strip.",
+  "Mas Tacos Por Favor started as a food truck in 2009. The brick-and-mortar in East Nashville came two years later.",
+  "Cooter's Place near the Grand Ole Opry is a Dukes of Hazzard museum run by Ben Jones, who played Cooter on the show.",
+  "Honky tonks on Broadway nearly went bankrupt in the 1980s. Downtown revival in the 2000s saved them.",
+  "Jack White's Third Man Records on 7th Ave South has the only working letterpress in any record label HQ.",
+  "Nashville's first hot chicken festival, the Music City Hot Chicken Festival, started in 2007 and is now annual on July 4."
+];
+
+function getTipOfTheDay() {
+  const startEpoch = new Date(2026, 0, 1).getTime();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dayIndex = Math.floor((today.getTime() - startEpoch) / 86400000);
+  const len = CURATED_DAILY_TIPS.length;
+  return CURATED_DAILY_TIPS[((dayIndex % len) + len) % len];
+}
+
 const VIATOR_PID = 'U00808374';
 const GETYOURGUIDE_PID = 'ACQGDWW';
 const AWIN_AIRBNB_MERCHANT_ID = '';
@@ -5952,6 +6012,12 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
+    // Daily Nashville tip card - rotates by date
+    const tipCard = `<div class="card" style="background: #fff8f0; border-left: 3px solid #f77f00; margin-top: 4px;">
+      <div class="card-title" style="color: #d62828; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">🎸 Today's Nashville Tip</div>
+      <div class="card-desc" style="margin-top: 6px;">${getTipOfTheDay()}</div>
+    </div>`;
+    addMessage(tipCard, 'bot', true);
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
