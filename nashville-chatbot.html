@@ -2193,13 +2193,15 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['✅ nash check list', 'nash check list', 'nash checklist', '✅ trip checklist', 'trip checklist', 'checklist', 'nashville checklist', 'todo list', 'to-do'])) {
+  // Reset must come BEFORE the general checklist matcher, otherwise "Reset
+  // checklist" matches "checklist" first and just re-renders without clearing.
+  if (matches(lower, ['reset checklist', 'clear checklist', 'reset check list', 'clear check list'])) {
+    try { localStorage.removeItem(CHECKLIST_STORAGE_KEY); } catch (e) {}
+    addMessage('Checklist cleared.', 'bot');
     showTripChecklist();
     return;
   }
-  if (matches(lower, ['reset checklist', 'clear checklist'])) {
-    try { localStorage.removeItem(CHECKLIST_STORAGE_KEY); } catch (e) {}
-    addMessage('Checklist cleared.', 'bot');
+  if (matches(lower, ['✅ nash check list', 'nash check list', 'nash checklist', '✅ trip checklist', 'trip checklist', 'checklist', 'nashville checklist', 'todo list', 'to-do'])) {
     showTripChecklist();
     return;
   }
