@@ -2229,6 +2229,14 @@ function routeIntent(text) {
     showTripChecklist();
     return;
   }
+
+  if (matches(lower, ['📦 shop amazon', 'shop amazon', 'amazon', 'amazon shop', 'shop on amazon'])) {
+    addMessage(renderAmazonHomeCard(), 'bot', true);
+    setTimeout(() => addMessage(renderAmazonShopCard('whiskey'), 'bot', true), 200);
+    setTimeout(() => addMessage(renderAmazonShopCard('creator'), 'bot', true), 400);
+    setTimeout(() => addMessage(renderAmazonShopCard('travel'), 'bot', true), 600);
+    return;
+  }
   // Inline search: "search [query]" or "find [query]"
   const searchPrefix = lower.match(/^(search|find)\s+(.+)$/);
   if (searchPrefix && searchPrefix[2].length >= 2) {
@@ -2749,6 +2757,7 @@ function showMainMenu() {
     '👰 Bachelorette',
     '👯 Group share',
     '🛒 Essentials',
+    '📦 Shop Amazon',
     'Weather',
     'Sports',
     '★ My saved',
@@ -6904,10 +6913,6 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
-    // Amazon-branded shop card on the home screen. Links to a curated Amazon
-    // search for Nashville-themed bachelorette + travel essentials with the
-    // howdynash-20 affiliate tag.
-    addMessage(renderAmazonHomeCard(), 'bot', true);
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
