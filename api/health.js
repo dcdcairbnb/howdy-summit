@@ -11,6 +11,7 @@ export default function handler(req, res) {
       eventbrite: !!process.env.EVENTBRITE_PRIVATE_TOKEN,
       aviationstack: !!process.env.AVIATIONSTACK_KEY,
       anthropic: !!process.env.ANTHROPIC_API_KEY,
+      setlistfm: !!process.env.SETLIST_FM_API_KEY,
       weather: true,
       nashville: true
     }
