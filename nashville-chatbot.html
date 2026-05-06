@@ -1524,12 +1524,25 @@ function openSignupModal(source) {
     </div>
   `;
   document.body.appendChild(modal);
-  setTimeout(() => document.getElementById('signupEmail')?.focus(), 100);
+  // Auto-focus the email field on desktop only. On iOS the auto-focus triggers
+  // the virtual keyboard, which shifts the viewport scroll state and leaves
+  // tap coordinates misaligned after the modal closes. Users tap the field to
+  // open the keyboard themselves on phones.
+  const isIosLike = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (!isIosLike) {
+    setTimeout(() => document.getElementById('signupEmail')?.focus(), 100);
+  }
 }
 
 function closeSignupModal() {
   const m = document.getElementById('signupModal');
   if (m) m.remove();
+  // Force-blur any focused input and reset scroll to top. iOS Capacitor
+  // sometimes leaves the viewport at a non-zero scroll offset after the
+  // keyboard dismisses, which causes tap coordinates to register on the wrong
+  // element below where the user actually tapped.
+  try { document.activeElement && document.activeElement.blur(); } catch (e) {}
+  try { window.scrollTo(0, 0); } catch (e) {}
 }
 
 async function handleSignupSubmit(event, source) {
