@@ -2214,10 +2214,7 @@ function routeIntent(text) {
       }
     });
     addMessage('Checklist cleared.', 'bot');
-    // Re-add the reset pill so the user can clear again after re-checking
-    // items. Without this, the pill disappears after first tap and they have
-    // to go home and re-open the checklist.
-    addQuickReplies(['Reset checklist', '← Main menu']);
+    addQuickReplies(['← Main menu']);
     // Scroll back to the top of the checklist so the user sees the freshly
     // cleared first section instead of the bottom of the chat.
     setTimeout(() => {
@@ -2863,7 +2860,7 @@ function showTripChecklist() {
       });
     });
   }, 100);
-  addQuickReplies(['Reset checklist', '← Main menu']);
+  addQuickReplies(['← Main menu']);
 }
 
 // Reset trigger handled in main matches chain below by listening for 'reset checklist'.
