@@ -5663,7 +5663,11 @@ async function showSetlistsForArtist(artist, evt) {
 }
 
 async function showLiveMusic() {
-  addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
+  if (!userLocation) {
+    addMessage("Tap Share location at the bottom of the chat to see distances to venues. Pulling upcoming concerts...", 'bot');
+  } else {
+    addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
+  }
 
   // First, try to pull live concert lineups from the events API
   if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
