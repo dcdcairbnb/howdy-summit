@@ -10,6 +10,7 @@ const { Pool } = pg;
 const FROM_EMAIL = 'Howdy Nash <howdy@howdynash.com>';
 const SITE_URL = 'https://howdynash.com';
 const CHEATSHEET_URL = 'https://howdynash.com/cheatsheet.html';
+const BACHELORETTE_URL = 'https://howdynash.com/bachelorette.html';
 
 let pool;
 function getPool() {
@@ -68,53 +69,13 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
-// Inline bachelorette planner block embedded in welcome email when source is
-// 'bachelorette'. Keeps the email self-contained, no separate landing page
-// needed. Update content here and email picks it up on next deploy.
+// Bachelorette email body. Short and link-driven so Gmail does not flag the
+// email as spam (the word "bachelorette" plus party content otherwise triggers
+// filters). Full content lives at /bachelorette.html.
 function buildBacheloretteBlock() {
-  const sec = (title, items) => `<h3 style="margin:24px 0 8px;color:#d62828;border-bottom:1px solid #eee;padding-bottom:4px;">${title}</h3><ul style="padding-left:18px;margin:0 0 12px;">${items.map(i => `<li style="margin:6px 0;">${i}</li>`).join('')}</ul>`;
-  return [
-    '<p style="margin:16px 0 12px;font-weight:600;">Here is the full Nashville bachelorette planner. Bookmark this email.</p>',
-    sec('Before You Arrive', [
-      'Book a pedal tavern or party bus 4+ weeks out. Weekends sell out fast.',
-      'Reserve dinner at Husk, Etch, or Yolan 3+ weeks out for groups of 6+.',
-      'Order matching tank tops, sashes, and party props online (cheaper than buying on Broadway).',
-      'Pre-book BNA airport transfer for 6+ people. Welcome Pickups or Kiwitaxi.',
-      'Save your group accommodations address for Uber/Lyft pickup spots.'
-    ]),
-    sec('Day 1: Arrive + Lower Broadway', [
-      'Drop bags, head to Lower Broadway by 4pm.',
-      'Honky tonk crawl: Tootsie\'s, Robert\'s Western World, Acme Feed and Seed, Jason Aldean\'s rooftop.',
-      'Dinner: Hattie B\'s hot chicken, Ole Red, or The Stillery.',
-      'Late night: pedal tavern at sunset, then back to a rooftop (L.A. Jackson, White Limozeen, Bobby Hotel).',
-      'Recovery: drink water, set IV recovery for tomorrow morning.'
-    ]),
-    sec('Day 2: Brunch + Photos + Activity', [
-      'Brunch: Biscuit Love (no reservations, arrive before 9am), Adele\'s, or The Hampton Social.',
-      'Photo spots: I Believe in Nashville mural (12 South), What Lifts You wings (The Gulch), Make Music Not War mural.',
-      'Afternoon activity: paint and sip class, mechanical bull at Whiskey Row, or distillery tour at Nelson\'s Green Brier.',
-      'Dinner: 12 South or The Gulch. Bartaco, Edley\'s BBQ, or Bakersfield.',
-      'Evening: Bluebird Cafe songwriter round (book ahead), then back to Broadway.'
-    ]),
-    sec('Day 3: Brunch + Day Trip + Goodbye', [
-      'Brunch: Pancake Pantry (Hillsboro Village), Marche, or Frothy Monkey.',
-      'Day trip option: Leiper\'s Fork distillery, Franklin Main Street, or Cheekwood Estate.',
-      'Last meal: hot chicken at Prince\'s, Bolton\'s, or Hattie B\'s.',
-      'Souvenirs: Hatch Show Print posters, Goo Goo Cluster shop, Third Man Records.'
-    ]),
-    sec('Group Transportation', [
-      '6+ people: party bus or limo (Viator and GetYourGuide list local providers).',
-      '2 to 5 people: Uber XL is cheapest. Pre-set pickup point in the app.',
-      'BNA airport: pre-book Welcome Pickups or Kiwitaxi for fixed pricing.'
-    ]),
-    sec('Recovery Tools', [
-      'Mobile IV: Reset IV, Drip Hydration, NV Drips. They come to your rental at 9am-noon. Group rates at 4+.',
-      'Pancake Pantry biscuits and Frothy Monkey coffee are the local hangover ritual.',
-      'Stay hydrated. Nashville heat plus rooftop drinking dehydrates faster than you think.'
-    ]),
-    `<p style="margin:24px 0 12px;text-align:center;"><a href="${SITE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open the full guide</a></p>`,
-    '<p style="margin:16px 0 12px;font-size:14px;color:#666;">Reply to this email with your trip dates and I will personalize this with concert listings, weather, and what bars to skip.</p>'
-  ].join('\n');
+  return `<p style="margin:16px 0;text-align:center;"><a href="${BACHELORETTE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">Open the planner</a></p>
+<p style="margin:16px 0 8px;font-size:14px;color:#444;">Inside you will find a 3-day Nashville plan covering arrival, photo spots, dinner picks, group transport, and recovery tools. Bookmark the link, it loads fast on phones.</p>
+<p style="margin:8px 0 16px;font-size:14px;color:#666;">Reply to this email with your trip dates and I will personalize the plan with concerts, weather, and which spots to skip.</p>`;
 }
 
 function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
@@ -127,7 +88,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
   const sourceBlurb = {
     'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
-    'bachelorette': 'Bachelorette weekend incoming. Below is the planner with pedal taverns, party buses, photo spots, and brunch picks.',
+    'bachelorette': 'Your Nashville bachelorette planner is ready. Tap the button below to open it.',
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
   }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
 

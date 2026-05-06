@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#d62828">
+<title>Nashville Bachelorette Planner | Howdy Nash</title>
+<meta name="description" content="The free Nashville bachelorette planner. Pedal taverns, party buses, photo spots, brunch picks, and recovery tools.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nashville Bachelorette Planner">
+<link rel="apple-touch-icon" href="/logo.jpg">
+<style>
+  :root {
+    --red: #d62828;
+    --red-dark: #a01c1c;
+    --cream: #fff5f0;
+    --ink: #1a1a1a;
+    --gray: #666;
+    --gold: #c8a263;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--cream);
+    line-height: 1.55;
+    font-size: 16px;
+  }
+  .header {
+    background: var(--red);
+    color: #fff;
+    padding: 32px 20px 28px;
+    text-align: center;
+    border-bottom: 4px solid var(--gold);
+  }
+  .header h1 {
+    font-family: Georgia, 'Didot', serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .header .sub {
+    font-size: 13px;
+    opacity: 0.92;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 18px 80px;
+  }
+  .day {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  .day-label {
+    display: inline-block;
+    background: var(--red);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .day h2 {
+    font-family: Georgia, 'Didot', serif;
+    font-size: 22px;
+    color: var(--red);
+    margin-bottom: 14px;
+    line-height: 1.3;
+  }
+  .timeslot {
+    margin: 18px 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--red);
+  }
+  .timeslot h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .timeslot p { font-size: 15px; color: #333; margin-bottom: 6px; }
+  .intro {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin-bottom: 20px;
+    border: 2px solid var(--red);
+  }
+  .intro h2 {
+    font-family: Georgia, 'Didot', serif;
+    font-size: 20px;
+    color: var(--red);
+    margin-bottom: 10px;
+  }
+  .intro ul { list-style: none; padding: 0; }
+  .intro li {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 15px;
+  }
+  .intro li:last-child { border-bottom: none; }
+  .intro li strong {
+    display: block;
+    color: var(--red);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .cta {
+    background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 28px 20px;
+    text-align: center;
+    margin: 24px 0;
+  }
+  .cta h2 {
+    font-family: Georgia, 'Didot', serif;
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .cta p { font-size: 15px; opacity: 0.95; margin-bottom: 16px; }
+  .cta a {
+    display: inline-block;
+    background: #fff;
+    color: var(--red);
+    padding: 12px 28px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .footer {
+    text-align: center;
+    color: var(--gray);
+    font-size: 13px;
+    padding: 24px 20px;
+  }
+  .footer a {
+    color: var(--red);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  @media (max-width: 480px) {
+    .header h1 { font-size: 24px; }
+    .day { padding: 18px 16px; }
+    .day h2 { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Nashville Bachelorette Planner</h1>
+  <div class="sub">Howdy Nash · Your Free Nashville Guide</div>
+</div>
+
+<div class="container">
+
+  <div class="intro">
+    <h2>Before You Arrive</h2>
+    <ul>
+      <li><strong>Pedal Tavern</strong>Book 4+ weeks out. Weekends sell out fast.</li>
+      <li><strong>Group Dinner</strong>Husk, Etch, or Yolan need 3+ weeks notice for 6+ people.</li>
+      <li><strong>Matching Gear</strong>Order tank tops, sashes, and props online. Cheaper than buying on Broadway.</li>
+      <li><strong>BNA Transfers</strong>Pre-book Welcome Pickups or Kiwitaxi for groups of 6+.</li>
+      <li><strong>Pickup Spot</strong>Save your rental address in Uber and Lyft for the whole group.</li>
+    </ul>
+  </div>
+
+  <div class="day">
+    <span class="day-label">Day 1</span>
+    <h2>Arrive and Lower Broadway</h2>
+    <div class="timeslot">
+      <h3>Afternoon: Settle In</h3>
+      <p>Drop bags. Grab coffee at Frothy Monkey or Crema.</p>
+      <p>Take a group photo at the I Believe in Nashville mural in 12 South before it gets busy.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Late Afternoon: Honky Tonks</h3>
+      <p>Tootsie's, Robert's Western World, Acme Feed and Seed, Honky Tonk Central.</p>
+      <p>All have free live music starting around 10am. Tip the bands.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Dinner</h3>
+      <p>Hot chicken at Hattie B's. Ole Red for a country menu and rooftop. The Stillery for late-night.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Evening: Rooftop</h3>
+      <p>L.A. Jackson (12 South), White Limozeen (Graduate Hotel), Bobby Hotel rooftop, or Fairlane rooftop.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Recovery Setup</h3>
+      <p>Drink water before bed. Book mobile IV recovery for 9am tomorrow.</p>
+    </div>
+  </div>
+
+  <div class="day">
+    <span class="day-label">Day 2</span>
+    <h2>Brunch, Photos, Activity</h2>
+    <div class="timeslot">
+      <h3>Brunch</h3>
+      <p>Biscuit Love (no reservations, arrive before 9am for the bonut).</p>
+      <p>Adele's for upscale. The Hampton Social for rosé all day.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Photo Run</h3>
+      <p>I Believe in Nashville (12 South). What Lifts You wings (The Gulch). Make Music Not War mural (12 South). Patsy Cline mural (Berry Hill).</p>
+    </div>
+    <div class="timeslot">
+      <h3>Afternoon Activity</h3>
+      <p>Paint and sip class. Mechanical bull at Whiskey Row. Distillery tour at Nelson's Green Brier or Corsair.</p>
+      <p>Big group: book a pedal tavern or party bus through Lower Broadway.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Dinner</h3>
+      <p>The Gulch: Bartaco, Bakersfield, or Adele's.</p>
+      <p>12 South: Edley's BBQ, Burger Up, or Urban Grub.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Evening</h3>
+      <p>Bluebird Cafe songwriter round (book ahead). Then back to Broadway for one more honky tonk.</p>
+    </div>
+  </div>
+
+  <div class="day">
+    <span class="day-label">Day 3</span>
+    <h2>Brunch, Day Trip, Goodbye</h2>
+    <div class="timeslot">
+      <h3>Brunch</h3>
+      <p>Pancake Pantry (Hillsboro Village). Marche (East Nashville). Frothy Monkey for groups.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Day Trip Options</h3>
+      <p>Leiper's Fork distillery and village (40 min). Franklin Main Street (30 min). Cheekwood Estate gardens (20 min).</p>
+    </div>
+    <div class="timeslot">
+      <h3>Last Meal</h3>
+      <p>Hot chicken at Prince's, Bolton's, or Hattie B's. Loveless Cafe for biscuits if you have a car.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Souvenirs</h3>
+      <p>Hatch Show Print posters. Goo Goo Cluster shop on Lower Broadway. Third Man Records (Jack White's label).</p>
+    </div>
+  </div>
+
+  <div class="day">
+    <span class="day-label">Logistics</span>
+    <h2>Group Transportation</h2>
+    <div class="timeslot">
+      <h3>6+ People</h3>
+      <p>Party bus or limo. Search Viator or GetYourGuide for local providers.</p>
+    </div>
+    <div class="timeslot">
+      <h3>2 to 5 People</h3>
+      <p>Uber XL is cheapest. Set the pickup point at your rental in advance.</p>
+    </div>
+    <div class="timeslot">
+      <h3>BNA Airport</h3>
+      <p>Pre-book Welcome Pickups (English-speaking driver) or Kiwitaxi (fixed price). No surge pricing.</p>
+    </div>
+  </div>
+
+  <div class="day">
+    <span class="day-label">Recovery</span>
+    <h2>Recovery Tools</h2>
+    <div class="timeslot">
+      <h3>Mobile IV</h3>
+      <p>Reset IV, Drip Hydration, NV Drips. They come to your rental at 9am to noon. Group rates at 4+.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Local Hangover Ritual</h3>
+      <p>Pancake Pantry biscuits and Frothy Monkey coffee. The Diner stays open late.</p>
+    </div>
+    <div class="timeslot">
+      <h3>Stay Hydrated</h3>
+      <p>Nashville heat plus rooftop drinking dehydrates faster than you think. Water between drinks.</p>
+    </div>
+  </div>
+
+  <div class="cta">
+    <h2>Want more?</h2>
+    <p>The full Howdy Nash app has every restaurant, photo spot, mural, distillery, ride share button, and live concert listing in one place.</p>
+    <a href="https://howdynash.com">Open Howdy Nash</a>
+  </div>
+
+  <div class="footer">
+    Made by a Nashville local. Reply to the email I sent you with your trip dates and I will personalize this with concerts, weather, and which bars to skip.<br><br>
+    <a href="https://howdynash.com">howdynash.com</a>
+  </div>
+
+</div>
+
+</body>
+</html>
