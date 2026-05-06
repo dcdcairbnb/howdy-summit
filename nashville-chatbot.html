@@ -1833,8 +1833,15 @@ function goBack() {
     showRestaurantsPaged(_pagedRestaurantsState.list, newIdx, _pagedRestaurantsState.container);
     return;
   }
+  // Same logic for any paginated curated list (bakeries, etc.)
+  if (_pagedCuratedState && _pagedCuratedState.startIdx > 0 && _pagedCuratedState.container && document.body.contains(_pagedCuratedState.container)) {
+    const newIdx = Math.max(0, _pagedCuratedState.startIdx - 5);
+    showCuratedListPaged(_pagedCuratedState.list, _pagedCuratedState.label, newIdx, _pagedCuratedState.container);
+    return;
+  }
   // Leaving paged view, clear the tracking state.
   _pagedRestaurantsState = null;
+  _pagedCuratedState = null;
 
   if (menuStack.length < 2) return;
   menuStack.pop();
@@ -3077,8 +3084,10 @@ const CURATED_BAKERIES = [
   { name: "Yeast Nashville", neighborhood: "Wedgewood-Houston", desc: "Sourdough, pastries, and breakfast sandwiches. Small storefront with weekend lines.", url: "https://www.yeastnashville.com" },
   { name: "Sweet 16th Bakery", neighborhood: "East Nashville", desc: "Cult breakfast pastries, scones, and quiche. Tiny neighborhood spot. Cash or card, walk-in only.", url: "https://www.sweet16thbakery.com" },
   { name: "Dozen Bakery", neighborhood: "Wedgewood-Houston", desc: "Artisan breads, pastries, cakes. Lunch sandwiches on house-baked bread. Counter service plus seating.", url: "https://www.dozen-nashville.com" },
+  { name: "Cocorico Patisserie & French Cafe", neighborhood: "West End / Belle Meade", desc: "Classic French patisserie. Croissants, eclairs, macarons, quiche, and house-made breads. Cafe seating with espresso bar.", url: "https://www.cocoriconashville.com" },
   { name: "Provence Breads & Cafe", neighborhood: "Hillsboro Village / Multiple", desc: "French-inspired bakery and cafe. Croissants, baguettes, quiches, and pastries. Multiple Nashville locations.", url: "https://www.provencebreads.com" },
   { name: "Le Macaron French Pastries", neighborhood: "Downtown", desc: "Authentic French macarons in dozens of flavors. Small downtown storefront, easy walkable from Broadway.", url: "https://lemacaron-us.com" },
+  { name: "Shipley Do-Nuts", neighborhood: "Multiple locations", desc: "Texas-born donut chain with several Nashville locations. Glazed, filled, kolaches, and breakfast pastries. Drive-thru and walk-in.", url: "https://shipleydonuts.com" },
   { name: "Lucky Cake Pop & Bake Shop", neighborhood: "Berry Hill", desc: "Cake pops, custom cakes, and bachelorette/event treats. Order ahead for groups.", url: "https://www.luckycakepop.com" },
   { name: "Frothy Monkey", neighborhood: "12 South / Multiple", desc: "All-day cafe and bakery. Coffee, pastries, brunch, and lunch. Patio seating at most locations.", url: "https://frothymonkey.com" },
   { name: "Bobbie's Dairy Dip", neighborhood: "The Nations", desc: "Old-school walk-up serving soft serve, milkshakes, and homemade donuts. Kid-friendly, summer favorite.", url: "https://bobbiesdairydip.com" },
@@ -3430,7 +3439,58 @@ function showBreweries() {
   showCuratedThenLive(CURATED_BREWERIES, 'brewery taproom craft beer', 'bar', 'breweries');
 }
 function showBakeries() {
-  showCuratedThenLive(CURATED_BAKERIES, 'bakery donuts pastries', 'bakery', 'bakeries');
+  addMessage(`Top Nashville bakeries (${CURATED_BAKERIES.length} total):`, 'bot');
+  showCuratedListPaged(CURATED_BAKERIES, 'bakery', 0);
+}
+
+// Paginate any curated list 5 at a time, like restaurants. Reuses renderCuratedCard.
+let _pagedCuratedState = null;
+function showCuratedListPaged(list, label, startIdx, pageContainer) {
+  const pageSize = 5;
+  const totalPages = Math.ceil(list.length / pageSize);
+  const currentPage = Math.floor(startIdx / pageSize) + 1;
+  const slice = list.slice(startIdx, startIdx + pageSize);
+  const remaining = list.length - (startIdx + pageSize);
+  const hasNext = remaining > 0;
+  const hasPrev = startIdx > 0;
+
+  let html = '';
+  if (totalPages > 1) {
+    html += `<div class="message bot" style="font-size:13px;color:#666;text-align:center;background:transparent;padding:6px 0;">Page ${currentPage} of ${totalPages}</div>`;
+  }
+  slice.forEach(item => {
+    html += `<div class="message bot">${renderCuratedCard(item, label, null)}</div>`;
+  });
+
+  if (hasPrev || hasNext) {
+    html += `<div class="quick-replies" id="curatedPageNav">`;
+    if (hasPrev) {
+      html += `<button class="quick-reply" data-curated-action="prev">← Previous 5</button>`;
+    }
+    if (hasNext) {
+      html += `<button class="quick-reply" data-curated-action="next">Show next ${Math.min(pageSize, remaining)} →</button>`;
+    }
+    html += `</div>`;
+  } else if (totalPages > 1) {
+    html += `<div class="message bot" style="text-align:center;color:#666;">That's everything.</div>`;
+  }
+
+  if (!pageContainer) {
+    pageContainer = document.createElement('div');
+    pageContainer.className = 'curated-page-container';
+    messagesEl.appendChild(pageContainer);
+  }
+  pageContainer.innerHTML = html;
+
+  pageContainer.querySelectorAll('[data-curated-action]').forEach(btn => {
+    const action = btn.getAttribute('data-curated-action');
+    btn.addEventListener('click', () => {
+      const newIdx = action === 'prev' ? Math.max(0, startIdx - pageSize) : startIdx + pageSize;
+      showCuratedListPaged(list, label, newIdx, pageContainer);
+    });
+  });
+
+  _pagedCuratedState = { list, label, startIdx, container: pageContainer };
 }
 // Tennessee waterfalls within day-trip distance of Nashville. Verified state
 // park or natural area. Drive times approximate from downtown Nashville.
