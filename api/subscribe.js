@@ -79,8 +79,13 @@ function buildBacheloretteBlock() {
 <p style="margin:16px 0 12px;">If you reply to this email with your trip dates I will personalize the plan with concerts, weather, and which spots to skip that weekend.</p>`;
 }
 
+// Title-case a single name word so "DAN" or "dan" both render as "Dan".
+function titleCase(s) {
+  return String(s || '').toLowerCase().replace(/(^|\s|-)([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
 function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
-  const greeting = name ? `Howdy ${name.split(' ')[0]}` : 'Howdy';
+  const firstName = name ? titleCase(name.split(' ')[0]) : '';
+  const greeting = firstName ? `Howdy ${firstName}` : 'Howdy';
   let savedSpotsBlock = '';
   if (savedSpots && savedSpots.length) {
     const items = savedSpots.map(s => `<li style="margin:6px 0;"><strong>${escapeHtml(s.name || '')}</strong>${s.note ? ' &mdash; ' + escapeHtml(s.note) : ''}${s.address ? '<br><span style="color:#666;font-size:13px;">' + escapeHtml(s.address) + '</span>' : ''}</li>`).join('');
@@ -89,18 +94,19 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
   const sourceBlurb = {
     'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
-    'bachelorette': 'Your Nashville group trip planner is ready. Tap the button below to open it.',
+    'bachelorette': 'Thanks for signing up. I built a Nashville group trip planner page just for trips like yours.',
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
   }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
 
-  // Plain-text style email with minimal HTML. Gmail's Promotions filter scores
-  // emails on visual signals: big colored CTA buttons, headers, dense styling.
-  // Looking like a normal person typing into Gmail keeps us in Primary.
+  // Subtle branding (small logo) plus plain-text body. Logo helps the email
+  // feel polished without triggering Gmail's Promotions classifier (no big CTA
+  // buttons, no colored headers, no marketing copy).
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Howdy Nash</title></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#222;font-size:16px;line-height:1.55;">
   <div style="max-width:560px;margin:0 auto;padding:20px 18px;">
+    <div style="margin-bottom:18px;"><img src="${SITE_URL}/logo.png" alt="Howdy Nash" width="56" height="56" style="border-radius:12px;display:block;" /></div>
     <p style="margin:0 0 14px;">${greeting},</p>
     <p style="margin:0 0 14px;">${sourceBlurb}</p>
     ${source === 'cheatsheet' ? `<p style="margin:14px 0;"><a href="${CHEATSHEET_URL}" style="color:#d62828;font-weight:600;">${CHEATSHEET_URL}</a></p>` : ''}
@@ -108,7 +114,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
     ${savedSpotsBlock}
     <p style="margin:18px 0 14px;">Reply anytime. I read every email and I am happy to point you to the right spot for whatever you are looking for in Nashville.</p>
     <p style="margin:0 0 4px;">Dan</p>
-    <p style="margin:0;color:#666;font-size:14px;">Howdy Nash</p>
+    <p style="margin:0;color:#666;font-size:14px;">Howdy Nash · Nashville's Free Travel Concierge</p>
     <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent because you signed up at howdynash.com. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
   </div>
 </body>
