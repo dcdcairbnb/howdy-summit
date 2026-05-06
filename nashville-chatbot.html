@@ -2197,8 +2197,17 @@ function routeIntent(text) {
   // checklist" matches "checklist" first and just re-renders without clearing.
   if (matches(lower, ['reset checklist', 'clear checklist', 'reset check list', 'clear check list'])) {
     try { localStorage.removeItem(CHECKLIST_STORAGE_KEY); } catch (e) {}
+    // Update the currently rendered checklist in place so we don't end up with
+    // two stacked checklists in the chat history.
+    document.querySelectorAll('[data-checklist-id]').forEach(box => {
+      box.checked = false;
+      const span = box.parentElement && box.parentElement.querySelector('span');
+      if (span) {
+        span.style.textDecoration = '';
+        span.style.color = '';
+      }
+    });
     addMessage('Checklist cleared.', 'bot');
-    showTripChecklist();
     return;
   }
   if (matches(lower, ['✅ nash check list', 'nash check list', 'nash checklist', '✅ trip checklist', 'trip checklist', 'checklist', 'nashville checklist', 'todo list', 'to-do'])) {
