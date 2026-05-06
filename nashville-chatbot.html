@@ -830,7 +830,7 @@ const NASHVILLE_DATA = {
     { name: "Edley's Bar-B-Que", cuisine: "BBQ and hot chicken", neighborhood: "12 South, East Nashville, Sylvan Park", price: "$$", phone: "(615) 269-6212", vibe: "Casual BBQ joint that also serves a notable hot chicken plate. Bachelorette-friendly patio.", note: "Walk-in. Brisket plate, smoked wings, and the Tuck Special hot chicken sandwich.", booking: { walkin: true, yelp: "https://www.yelp.com/biz/edleys-bar-b-que-nashville" } },
     { name: "Joyland", cuisine: "Hot chicken", neighborhood: "Hillsboro Village", price: "$$", vibe: "modern, chef-driven by Sean Brock", note: "Counter-service. Hot chicken sandwich and a smash burger.", booking: { walkin: true, yelp: "https://www.yelp.com/biz/joyland-nashville" } },
     { name: "Crawford's Hot Chicken", cuisine: "Hot chicken", neighborhood: "Madison", price: "$", vibe: "newer spot, generous portions", note: "Walk-in. Less crowded than the Broadway tourist spots.", booking: { walkin: true, yelp: "https://www.yelp.com/biz/crawfords-hot-chicken-madison" } },
-    { name: "Rolf and Daughters", cuisine: "Italian", neighborhood: "Germantown", price: "$$$", vibe: "modern Italian, handmade pasta", phone: "(615) 866-9897", booking: { resy: "https://resy.com/cities/nashville-tn/venues/rolf-and-daughters", opentable: "https://www.opentable.com/r/rolf-and-daughters-nashville" } },
+    { name: "Rolf and Daughters", cuisine: "Italian", neighborhood: "Germantown", price: "$$$", vibe: "modern Italian, handmade pasta", phone: "(615) 866-9897", booking: { opentable: "https://www.opentable.com/r/rolf-and-daughters-nashville" } },
     { name: "City House", cuisine: "Italian", neighborhood: "Germantown", price: "$$$", vibe: "wood-fired pizza, Sunday Suppa", phone: "(615) 736-5838", booking: { opentable: "https://www.opentable.com/r/city-house-nashville" } },
     { name: "Pinewood Social", cuisine: "American", neighborhood: "SoBro", price: "$$", vibe: "social hub, bowling lanes", phone: "(615) 751-8111", booking: { resy: "https://resy.com/cities/nashville-tn/venues/pinewood-social" } },
     { name: "Bastion", cuisine: "Modern American", neighborhood: "Wedgewood-Houston", price: "$$$", vibe: "tiny tasting room, only 24 seats", phone: "(615) 490-8434", booking: { tock: "https://www.exploretock.com/bastion", resy: "https://resy.com/cities/nashville-tn/venues/bastion" } },
@@ -3171,12 +3171,12 @@ const CURATED_HOLIDAY_BRUNCH = {
       { name: "Adele's", neighborhood: "The Gulch", desc: "Jonathan Waxman seasonal Southern. Patio seating. Upscale brunch. Call directly.", reservation: null, phone: "(615) 988-9700" },
       { name: "Husk Nashville", neighborhood: "Rutledge Hill", desc: "Sean Brock Southern in a historic mansion. Refined Mother's Day menu.", reservation: "https://www.opentable.com/r/husk-nashville", phone: "(615) 256-6565" },
       { name: "Etch", neighborhood: "SoBro", desc: "Deb Paquette modern American. Inventive brunch dishes. Walk-in bar seats.", reservation: "https://www.opentable.com/r/etch-nashville", phone: "(615) 522-0685" },
-      { name: "Henrietta Red", neighborhood: "Germantown", desc: "Oysters, raw bar, Southern classics. Bright airy room.", reservation: "https://resy.com/cities/nashville-tn/venues/henrietta-red", phone: "(615) 490-8042" },
+      { name: "Henrietta Red", neighborhood: "Germantown", desc: "Oysters, raw bar, Southern classics. Bright airy room. Call directly.", reservation: null, phone: "(615) 490-8042" },
       { name: "Margot Cafe", neighborhood: "East Nashville", desc: "Margot McCormack's French/Italian. Charming cottage. Sunday brunch is famous. Call directly.", reservation: null, phone: "(615) 227-4668" },
       { name: "Marsh House", neighborhood: "SoBro (Thompson Hotel)", desc: "Southern seafood in the Thompson Hotel. Brunch buffet on Sundays.", reservation: "https://www.opentable.com/r/marsh-house-nashville", phone: "(615) 262-6000" },
       { name: "City House", neighborhood: "Germantown", desc: "Wood-fired Italian. Sunday Suppa is legendary. Reserve 3+ weeks out.", reservation: "https://www.opentable.com/r/city-house-nashville", phone: "(615) 736-5838" },
       { name: "The Mockingbird", neighborhood: "Germantown", desc: "Modern American, comforting menu. Patio with greenery.", reservation: "https://www.opentable.com/r/the-mockingbird-nashville", phone: "(615) 736-5856" },
-      { name: "Cafe Roze", neighborhood: "East Nashville", desc: "All-day cafe with Mediterranean lean. Light brunch fare.", reservation: "https://resy.com/cities/nashville-tn/venues/cafe-roze", phone: "(615) 645-9100" },
+      { name: "Cafe Roze", neighborhood: "East Nashville", desc: "All-day cafe with Mediterranean lean. Light brunch fare. Walk-in friendly.", reservation: null, phone: "(615) 645-9100" },
       { name: "The Hampton Social", neighborhood: "SoBro", desc: "Rosé all day, breezy beach club vibe. Walk-in friendly with a wait.", reservation: "https://www.opentable.com/r/the-hampton-social-nashville", phone: "(615) 891-3007" },
       { name: "Pancake Pantry", neighborhood: "Hillsboro Village", desc: "No reservations. 24 pancake varieties. Mother's Day line is brutal but moves. Arrive before 8am.", reservation: null, phone: "(615) 383-9333" },
       { name: "Biscuit Love (The Gulch)", neighborhood: "The Gulch", desc: "No reservations. Famous Bonut and biscuits. Get there before 9am or expect a 90-minute wait.", reservation: null, phone: "(615) 490-9584" }
@@ -4087,9 +4087,9 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
     shownGroupMilestones.add('h8');
     addMessage(`<div class="card" style="border:2px dashed #0a8754;">
       <div class="card-title">🥞 Plan tomorrow's brunch now</div>
-      <div class="card-desc">Big groups need reservations. Biscuit Love, Pancake Pantry, Frothy Monkey, Marche.</div>
-      <a href="https://www.opentable.com/r/biscuit-love-the-gulch-nashville" target="_blank" rel="noopener" style="background:#da3743;color:#fff;">Reserve Biscuit Love</a>
+      <div class="card-desc">Big groups need reservations. Biscuit Love and Pancake Pantry are walk-in only (arrive before 9am to skip the wait). Marche and Frothy Monkey take groups.</div>
       <a href="https://resy.com/cities/nashville-tn" target="_blank" rel="noopener" style="background:#000;color:#fff;">Browse Resy</a>
+      <a href="https://www.opentable.com/nashville-restaurants" target="_blank" rel="noopener" style="background:#da3743;color:#fff;">Browse OpenTable</a>
     </div>`, 'bot', true);
     addMessage(`<div class="card" style="border:2px dashed #34a853;">
       <div class="card-title">💧 Need IV recovery tomorrow?</div>
