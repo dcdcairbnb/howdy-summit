@@ -3087,7 +3087,6 @@ const CURATED_BAKERIES = [
   { name: "Cocorico Patisserie & French Cafe", neighborhood: "West End / Belle Meade", desc: "Classic French patisserie. Croissants, eclairs, macarons, quiche, and house-made breads. Cafe seating with espresso bar.", url: "https://www.cocoriconashville.com" },
   { name: "Provence Breads & Cafe", neighborhood: "Hillsboro Village / Multiple", desc: "French-inspired bakery and cafe. Croissants, baguettes, quiches, and pastries. Multiple Nashville locations.", url: "https://www.provencebreads.com" },
   { name: "Le Macaron French Pastries", neighborhood: "Downtown", desc: "Authentic French macarons in dozens of flavors. Small downtown storefront, easy walkable from Broadway.", url: "https://lemacaron-us.com" },
-  { name: "Shipley Do-Nuts", neighborhood: "Multiple locations", desc: "Texas-born donut chain with several Nashville locations. Glazed, filled, kolaches, and breakfast pastries. Drive-thru and walk-in.", url: "https://shipleydonuts.com" },
   { name: "Lucky Cake Pop & Bake Shop", neighborhood: "Berry Hill", desc: "Cake pops, custom cakes, and bachelorette/event treats. Order ahead for groups.", url: "https://www.luckycakepop.com" },
   { name: "Frothy Monkey", neighborhood: "12 South / Multiple", desc: "All-day cafe and bakery. Coffee, pastries, brunch, and lunch. Patio seating at most locations.", url: "https://frothymonkey.com" },
   { name: "Bobbie's Dairy Dip", neighborhood: "The Nations", desc: "Old-school walk-up serving soft serve, milkshakes, and homemade donuts. Kid-friendly, summer favorite.", url: "https://bobbiesdairydip.com" },
@@ -3446,6 +3445,7 @@ function showBakeries() {
 // Paginate any curated list 5 at a time, like restaurants. Reuses renderCuratedCard.
 let _pagedCuratedState = null;
 function showCuratedListPaged(list, label, startIdx, pageContainer) {
+  const isRerender = !!pageContainer; // a re-render means the user clicked Next/Prev
   const pageSize = 5;
   const totalPages = Math.ceil(list.length / pageSize);
   const currentPage = Math.floor(startIdx / pageSize) + 1;
@@ -3491,6 +3491,11 @@ function showCuratedListPaged(list, label, startIdx, pageContainer) {
   });
 
   _pagedCuratedState = { list, label, startIdx, container: pageContainer };
+
+  // On Next/Prev, scroll the new page to the top of the chat viewport.
+  if (isRerender) {
+    setTimeout(() => pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
 }
 // Tennessee waterfalls within day-trip distance of Nashville. Verified state
 // park or natural area. Drive times approximate from downtown Nashville.
@@ -5500,6 +5505,7 @@ let _pagedRestaurantsState = null;
 // container div so changing pages is just clearing that container and re-rendering.
 // pageContainer is the div the cards live in. If null, a new one is created.
 function showRestaurantsPaged(list, startIdx, pageContainer) {
+  const isRerender = !!pageContainer; // a re-render means the user clicked Next/Prev
   const pageSize = 5;
   const totalPages = Math.ceil(list.length / pageSize);
   const currentPage = Math.floor(startIdx / pageSize) + 1;
@@ -5550,6 +5556,11 @@ function showRestaurantsPaged(list, startIdx, pageContainer) {
 
   // Track this paged view for the global Back button.
   _pagedRestaurantsState = { list, startIdx, container: pageContainer };
+
+  // On Next/Prev, scroll the new page to the top of the chat viewport.
+  if (isRerender) {
+    setTimeout(() => pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
 
   // Scroll to the top of the page container so the new page is visible from the start
   setTimeout(() => {
