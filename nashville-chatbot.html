@@ -2175,7 +2175,27 @@ function routeIntent(text) {
   }
 
   if (matches(lower, ['main menu', '← main menu', 'back to menu', 'home menu'])) {
+    _expectingSearchQuery = false;
     goHome();
+    return;
+  }
+
+  // If the previous turn was the Search pill, the next non-menu message is
+  // the search query. Run search and clear the flag.
+  if (_expectingSearchQuery) {
+    _expectingSearchQuery = false;
+    runGlobalSearch(message);
+    return;
+  }
+
+  if (matches(lower, ['🔍 search', 'search', 'find a place', 'look up'])) {
+    showSearchPrompt();
+    return;
+  }
+  // Inline search: "search [query]" or "find [query]"
+  const searchPrefix = lower.match(/^(search|find)\s+(.+)$/);
+  if (searchPrefix && searchPrefix[2].length >= 2) {
+    runGlobalSearch(searchPrefix[2]);
     return;
   }
 
@@ -2683,6 +2703,7 @@ function showWelcome() {
 
 function showMainMenu() {
   const replies = [
+    '🔍 Search',
     '🍽️ Eat & Drink',
     '🎵 Things to Do',
     '🏘️ Neighborhoods',
@@ -2701,6 +2722,98 @@ function showMainMenu() {
   const holiday = getActiveHoliday();
   if (holiday) replies.unshift(`${holiday.emoji} ${holiday.label}`);
   addQuickReplies(replies);
+}
+
+// Global search across all curated data. Triggered by the Search pill or
+// "search/find <query>" typed into the chat. Returns ranked results across
+// restaurants, attractions, bakeries, distilleries, breweries, neighborhoods,
+// photo spots, honky tonks, rooftops, holiday brunch spots.
+function showSearchPrompt() {
+  addMessage(`Type what you are looking for. I will scan restaurants, bars, attractions, neighborhoods, bakeries, photo spots, and more.`, 'bot');
+  addQuickReplies(['Hot chicken', 'Husk', '12 South', 'Photo spot', 'Brunch', 'Rooftop', 'Whiskey', '← Main menu']);
+  // Mark the next user message as a search query.
+  _expectingSearchQuery = true;
+}
+
+let _expectingSearchQuery = false;
+
+function runGlobalSearch(query) {
+  const q = String(query || '').toLowerCase().trim();
+  if (!q || q.length < 2) {
+    addMessage(`Search needs at least 2 characters.`, 'bot');
+    return;
+  }
+  const hits = [];
+  const score = (item, ...fields) => {
+    const haystack = fields.filter(Boolean).join(' ').toLowerCase();
+    if (!haystack.includes(q)) return 0;
+    // Boost name/title matches over description matches.
+    const nameMatch = (item.name || item.title || '').toLowerCase().includes(q);
+    return nameMatch ? 10 : 1;
+  };
+  // Restaurants
+  (NASHVILLE_DATA.restaurants || []).forEach(r => {
+    const s = score(r, r.name, r.cuisine, r.neighborhood, r.vibe, r.note);
+    if (s) hits.push({ kind: 'restaurant', item: r, score: s });
+  });
+  // Attractions
+  (NASHVILLE_DATA.attractions || []).forEach(a => {
+    const s = score(a, a.name, a.type, a.neighborhood, a.desc);
+    if (s) hits.push({ kind: 'attraction', item: a, score: s });
+  });
+  // Generic curated arrays. Each becomes its own kind.
+  const namedArrays = [
+    [CURATED_BAKERIES, 'bakery'], [CURATED_DISTILLERIES, 'distillery'],
+    [CURATED_BREWERIES, 'brewery'], [CURATED_HONKY_TONKS, 'honky tonk'],
+    [CURATED_ROOFTOPS, 'rooftop bar'], [CURATED_PHOTO_SPOTS, 'photo spot'],
+    [CURATED_RESTROOMS, 'restroom']
+  ];
+  namedArrays.forEach(([arr, kind]) => {
+    if (!Array.isArray(arr)) return;
+    arr.forEach(item => {
+      const s = score(item, item.name, item.neighborhood, item.desc);
+      if (s) hits.push({ kind, item, score: s });
+    });
+  });
+  // Neighborhoods
+  if (typeof NEIGHBORHOOD_INFO === 'object') {
+    Object.entries(NEIGHBORHOOD_INFO).forEach(([key, n]) => {
+      const s = score({ name: key }, key, n.summary || '', n.knownFor || '');
+      if (s) hits.push({ kind: 'neighborhood', item: { name: key, ...n }, score: s });
+    });
+  }
+  // Holiday brunch spots
+  if (typeof CURATED_HOLIDAY_BRUNCH === 'object') {
+    Object.entries(CURATED_HOLIDAY_BRUNCH).forEach(([key, h]) => {
+      (h.spots || []).forEach(s => {
+        const sc = score(s, s.name, s.neighborhood, s.desc);
+        if (sc) hits.push({ kind: `${h.label}`, item: s, score: sc });
+      });
+    });
+  }
+  hits.sort((a, b) => b.score - a.score);
+  if (hits.length === 0) {
+    addMessage(`No results for "${query}". Try a shorter word, a neighborhood, or a cuisine.`, 'bot');
+    return;
+  }
+  addMessage(`${hits.length} match${hits.length === 1 ? '' : 'es'} for "${query}":`, 'bot');
+  hits.slice(0, 20).forEach(h => {
+    const i = h.item;
+    let html = `<div class="card">
+      <div class="card-title">${i.name || i.title}</div>
+      <div class="card-meta">${h.kind}${i.neighborhood ? ' · ' + i.neighborhood : ''}${i.cuisine ? ' · ' + i.cuisine : ''}</div>
+      <div class="card-desc">${i.desc || i.vibe || i.summary || ''}</div>`;
+    const url = i.url || i.reservation || (i.booking && (i.booking.opentable || i.booking.resy || i.booking.tock || i.booking.yelp)) || '';
+    if (url) html += `<a href="${url}" target="_blank" rel="noopener">View</a>`;
+    if (i.phone) html += `<a class="call-btn" href="tel:${i.phone}">Call ${i.phone}</a>`;
+    const mapsName = encodeURIComponent((i.name || '') + ' Nashville TN');
+    html += `<a href="https://www.google.com/maps/search/${mapsName}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+    html += `</div>`;
+    addMessage(html, 'bot', true);
+  });
+  if (hits.length > 20) {
+    addMessage(`Showing top 20 of ${hits.length}. Try a more specific term to narrow down.`, 'bot');
+  }
 }
 
 function dismissCheatSheetCard() {
@@ -3602,6 +3715,54 @@ function showRooftopBars() {
 }
 function showDistilleries() {
   showCuratedThenLive(CURATED_DISTILLERIES, 'whiskey distillery tour', 'tourist_attraction', 'distilleries');
+  setTimeout(() => addMessage(renderAmazonShopCard('whiskey'), 'bot', true), 600);
+}
+
+// Reusable Amazon shop card. Each entry is a 1-line label + Amazon search query.
+// Tag is appended automatically via amazonSearch().
+function renderAmazonShopCard(category) {
+  const sets = {
+    whiskey: {
+      title: '🥃 Whiskey gear (Amazon)',
+      desc: 'Bring the Nashville whiskey trip home. Glassware, decanters, and the books that win arguments.',
+      items: [
+        ['Glencairn whiskey glasses', 'glencairn whiskey glasses set'],
+        ['Whiskey decanter set', 'whiskey decanter set'],
+        ['Bourbon flight tray', 'bourbon flight tasting tray'],
+        ['Tennessee whiskey book', 'tennessee whiskey history book']
+      ]
+    },
+    creator: {
+      title: '📸 Creator gear (Amazon)',
+      desc: 'Better selfies and TikToks at every Nashville mural and rooftop.',
+      items: [
+        ['Phone tripod with remote', 'phone tripod bluetooth remote'],
+        ['Selfie ring light', 'selfie ring light phone'],
+        ['Wireless lavalier mic', 'wireless lavalier microphone iphone'],
+        ['Phone gimbal stabilizer', 'phone gimbal stabilizer']
+      ]
+    },
+    travel: {
+      title: '🎒 Travel essentials (Amazon)',
+      desc: 'Things first-timers always forget. BNA security lines move fast if you packed smart.',
+      items: [
+        ['Portable phone charger', 'portable phone charger'],
+        ['Neck pillow (memory foam)', 'memory foam travel neck pillow'],
+        ['Packing cubes set', 'packing cubes set'],
+        ['TSA-approved toiletry bag', 'tsa approved toiletry bag clear']
+      ]
+    }
+  };
+  const c = sets[category];
+  if (!c) return '';
+  let html = `<div class="card" style="border-left:4px solid #ff9900;">
+    <div class="card-title">${c.title}</div>
+    <div class="card-desc">${c.desc}</div>`;
+  c.items.forEach(([label, q]) => {
+    html += `<a href="${amazonSearch(q)}" target="_blank" rel="noopener" style="background:#ff9900;color:#000;">${label}</a>`;
+  });
+  html += `</div>`;
+  return html;
 }
 function showBreweries() {
   showCuratedThenLive(CURATED_BREWERIES, 'brewery taproom craft beer', 'bar', 'breweries');
@@ -3721,6 +3882,7 @@ function showMobileGlam() {
 }
 function showPhotoSpots() {
   showCuratedThenLive(CURATED_PHOTO_SPOTS, 'instagram mural photo spot landmark', 'tourist_attraction', 'photo spots');
+  setTimeout(() => addMessage(renderAmazonShopCard('creator'), 'bot', true), 600);
 }
 function showFreeThings() {
   showCuratedThenLive(CURATED_FREE_THINGS, 'free park museum mural', 'tourist_attraction', 'free things to do');
@@ -5246,6 +5408,8 @@ function renderBnaInfoCard() {
 async function showFlights() {
   // Always show the BNA info card first so the user has something useful immediately
   addMessage(renderBnaInfoCard(), 'bot', true);
+  // Travel essentials shop card. Drops in right under the BNA info.
+  addMessage(renderAmazonShopCard('travel'), 'bot', true);
   addMessage("Trying live BNA arrivals...", 'bot');
   try {
     const r = await fetch(`${API_BASE}/api/flights?airport=BNA&direction=arrivals&limit=50`);
