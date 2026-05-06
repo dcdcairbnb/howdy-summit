@@ -4539,6 +4539,37 @@ function showBachelorette(skipPush) {
         { label: 'Party buses on Viator', url: viatorSearch('Nashville party bus bachelorette'), color: '#328e3a' },
         { label: 'Limos on Maps', url: 'https://www.google.com/maps/search/limo+service+nashville', color: '#34a853' }
       ]
+    },
+    {
+      title: '💍 Bride Squad Essentials',
+      desc: 'Order matching gear before you fly out. Tank tops, sashes, banners, koozies, photo props, custom cups. Most ship in 2 to 3 days on Prime.',
+      links: [
+        { label: 'Bride & bridesmaid tanks', url: amazonSearchUrl('bride bridesmaid tank top set'), color: '#ff9900', textColor: '#000' },
+        { label: 'Sash sets (Bride / Maid of Honor)', url: amazonSearchUrl('bachelorette sash set'), color: '#ff9900', textColor: '#000' },
+        { label: 'Cups, koozies, straws', url: amazonSearchUrl('bachelorette party cups koozies straws'), color: '#ff9900', textColor: '#000' },
+        { label: 'Photo props & decorations', url: amazonSearchUrl('bachelorette party decorations photo props'), color: '#ff9900', textColor: '#000' },
+        { label: 'Hangover recovery kit', url: amazonSearchUrl('hangover recovery kit'), color: '#ff9900', textColor: '#000' }
+      ]
+    },
+    {
+      title: '🤠 Cowboy Boots & Western Gear',
+      desc: 'Cheaper to order online than to buy on Broadway. Pink and white boots are the bachelorette uniform.',
+      links: [
+        { label: 'Womens cowboy boots', url: amazonSearchUrl('womens cowboy boots'), color: '#ff9900', textColor: '#000' },
+        { label: 'Pink cowboy boots', url: amazonSearchUrl('pink cowboy boots women'), color: '#ff9900', textColor: '#000' },
+        { label: 'Cowboy hats (group)', url: amazonSearchUrl('cowboy hat women felt western'), color: '#ff9900', textColor: '#000' },
+        { label: 'Western fringe jackets', url: amazonSearchUrl('western fringe jacket women'), color: '#ff9900', textColor: '#000' }
+      ]
+    },
+    {
+      title: '🎒 Pack Smart for Nashville',
+      desc: 'Things first-timers always forget. Lower Broadway is loud, hot, and there are no chairs.',
+      links: [
+        { label: 'Portable phone charger', url: amazonSearchUrl('portable phone charger'), color: '#ff9900', textColor: '#000' },
+        { label: 'Crossbody bag (anti-theft)', url: amazonSearchUrl('crossbody bag anti theft'), color: '#ff9900', textColor: '#000' },
+        { label: 'Comfortable walking shoes', url: amazonSearchUrl('comfortable walking shoes women'), color: '#ff9900', textColor: '#000' },
+        { label: 'Sunscreen (rooftop weather)', url: amazonSearchUrl('sunscreen spray spf 50'), color: '#ff9900', textColor: '#000' }
+      ]
     }
   ];
 
@@ -5168,6 +5199,12 @@ const EXPEDIA_TPID = '8000';
 // place on the page (Tiqets, Klook, Vrbo, Hotels.com, Tripadvisor, Welcome
 // Pickups, Kiwitaxi, TicketNetwork, Aviasales, Radical Storage, etc.).
 const TRAVELPAYOUTS_MARKER = '525866';
+// Amazon Associates US tag. Skimlinks does NOT cover amazon.com (Amazon's
+// terms ban link aggregators), so Amazon URLs need this tag appended directly.
+const AMAZON_TAG = 'howdynash-20';
+function amazonSearchUrl(q) {
+  return `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AMAZON_TAG}`;
+}
 
 function buildBookingUrl() {
   const params = new URLSearchParams();
@@ -5567,6 +5604,12 @@ function renderRestaurantCard(r) {
   if (b.resy) html += `<a class="resy-btn" href="${b.resy}" target="_blank">Resy</a>`;
   if (b.tock) html += `<a class="tock-btn" href="${b.tock}" target="_blank">Tock</a>`;
   if (b.yelp) html += `<a class="yelp-btn" href="${b.yelp}" target="_blank">Yelp</a>`;
+  // Fallback OpenTable search if no curated booking URL exists. Skimlinks
+  // auto-affiliates the click ($0.50/seated diner is the OpenTable payout).
+  if (!b.opentable && !b.resy && !b.tock) {
+    const otSearch = `https://www.opentable.com/s?term=${encodeURIComponent(r.name + ' Nashville')}&size=2&dateTime=${encodeURIComponent(new Date().toISOString().slice(0,10) + 'T19:00')}`;
+    html += `<a class="opentable-btn" href="${otSearch}" target="_blank" rel="noopener">Reserve on OpenTable</a>`;
+  }
   if (r.phone) html += `<a class="call-btn" href="tel:${r.phone}">Call ${r.phone}</a>`;
   html += `<a class="doordash-btn" href="#" onclick="return rideClick('doordash','${safeName}',event)">DoorDash</a>`;
   html += `<a class="ubereats-btn" href="#" onclick="return rideClick('ubereats','${safeName}',event)">Uber Eats</a>`;
