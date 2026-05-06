@@ -266,6 +266,20 @@
     .bottom-nav {
       padding-bottom: max(14px, env(safe-area-inset-bottom));
     }
+    /* Capacitor iOS quirk: contentInset:"always" already adds top inset to the
+       WebView. CSS safe-area-inset-top adds it AGAIN, causing tap coordinates
+       to be offset downward by ~status bar height. The .capacitor class is set
+       by JS at startup. Without this, taps register on the pill below where
+       the user actually touched. */
+    .capacitor .header {
+      padding-top: 18px;
+    }
+    /* Bigger touch targets help compensate for any remaining tap offset on
+       iOS Capacitor. Add visible bottom padding inside container so menu pills
+       don't fall under the iPhone home indicator. */
+    .capacitor .messages {
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
     .ride-row, .delivery-row {
       flex-wrap: wrap;
     }
@@ -440,18 +454,20 @@
   .quick-replies {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 10px;
     margin-top: 8px;
   }
   .quick-reply {
     background: #fff;
     border: 1px solid #d62828;
     color: #d62828;
-    padding: 8px 14px;
-    border-radius: 16px;
-    font-size: 13px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.15s;
+    -webkit-tap-highlight-color: rgba(214,40,40,0.2);
+    touch-action: manipulation;
   }
   .quick-reply:hover {
     background: #d62828;
@@ -1729,6 +1745,27 @@ function isCapacitor() {
 }
 function isIOS() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+// Tag the body so CSS can target Capacitor iOS specifically. Used to fix the
+// double-padding tap-offset bug where Capacitor's contentInset:"always" plus
+// CSS env(safe-area-inset-top) shift tap coordinates down by the status bar
+// height, causing taps to register on the wrong pill.
+(function tagCapacitorBody() {
+  try {
+    if (isCapacitor() || /CapacitorWebView/i.test(navigator.userAgent)) {
+      document.body.classList.add('capacitor');
+    }
+  } catch (e) { /* body might not exist yet, retry on DOMContentLoaded */ }
+})();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      if (isCapacitor() || /CapacitorWebView/i.test(navigator.userAgent)) {
+        document.body.classList.add('capacitor');
+      }
+    } catch (e) {}
+  });
 }
 
 async function startVoiceInputCapacitor() {
