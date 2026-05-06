@@ -88,7 +88,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
   const sourceBlurb = {
     'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
-    'bachelorette': 'Your Nashville bachelorette planner is ready. Tap the button below to open it.',
+    'bachelorette': 'Your Nashville group trip planner is ready. Tap the button below to open it.',
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
   }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
 
@@ -416,7 +416,7 @@ export default async function handler(req, res) {
     const subject = {
       'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet',
       'saved-spots': 'Your Nashville saved spots',
-      'bachelorette': 'Your Nashville bachelorette planner',
+      'bachelorette': 'Your Nashville group trip planner',
       'general': 'Welcome to Howdy Nash'
     }[source] || 'Welcome to Howdy Nash';
 
