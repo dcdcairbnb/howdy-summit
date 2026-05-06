@@ -2210,8 +2210,7 @@ function routeIntent(text) {
         span.style.color = '';
       }
     });
-    addMessage('Checklist cleared.', 'bot');
-    addQuickReplies(['Reset checklist', '← Main menu']);
+    addQuickReplies(['← Main menu']);
     // Scroll back to the top of the checklist so the user sees the freshly
     // cleared first section instead of the bottom of the chat.
     setTimeout(() => {
@@ -2828,7 +2827,7 @@ function showTripChecklist() {
   const doneCount = NASHVILLE_CHECKLIST.reduce((n, sec) => n + sec.items.filter(i => state[i.id]).length, 0);
   const pct = Math.round((doneCount / totalItems) * 100);
   addMessage(`Your Nashville trip checklist. Progress saves automatically. ${doneCount} of ${totalItems} done (${pct}%).`, 'bot');
-  NASHVILLE_CHECKLIST.forEach(section => {
+  NASHVILLE_CHECKLIST.forEach((section, idx) => {
     let html = `<div class="card" style="border-left:4px solid #d62828;">
       <div class="card-title">${section.section}</div>`;
     section.items.forEach(item => {
@@ -2838,6 +2837,11 @@ function showTripChecklist() {
         <span style="flex:1;${checked ? 'text-decoration:line-through;color:#999;' : ''}">${item.label}</span>
       </label>`;
     });
+    // Inline reset button on the last section. Calls a JS function directly so
+    // it doesn't echo "Reset checklist" as a user message in chat.
+    if (idx === NASHVILLE_CHECKLIST.length - 1) {
+      html += `<div style="margin-top:14px;text-align:right;"><a href="#" onclick="resetChecklistDirect();return false;" style="background:#d62828;color:#fff;font-weight:600;display:inline-block;">Reset checklist</a></div>`;
+    }
     html += `</div>`;
     addMessage(html, 'bot', true);
   });
@@ -2857,7 +2861,38 @@ function showTripChecklist() {
       });
     });
   }, 100);
-  addQuickReplies(['Reset checklist', '← Main menu']);
+  addQuickReplies(['← Main menu']);
+}
+
+// Direct reset called from the inline button inside the checklist card. Skips
+// the chat message handler entirely so no "Reset checklist" user bubble shows.
+function resetChecklistDirect() {
+  try { localStorage.removeItem(CHECKLIST_STORAGE_KEY); } catch (e) {}
+  document.querySelectorAll('[data-checklist-id]').forEach(box => {
+    box.checked = false;
+    const span = box.parentElement && box.parentElement.querySelector('span');
+    if (span) {
+      span.style.textDecoration = '';
+      span.style.color = '';
+    }
+  });
+  // Update the progress count message at the top of the checklist if visible.
+  const total = NASHVILLE_CHECKLIST.reduce((n, sec) => n + sec.items.length, 0);
+  const messages = document.querySelectorAll('.message.bot');
+  for (const msg of messages) {
+    if (/of \d+ done/i.test(msg.textContent)) {
+      msg.textContent = `Your Nashville trip checklist. Progress saves automatically. 0 of ${total} done (0%).`;
+      break;
+    }
+  }
+  // Scroll the user back to the top of the checklist.
+  setTimeout(() => {
+    const firstBox = document.querySelector('[data-checklist-id]');
+    if (firstBox) {
+      const card = firstBox.closest('.message') || firstBox.closest('.card');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
 }
 
 // Reset trigger handled in main matches chain below by listening for 'reset checklist'.
