@@ -5113,6 +5113,8 @@ function renderBnaInfoCard() {
     <a href="https://flynashville.com/flightinfo" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">BNA Flight Board (official)</a>
     <a href="https://flynashville.com" target="_blank" rel="noopener" style="background:#444;color:#fff;">flynashville.com</a>
     <a href="https://www.google.com/maps/dir/?api=1&destination=Nashville+International+Airport+BNA" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Directions to BNA</a>
+    <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;"><strong>Find flights to BNA:</strong></div>
+    <a href="https://www.aviasales.com/?destination=BNA" target="_blank" rel="noopener" style="background:#1d50a2;color:#fff;">Search flights on Aviasales</a>
     <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;"><strong>Pre-book a ride to skip the rideshare line:</strong></div>
     <a href="https://www.welcomepickups.com/nashville/airport-taxi/" target="_blank" rel="noopener" style="background:#ff5a5f;color:#fff;">Welcome Pickups (English-speaking driver)</a>
     <a href="https://kiwitaxi.com/USA/transfer-from-Nashville-Airport-Nashville" target="_blank" rel="noopener" style="background:#ffb800;color:#000;">Kiwitaxi (fixed-price transfer)</a>
@@ -5729,6 +5731,10 @@ function showEventsPaged(events, startIdx, pageContainer) {
       <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
       ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
     if (e.url) card += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
+    // TicketNetwork resale tickets - often cheaper than Ticketmaster, available
+    // when shows are sold out. Drive auto-tags the link.
+    const tnSearch = `https://www.ticketnetwork.com/search?q=${encodeURIComponent(e.name + ' Nashville')}`;
+    card += `<a href="${tnSearch}" target="_blank" rel="noopener" style="background:#0a3d62;color:#fff;">Resale on TicketNetwork</a>`;
     card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
     card += `</div></div>`;
     html += card;
@@ -5945,6 +5951,12 @@ async function showAttractions() {
     if (a.url) html += `<a href="${a.url}" target="_blank">Learn more</a>`;
     const mapsUrl = match?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(a.name + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+    // Tiqets and GetYourGuide for skip-the-line tickets and guided tours.
+    // Drive auto-tags both URLs.
+    const tiqetsUrl = `https://www.tiqets.com/en/search?q=${encodeURIComponent(a.name + ' Nashville')}`;
+    const gygUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(a.name + ' Nashville')}`;
+    html += `<a href="${tiqetsUrl}" target="_blank" rel="noopener" style="background:#ff5722;color:#fff;">Book on Tiqets</a>`;
+    html += `<a href="${gygUrl}" target="_blank" rel="noopener" style="background:#ff8c00;color:#fff;">GetYourGuide tours</a>`;
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
