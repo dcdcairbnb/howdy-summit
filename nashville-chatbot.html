@@ -870,7 +870,7 @@ const NASHVILLE_DATA = {
     { name: "Marsh House", cuisine: "Seafood", neighborhood: "The Gulch", price: "$$$", vibe: "Gulf Coast seafood and oysters at Thompson Hotel", phone: "(615) 262-6001", booking: { opentable: "https://www.opentable.com/r/marsh-house-nashville" } },
     { name: "The Mockingbird", cuisine: "Modern American", neighborhood: "The Gulch", price: "$$$", vibe: "globally inspired comfort food, brunch", phone: "(615) 741-9900", booking: { opentable: "https://www.opentable.com/r/the-mockingbird-nashville" } },
     { name: "Pelato", cuisine: "Italian", neighborhood: "The Gulch", price: "$$$", vibe: "modern Italian wine bar with house pastas", phone: "(615) 845-5550", booking: { resy: "https://resy.com/cities/nashville-tn/venues/pelato" } },
-    { name: "Eddie V's Prime Seafood", cuisine: "Seafood and steaks", neighborhood: "The Gulch", price: "$$$$", vibe: "upscale steak and seafood, live music nightly", phone: "(615) 988-7960", booking: { opentable: "https://www.opentable.com/r/eddie-vs-prime-seafood-nashville" } },
+    { name: "Eddie V's Prime Seafood", cuisine: "Seafood and steaks", neighborhood: "Broadway", price: "$$$$", vibe: "upscale steak and seafood, live music nightly", phone: "(615) 988-7960", booking: { opentable: "https://www.opentable.com/r/eddie-vs-prime-seafood-nashville" } },
     { name: "Sambuca", cuisine: "Modern American", neighborhood: "The Gulch", price: "$$$", vibe: "global menu, live music six nights a week", phone: "(615) 248-2888", booking: { opentable: "https://www.opentable.com/r/sambuca-nashville" } },
     { name: "Bourbon and Boots Cafe", cuisine: "Cafe", neighborhood: "The Gulch", price: "$$", vibe: "morning coffee, lunch sandwiches, late-night cocktails", booking: { walkin: true } },
     // Germantown additions
@@ -1825,6 +1825,17 @@ function updateBackBtn() {
 }
 
 function goBack() {
+  // If user is on a paged restaurants view past page 1, step back one page first
+  // before popping the menu stack. Page 1 with no further history falls through
+  // to normal menu navigation.
+  if (_pagedRestaurantsState && _pagedRestaurantsState.startIdx > 0 && _pagedRestaurantsState.container && document.body.contains(_pagedRestaurantsState.container)) {
+    const newIdx = Math.max(0, _pagedRestaurantsState.startIdx - 5);
+    showRestaurantsPaged(_pagedRestaurantsState.list, newIdx, _pagedRestaurantsState.container);
+    return;
+  }
+  // Leaving paged view, clear the tracking state.
+  _pagedRestaurantsState = null;
+
   if (menuStack.length < 2) return;
   menuStack.pop();
   const target = menuStack[menuStack.length - 1];
@@ -5396,6 +5407,10 @@ async function showAllRestaurants() {
   showRestaurantsPaged(NASHVILLE_DATA.restaurants, 0);
 }
 
+// Tracks the currently-rendered paged restaurant view so the global Back button
+// can step backward through pages before popping to the previous menu.
+let _pagedRestaurantsState = null;
+
 // Render restaurants paged 5 at a time. Each page is rendered into a single
 // container div so changing pages is just clearing that container and re-rendering.
 // pageContainer is the div the cards live in. If null, a new one is created.
@@ -5447,6 +5462,9 @@ function showRestaurantsPaged(list, startIdx, pageContainer) {
       showRestaurantsPaged(list, newIdx, pageContainer);
     });
   });
+
+  // Track this paged view for the global Back button.
+  _pagedRestaurantsState = { list, startIdx, container: pageContainer };
 
   // Scroll to the top of the page container so the new page is visible from the start
   setTimeout(() => {
