@@ -2367,6 +2367,16 @@ function routeIntent(text) {
     return;
   }
 
+  if (matches(lower, ['restroom', 'restrooms', 'bathroom', 'bathrooms', 'toilet', 'toilets', '🚻 restrooms', 'public restroom', 'where to pee', 'pee'])) {
+    showRestrooms();
+    return;
+  }
+
+  if (matches(lower, ['wifi', 'wi-fi', 'free wifi', 'internet', 'hotspot', '📶 free wifi', 'work from'])) {
+    showFreeWifi();
+    return;
+  }
+
   if (matches(lower, ['gas station', 'gas', 'fuel', 'fill up'])) {
     showGasStations();
     return;
@@ -2741,8 +2751,78 @@ function showEssentialsMenu(skipPush) {
     'Groceries',
     'Pharmacy',
     'ATMs',
+    '🚻 Restrooms',
+    '📶 Free WiFi',
     '← Main menu'
   ]);
+}
+
+const CURATED_RESTROOMS = [
+  { name: "Public Square Park Restrooms", neighborhood: "Downtown", desc: "Free public restrooms at the courthouse-side park. Open dawn to dusk. Closest bathroom to Lower Broadway honky tonks.", url: null },
+  { name: "Nashville Public Library (Main)", neighborhood: "Downtown", desc: "615 Church St. Clean, well-maintained restrooms on multiple floors. Open Mon-Sat 9-8, Sun 1-5. No purchase required.", url: "https://library.nashville.org" },
+  { name: "Music City Center", neighborhood: "SoBro", desc: "Convention center lobbies. Free public restrooms on the ground floor. Open whenever events are running.", url: "https://www.nashvillemusiccitycenter.com" },
+  { name: "Centennial Park Restrooms", neighborhood: "West End", desc: "Public restrooms near the Parthenon and playground. Open daylight hours.", url: null },
+  { name: "Bicentennial Capitol Mall State Park", neighborhood: "Downtown", desc: "Free restrooms at the visitor center. Open daily.", url: "https://tnstateparks.com/parks/bicentennial-mall" },
+  { name: "Riverfront Park Restrooms", neighborhood: "Lower Broadway", desc: "Public restrooms along the waterfront, just east of Broadway. Convenient between honky tonks and the pedestrian bridge.", url: null },
+  { name: "Bridgestone Arena (event days)", neighborhood: "Lower Broadway", desc: "Open to ticket holders during Predators games and concerts. Multiple restrooms throughout.", url: "https://www.bridgestonearena.com" },
+  { name: "Tennessee State Museum", neighborhood: "Downtown", desc: "Free admission, free restrooms. 1000 Rosa L. Parks Blvd. Open Tue-Sat 10-5, Sun 1-5.", url: "https://tnmuseum.org" },
+  { name: "Frist Art Museum", neighborhood: "Downtown", desc: "Free first Thursdays after 5pm. Restrooms accessible during museum hours, no purchase needed in the lobby.", url: "https://fristartmuseum.org" },
+  { name: "Coffee shop hop", neighborhood: "Multiple", desc: "Frothy Monkey, Crema, Barista Parlor, Bongo Java all welcome customers. Buy a $4 drink, use the restroom, leech the WiFi.", url: null },
+  { name: "Honky tonks (customer)", neighborhood: "Lower Broadway", desc: "Every honky tonk on Broadway has restrooms but they're customer-only. Walk in, buy a $5 beer, use the bathroom. The lines on weekends can be 15+ minutes.", url: null },
+  { name: "Hotel lobbies (lobby restrooms)", neighborhood: "Multiple", desc: "Lobby restrooms at downtown hotels (JW Marriott, Hyatt Place, Hilton, Bobby) are usually accessible without staying. Walk in confidently.", url: null }
+];
+
+const CURATED_WIFI = [
+  { name: "Nashville Public Library (Main)", neighborhood: "Downtown", desc: "Free WiFi network: NPL_Public. No login. Hours: Mon-Sat 9-8, Sun 1-5. Quietest reliable working spot downtown.", url: "https://library.nashville.org" },
+  { name: "Music City Center", neighborhood: "SoBro", desc: "Free WiFi in the lobby. Network: MusicCityCenter-Guest. Open during event hours.", url: "https://www.nashvillemusiccitycenter.com" },
+  { name: "Frothy Monkey (12 South + multiple)", neighborhood: "12 South", desc: "Free WiFi with purchase. Strong signal, decent power outlets at most locations.", url: "https://frothymonkey.com" },
+  { name: "Crema Coffee", neighborhood: "SoBro", desc: "Free WiFi for customers. Third-wave coffee shop, popular with remote workers.", url: "https://www.cremacoffee.com" },
+  { name: "Barista Parlor", neighborhood: "East Nashville and multiple", desc: "Free WiFi with purchase. Design-forward space, multiple Nashville locations.", url: "https://baristaparlor.com" },
+  { name: "Bongo Java (Belmont)", neighborhood: "Belmont", desc: "Free WiFi for customers. Cozy seating, near Belmont University.", url: "https://bongojava.com" },
+  { name: "Fido (Hillsboro Village)", neighborhood: "Hillsboro Village", desc: "Free WiFi. Long-time Vanderbilt-area cafe with solid signal and outlets.", url: "https://fidonashville.com" },
+  { name: "Starbucks (multiple)", neighborhood: "Multiple", desc: "Free WiFi at every location. Reliable backup. Most have outlets.", url: "https://www.starbucks.com" },
+  { name: "Tennessee State Museum", neighborhood: "Downtown", desc: "Free WiFi in the lobby and gallery spaces. Free admission too.", url: "https://tnmuseum.org" },
+  { name: "Centennial Park", neighborhood: "West End", desc: "Free public WiFi covers most of the park. Strong near the Parthenon.", url: null },
+  { name: "Hotel lobbies", neighborhood: "Multiple", desc: "Most major downtown hotels (JW Marriott, Hyatt Place, Bobby Hotel, Hilton) have open lobby WiFi. Walk in and connect.", url: null },
+  { name: "BNA Airport", neighborhood: "BNA Airport", desc: "Free WiFi throughout the airport. Network: BNA_FreeWiFi. Strong signal, no purchase needed.", url: "https://flynashville.com" }
+];
+
+function showRestrooms() {
+  if (userLocation) {
+    const list = [...CURATED_RESTROOMS].map(r => {
+      let dist = null;
+      if (r.coords) dist = haversineMiles(userLocation, r.coords);
+      if (dist == null && r.neighborhood) {
+        const nb = neighborhoodCoords(r.neighborhood);
+        if (nb) dist = haversineMiles(userLocation, nb);
+      }
+      return { ...r, _dist: dist == null ? 9999 : dist };
+    }).sort((a, b) => a._dist - b._dist);
+    addMessage(`Public restrooms (${list.length} total, closest first):`, 'bot');
+    list.forEach(r => addMessage(renderCuratedCard(r, 'public restroom', null), 'bot', true));
+  } else {
+    addMessage(`Free public restrooms in Nashville (${CURATED_RESTROOMS.length} options). Tap Share location for closest first.`, 'bot');
+    CURATED_RESTROOMS.forEach(r => addMessage(renderCuratedCard(r, 'public restroom', null), 'bot', true));
+  }
+}
+
+function showFreeWifi() {
+  if (userLocation) {
+    const list = [...CURATED_WIFI].map(w => {
+      let dist = null;
+      if (w.coords) dist = haversineMiles(userLocation, w.coords);
+      if (dist == null && w.neighborhood) {
+        const nb = neighborhoodCoords(w.neighborhood);
+        if (nb) dist = haversineMiles(userLocation, nb);
+      }
+      return { ...w, _dist: dist == null ? 9999 : dist };
+    }).sort((a, b) => a._dist - b._dist);
+    addMessage(`Free WiFi spots (${list.length} total, closest first):`, 'bot');
+    list.forEach(w => addMessage(renderCuratedCard(w, 'free wifi', null), 'bot', true));
+  } else {
+    addMessage(`Free WiFi in Nashville (${CURATED_WIFI.length} options). Tap Share location for closest first.`, 'bot');
+    CURATED_WIFI.forEach(w => addMessage(renderCuratedCard(w, 'free wifi', null), 'bot', true));
+  }
 }
 
 function nameKey(s) {
@@ -5627,6 +5707,22 @@ async function showLiveMusic() {
   } else {
     addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
   }
+  // Kick off venue calendar scrape in parallel with the main fetch
+  fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
+    if (!data || !data.events || !data.events.length) return;
+    addMessage(`Plus ${data.events.length} shows scraped from iconic Nashville venues:`, 'bot');
+    data.events.slice(0, 20).forEach(e => {
+      const dateStr = e.date || 'Date TBA';
+      const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
+      let html = `<div class="card">
+        <div class="card-title">${e.name}</div>
+        <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
+      if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
+      html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+      html += `</div>`;
+      addMessage(html, 'bot', true);
+    });
+  }).catch(() => { /* venue scrape failed silently */ });
 
   // First, try to pull live concert lineups from the events API
   if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
