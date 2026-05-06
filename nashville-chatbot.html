@@ -707,7 +707,7 @@
 <div class="music-note right" aria-hidden="true">🎶</div>
 <div class="container">
   <div class="header" id="appHeader">
-    <button class="nav-btn" id="backBtn" onclick="goBack()" title="Back" aria-label="Go back to previous menu" disabled>←</button>
+    <button class="nav-btn" id="backBtn" onclick="goBack()" title="Back" aria-label="Go back to previous menu" style="visibility:hidden;">←</button>
     <div class="avatar">🎸</div>
     <div class="header-text">
       <h1>
@@ -730,7 +730,7 @@
     <button onclick="requestLocation()" id="locationBtn">Share location</button>
   </div>
   <div class="bottom-nav">
-    <button class="bottom-btn" id="bottomBackBtn" onclick="goBack()" disabled>← Back</button>
+    <button class="bottom-btn" id="bottomBackBtn" onclick="goBack()" style="visibility:hidden;">← Back</button>
     <button class="bottom-btn" id="bottomHomeBtn" onclick="goHome()">⌂ Home</button>
   </div>
   <div class="disclaimer-bar">
@@ -1828,10 +1828,13 @@ function pushMenu(menuName) {
   if (typeof dismissCheatSheetCard === 'function') dismissCheatSheetCard();
 }
 function updateBackBtn() {
-  const disabled = menuStack.length < 2;
-  backBtn.disabled = disabled;
+  // Show/hide instead of disable. iOS PWA mode has known issues with the
+  // `disabled` attribute remaining sticky after JS re-enables a button, which
+  // was causing taps to silently fail for some test users on home screen apps.
+  const hide = menuStack.length < 2;
+  if (backBtn) backBtn.style.visibility = hide ? 'hidden' : 'visible';
   const bottomBack = document.getElementById('bottomBackBtn');
-  if (bottomBack) bottomBack.disabled = disabled;
+  if (bottomBack) bottomBack.style.visibility = hide ? 'hidden' : 'visible';
 }
 
 function goBack() {
