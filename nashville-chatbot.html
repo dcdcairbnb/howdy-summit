@@ -2232,9 +2232,8 @@ function routeIntent(text) {
 
   if (matches(lower, ['📦 shop amazon', 'shop amazon', 'amazon', 'amazon shop', 'shop on amazon'])) {
     addMessage(renderAmazonHomeCard(), 'bot', true);
-    setTimeout(() => addMessage(renderAmazonShopCard('whiskey'), 'bot', true), 200);
-    setTimeout(() => addMessage(renderAmazonShopCard('creator'), 'bot', true), 400);
-    setTimeout(() => addMessage(renderAmazonShopCard('travel'), 'bot', true), 600);
+    const cats = ['bridesquad', 'cowgirl', 'packsmart', 'whiskey', 'creator', 'travel'];
+    cats.forEach((c, i) => setTimeout(() => addMessage(renderAmazonShopCard(c), 'bot', true), 200 + i * 200));
     return;
   }
   // Inline search: "search [query]" or "find [query]"
@@ -3944,6 +3943,37 @@ function renderAmazonShopCard(category) {
         ['Neck pillow (memory foam)', 'memory foam travel neck pillow'],
         ['Packing cubes set', 'packing cubes set'],
         ['TSA-approved toiletry bag', 'tsa approved toiletry bag clear']
+      ]
+    },
+    bridesquad: {
+      title: '💍 Bride Squad Essentials (Amazon)',
+      desc: 'Order matching gear before you fly out. Tank tops, sashes, banners, koozies, photo props, custom cups.',
+      items: [
+        ['Bride & bridesmaid tanks', 'bride bridesmaid tank top set'],
+        ['Sash sets (Bride / Maid of Honor)', 'bachelorette sash set'],
+        ['Cups, koozies, straws', 'bachelorette party cups koozies straws'],
+        ['Photo props & decorations', 'bachelorette party decorations photo props'],
+        ['Hangover recovery kit', 'hangover recovery kit']
+      ]
+    },
+    cowgirl: {
+      title: '🤠 Cowboy Boots & Western Gear (Amazon)',
+      desc: 'Cheaper to order online than buy on Broadway. Pink and white boots are the bachelorette uniform.',
+      items: [
+        ['Womens cowboy boots', 'womens cowboy boots'],
+        ['Pink cowboy boots', 'pink cowboy boots women'],
+        ['Cowboy hats (group)', 'cowboy hat women felt western'],
+        ['Western fringe jackets', 'western fringe jacket women']
+      ]
+    },
+    packsmart: {
+      title: '🧳 Pack Smart for Nashville (Amazon)',
+      desc: 'Things first-timers always forget. Lower Broadway is loud, hot, and there are no chairs.',
+      items: [
+        ['Portable phone charger', 'portable phone charger'],
+        ['Crossbody bag (anti-theft)', 'crossbody bag anti theft'],
+        ['Comfortable walking shoes', 'comfortable walking shoes women'],
+        ['Sunscreen (rooftop weather)', 'sunscreen spray spf 50']
       ]
     }
   };
