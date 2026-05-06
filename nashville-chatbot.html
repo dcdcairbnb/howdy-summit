@@ -5103,6 +5103,9 @@ function filterFlightCards(query) {
 }
 
 function renderBnaInfoCard() {
+  // Welcome Pickups and Kiwitaxi auto-tag through Travelpayouts Drive script.
+  // Pre-booked airport rides hit higher commission than rideshare and remove
+  // the "where do I find Uber" friction at BNA for first-time visitors.
   return `<div class="card" style="border-left:4px solid #d62828;">
     <div class="card-title">✈️ Nashville International Airport (BNA)</div>
     <div class="card-meta">Donelson · 9 mi from downtown</div>
@@ -5110,6 +5113,9 @@ function renderBnaInfoCard() {
     <a href="https://flynashville.com/flightinfo" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">BNA Flight Board (official)</a>
     <a href="https://flynashville.com" target="_blank" rel="noopener" style="background:#444;color:#fff;">flynashville.com</a>
     <a href="https://www.google.com/maps/dir/?api=1&destination=Nashville+International+Airport+BNA" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Directions to BNA</a>
+    <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;"><strong>Pre-book a ride to skip the rideshare line:</strong></div>
+    <a href="https://www.welcomepickups.com/nashville/airport-taxi/" target="_blank" rel="noopener" style="background:#ff5a5f;color:#fff;">Welcome Pickups (English-speaking driver)</a>
+    <a href="https://kiwitaxi.com/USA/transfer-from-Nashville-Airport-Nashville" target="_blank" rel="noopener" style="background:#ffb800;color:#000;">Kiwitaxi (fixed-price transfer)</a>
     <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Tip: Allow 90 minutes for security on weekends. Uber/Lyft pickup is in the basement parking garage at BNA, not curbside. Follow the Rideshare signs after baggage claim.</div>
   </div>`;
 }
@@ -5154,6 +5160,10 @@ const AWIN_PUBLISHER_ID = '2873227';
 const AWIN_BOOKING_MERCHANT_ID = '6776';
 const EXPEDIA_CAMREF = '1101l5JmBk';
 const EXPEDIA_TPID = '8000';
+// Travelpayouts marker. Drive script in <head> auto-tags any merchant URL we
+// place on the page (Tiqets, Klook, Vrbo, Hotels.com, Tripadvisor, Welcome
+// Pickups, Kiwitaxi, TicketNetwork, Aviasales, Radical Storage, etc.).
+const TRAVELPAYOUTS_MARKER = '525866';
 
 function buildBookingUrl() {
   const params = new URLSearchParams();
@@ -5229,6 +5239,13 @@ async function showHotels() {
             ? `https://www.awin1.com/cread.php?awinmid=${AWIN_BOOKING_MERCHANT_ID}&awinaffid=${AWIN_PUBLISHER_ID}&clickref=&ued=${encodeURIComponent(bookingDirect)}`
             : bookingDirect;
           html += `<a href="${bookingAwin}" target="_blank" rel="noopener" style="background:#003580;color:#fff;">Check Booking.com rates</a>`;
+          // Hotels.com, Vrbo, Tripadvisor: raw URLs auto-tagged by Travelpayouts Drive.
+          const hotelsComUrl = `https://www.hotels.com/search.do?destination-id=2491&q-destination=${encodeURIComponent(h.name + ' Nashville')}`;
+          const vrboUrl = `https://www.vrbo.com/search?q=${encodeURIComponent('Nashville TN')}`;
+          const tripadvisorUrl = `https://www.tripadvisor.com/Search?q=${encodeURIComponent(h.name + ' Nashville')}`;
+          html += `<a href="${hotelsComUrl}" target="_blank" rel="noopener" style="background:#d4145a;color:#fff;">Check Hotels.com</a>`;
+          html += `<a href="${vrboUrl}" target="_blank" rel="noopener" style="background:#0056a3;color:#fff;">Find on Vrbo</a>`;
+          html += `<a href="${tripadvisorUrl}" target="_blank" rel="noopener" style="background:#34e0a1;color:#000;">Read Tripadvisor reviews</a>`;
           html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
           html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
           html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
