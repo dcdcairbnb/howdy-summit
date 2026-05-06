@@ -3438,8 +3438,22 @@ function showBreweries() {
   showCuratedThenLive(CURATED_BREWERIES, 'brewery taproom craft beer', 'bar', 'breweries');
 }
 function showBakeries() {
-  addMessage(`Top Nashville bakeries (${CURATED_BAKERIES.length} total):`, 'bot');
-  showCuratedListPaged(CURATED_BAKERIES, 'bakery', 0);
+  let list = CURATED_BAKERIES;
+  if (userLocation) {
+    list = [...CURATED_BAKERIES].map(b => {
+      let dist = null;
+      if (b.coords) dist = haversineMiles(userLocation, b.coords);
+      if (dist == null && b.neighborhood) {
+        const nb = neighborhoodCoords(b.neighborhood);
+        if (nb) dist = haversineMiles(userLocation, nb);
+      }
+      return { ...b, _dist: dist == null ? 9999 : dist };
+    }).sort((a, b) => a._dist - b._dist);
+    addMessage(`Nashville bakeries (${list.length} total, closest first):`, 'bot');
+  } else {
+    addMessage(`Nashville bakeries (${list.length} total). Tap Share location at the bottom to see distances and sort by closest.`, 'bot');
+  }
+  showCuratedListPaged(list, 'bakery', 0);
 }
 
 // Paginate any curated list 5 at a time, like restaurants. Reuses renderCuratedCard.
