@@ -5621,6 +5621,20 @@ async function showRestaurants(list, header) {
   showRestaurantsPaged(enriched, 0);
 }
 
+// Delegated click handler: any button with class .setlist-btn fetches setlists.
+// Single registration on the messages container, survives all dynamic content.
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.setlist-btn');
+  if (!btn) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const artistRaw = btn.getAttribute('data-artist') || '';
+  if (!artistRaw) return;
+  let artist = '';
+  try { artist = decodeURIComponent(artistRaw); } catch { artist = artistRaw; }
+  showSetlistsForArtist(artist);
+});
+
 // Pull recent setlists from setlist.fm for a given artist and render them
 // with Spotify links per song plus a one-tap "build a playlist" search.
 async function showSetlistsForArtist(artist) {
@@ -5687,7 +5701,7 @@ async function showLiveMusic() {
             <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
             ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
           if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
-          html += `<a href="#" data-setlist-artist="${artistEncoded}" onclick="event.preventDefault(); showSetlistsForArtist(decodeURIComponent(this.dataset.setlistArtist)); return false;" style="background:#7c3aed;color:#fff;">📜 Recent setlists</a>`;
+          html += `<button type="button" class="setlist-btn" data-artist="${artistEncoded}" style="background:#7c3aed;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin:4px 4px 4px 0;display:inline-block;">📜 Recent setlists</button>`;
           html += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
           html += `</div>`;
           addMessage(html, 'bot', true);
