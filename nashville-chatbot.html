@@ -3952,6 +3952,21 @@ function showDistilleries() {
   setTimeout(() => addMessage(renderAmazonShopCard('whiskey'), 'bot', true), 600);
 }
 
+// App Store download badge for the home page. Black "Download on the App Store"
+// button next to the Howdy Nash logo. Hidden for users already in the
+// Capacitor native iOS app or the saved PWA (they already have the app).
+function renderAppStoreBadge() {
+  const url = 'https://apps.apple.com/app/howdy-nash/id6766404935';
+  return `<div class="card" style="background:#fff;border:1px solid #eee;display:flex;align-items:center;gap:14px;">
+    <img src="/logo.png" alt="Howdy Nash" style="width:54px;height:54px;border-radius:12px;flex-shrink:0;" />
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:15px;font-weight:700;color:#1a1a1a;line-height:1.25;">Get the iPhone app</div>
+      <div style="font-size:12px;color:#666;margin-top:2px;">Free. Faster than the web. No signup.</div>
+    </div>
+    <a href="${url}" target="_blank" rel="noopener" style="background:#000;color:#fff;font-weight:700;font-size:13px;padding:10px 14px;border-radius:8px;flex-shrink:0;text-decoration:none;">App Store</a>
+  </div>`;
+}
+
 // Amazon-branded shop card on the home page. Uses the Amazon wordmark SVG
 // (lowercase "amazon" with the orange smile arrow) and a single CTA button.
 // Links to a curated search for Nashville-themed essentials with the affiliate
@@ -6991,6 +7006,13 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
+    // App Store download badge on the home screen. Hidden for users already
+    // running the Capacitor native iOS app or the saved PWA.
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || /CapacitorWebView/i.test(navigator.userAgent);
+    if (!isStandalone && !isCapacitor) {
+      addMessage(renderAppStoreBadge(), 'bot', true);
+    }
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
