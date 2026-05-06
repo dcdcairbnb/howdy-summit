@@ -1838,9 +1838,16 @@ function goBack() {
     showCuratedListPaged(_pagedCuratedState.list, _pagedCuratedState.label, newIdx, _pagedCuratedState.container);
     return;
   }
+  // Same logic for paged events (live music)
+  if (_pagedEventsState && _pagedEventsState.startIdx > 0 && _pagedEventsState.container && document.body.contains(_pagedEventsState.container)) {
+    const newIdx = Math.max(0, _pagedEventsState.startIdx - 5);
+    showEventsPaged(_pagedEventsState.events, newIdx, _pagedEventsState.container);
+    return;
+  }
   // Leaving paged view, clear the tracking state.
   _pagedRestaurantsState = null;
   _pagedCuratedState = null;
+  _pagedEventsState = null;
 
   if (menuStack.length < 2) return;
   menuStack.pop();
@@ -5663,6 +5670,75 @@ async function showRestaurants(list, header) {
   showRestaurantsPaged(enriched, 0);
 }
 
+// Tracks the currently-rendered paged events view so the global Back button
+// can step backward through pages before popping to the previous menu.
+let _pagedEventsState = null;
+
+// Paginate live music events 5 at a time, like restaurants/bakeries.
+function showEventsPaged(events, startIdx, pageContainer) {
+  const isRerender = !!pageContainer;
+  const pageSize = 5;
+  const totalPages = Math.ceil(events.length / pageSize);
+  const currentPage = Math.floor(startIdx / pageSize) + 1;
+  const slice = events.slice(startIdx, startIdx + pageSize);
+  const remaining = events.length - (startIdx + pageSize);
+  const hasNext = remaining > 0;
+  const hasPrev = startIdx > 0;
+
+  let html = '';
+  if (totalPages > 1) {
+    html += `<div class="message bot" style="font-size:13px;color:#666;text-align:center;background:transparent;padding:6px 0;">Page ${currentPage} of ${totalPages}</div>`;
+  }
+
+  slice.forEach(e => {
+    const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
+    const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+    const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
+    const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
+    const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
+    const artistEncoded = encodeURIComponent(e.name || '');
+    const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
+    let card = `<div class="message bot"><div class="card">
+      <div class="card-title">${star}${share}${e.name}</div>
+      <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
+      ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
+    if (e.url) card += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
+    card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+    card += `</div></div>`;
+    html += card;
+  });
+
+  if (hasPrev || hasNext) {
+    html += `<div class="quick-replies">`;
+    if (hasPrev) html += `<button class="quick-reply" data-events-action="prev">← Previous 5</button>`;
+    if (hasNext) html += `<button class="quick-reply" data-events-action="next">Show next ${Math.min(pageSize, remaining)} →</button>`;
+    html += `</div>`;
+  } else if (totalPages > 1) {
+    html += `<div class="message bot" style="text-align:center;color:#666;">That's everything.</div>`;
+  }
+
+  if (!pageContainer) {
+    pageContainer = document.createElement('div');
+    pageContainer.className = 'events-page-container';
+    messagesEl.appendChild(pageContainer);
+  }
+  pageContainer.innerHTML = html;
+
+  pageContainer.querySelectorAll('[data-events-action]').forEach(btn => {
+    const action = btn.getAttribute('data-events-action');
+    btn.addEventListener('click', () => {
+      const newIdx = action === 'prev' ? Math.max(0, startIdx - pageSize) : startIdx + pageSize;
+      showEventsPaged(events, newIdx, pageContainer);
+    });
+  });
+
+  _pagedEventsState = { events, startIdx, container: pageContainer };
+
+  if (isRerender) {
+    setTimeout(() => pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+}
+
 async function showLiveMusic() {
   if (!userLocation) {
     addMessage("Tap Share location at the bottom of the chat to see distances to venues. Pulling upcoming concerts...", 'bot');
@@ -5691,24 +5767,19 @@ async function showLiveMusic() {
     try {
       const live = await apiSearchEvents('', 'Music');
       if (live && live.length) {
-        addMessage(`${Math.min(live.length, 12)} upcoming Nashville concerts:`, 'bot');
-        live.slice(0, 12).forEach(e => {
-          const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
-          const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-          const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
-          const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
-          const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
-          const artistEncoded = encodeURIComponent(e.name || '');
-          const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
-          let html = `<div class="card">
-            <div class="card-title">${star}${share}${e.name}</div>
-            <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
-            ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
-          if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
-          html += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
-          html += `</div>`;
-          addMessage(html, 'bot', true);
+        // Sort by date ascending, then by distance if user location is set
+        const sorted = [...live].sort((a, b) => {
+          const dateA = a.date || '9999-12-31';
+          const dateB = b.date || '9999-12-31';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          const distA = a.distanceMiles ?? 9999;
+          const distB = b.distanceMiles ?? 9999;
+          return distA - distB;
         });
+        const capped = sorted.slice(0, 50);
+        const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
+        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 per page.`, 'bot');
+        showEventsPaged(capped, 0);
         addMessage("Plus the always-on live music spots:", 'bot');
       }
     } catch (e) {
