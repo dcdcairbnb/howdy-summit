@@ -2831,6 +2831,39 @@ function showTripChecklist() {
 
 // Reset trigger handled in main matches chain below by listening for 'reset checklist'.
 
+// Home-screen checklist card. Compact preview with progress bar that links
+// into the full checklist. Hides itself when the user has completed everything.
+function renderHomeChecklistCard() {
+  const state = getChecklistState();
+  const totalItems = NASHVILLE_CHECKLIST.reduce((n, sec) => n + sec.items.length, 0);
+  const doneCount = NASHVILLE_CHECKLIST.reduce((n, sec) => n + sec.items.filter(i => state[i.id]).length, 0);
+  const pct = Math.round((doneCount / totalItems) * 100);
+  const headline = doneCount === 0
+    ? 'Track your Nashville trip in one tap'
+    : (doneCount === totalItems ? "Trip complete. Y'all crushed it." : `${doneCount} of ${totalItems} done · ${pct}%`);
+  const sub = doneCount === 0
+    ? '27 essentials across 4 sections. Boots, hot chicken, honky tonks, recovery. Saves automatically.'
+    : 'Pick up where you left off. Progress saves on this device.';
+  // Three preview items pulled from the first uncompleted ones for context.
+  const upcoming = [];
+  for (const sec of NASHVILLE_CHECKLIST) {
+    for (const it of sec.items) {
+      if (!state[it.id] && upcoming.length < 3) upcoming.push(it.label);
+    }
+    if (upcoming.length >= 3) break;
+  }
+  const upcomingHtml = upcoming.length
+    ? `<ul style="margin:8px 0 12px 18px;padding:0;font-size:13px;color:#444;">${upcoming.map(t => `<li style="margin:3px 0;">${t}</li>`).join('')}</ul>`
+    : '';
+  return `<div class="card" style="border-left:4px solid #d62828;background:#fff8f0;">
+    <div class="card-title">✅ ${headline}</div>
+    <div class="card-desc">${sub}</div>
+    <div style="background:#eee;border-radius:999px;height:8px;margin:10px 0;overflow:hidden;"><div style="background:#d62828;height:100%;width:${pct}%;transition:width 0.3s;"></div></div>
+    ${upcomingHtml}
+    <a href="#" onclick="navAction(showTripChecklist, 'checklist');return false;" style="background:#d62828;color:#fff;">${doneCount === 0 ? 'Start checklist' : 'Continue checklist'}</a>
+  </div>`;
+}
+
 // Global search across all curated data. Triggered by the Search pill or
 // "search/find <query>" typed into the chat. Returns ranked results across
 // restaurants, attractions, bakeries, distilleries, breweries, neighborhoods,
@@ -6826,6 +6859,9 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
+    // Featured checklist card on the home screen. Shows progress at a glance
+    // and links into the full checklist with one tap.
+    addMessage(renderHomeChecklistCard(), 'bot', true);
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
