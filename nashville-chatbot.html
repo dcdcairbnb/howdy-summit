@@ -2125,7 +2125,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (lower === 'sports' || matches(lower, ['sports', 'predators', 'titans', 'sounds', 'nashville sc', 'hockey', 'football game', 'baseball game', 'nfl', 'nhl', 'mls'])) {
+  if (lower === 'sports' || matches(lower, ['sports', 'predators', 'titans', 'sounds', 'nashville sc', 'vanderbilt', 'commodores', 'sec', 'college football', 'hockey', 'football game', 'baseball game', 'nfl', 'nhl', 'mls', 'ncaa'])) {
     showSports();
     return;
   }
@@ -5535,7 +5535,8 @@ async function showSports() {
     { name: 'Nashville Predators', league: 'NHL', venue: 'Bridgestone Arena', neighborhood: 'Lower Broadway', coords: { lat: 36.1592, lng: -86.7785 }, keyword: 'Nashville Predators', emoji: '🏒', color: '#FFB81C', tickets: 'https://www.nhl.com/predators/tickets' },
     { name: 'Tennessee Titans', league: 'NFL', venue: 'Nissan Stadium', neighborhood: 'East Nashville (riverfront)', coords: { lat: 36.1665, lng: -86.7713 }, keyword: 'Tennessee Titans', emoji: '🏈', color: '#0C2340', tickets: 'https://www.tennesseetitans.com/tickets/' },
     { name: 'Nashville SC', league: 'MLS', venue: 'GEODIS Park', neighborhood: 'Wedgewood-Houston', coords: { lat: 36.1297, lng: -86.7656 }, keyword: 'Nashville SC', emoji: '⚽', color: '#FFCC00', tickets: 'https://www.nashvillesc.com/tickets/' },
-    { name: 'Nashville Sounds', league: 'AAA Baseball', venue: 'First Horizon Park', neighborhood: 'Germantown', coords: { lat: 36.1707, lng: -86.7866 }, keyword: 'Nashville Sounds', emoji: '⚾', color: '#000000', tickets: 'https://www.milb.com/nashville/tickets' }
+    { name: 'Nashville Sounds', league: 'AAA Baseball', venue: 'First Horizon Park', neighborhood: 'Germantown', coords: { lat: 36.1707, lng: -86.7866 }, keyword: 'Nashville Sounds', emoji: '⚾', color: '#000000', tickets: 'https://www.milb.com/nashville/tickets' },
+    { name: 'Vanderbilt Commodores', league: 'NCAA / SEC', venue: 'FirstBank Stadium · Memorial Gym · Hawkins Field', neighborhood: 'West End / Midtown', coords: { lat: 36.1447, lng: -86.8067 }, keyword: 'Vanderbilt', emoji: '🎓', color: '#866D4B', tickets: 'https://vucommodores.com/tickets/', desc: 'Football at FirstBank Stadium (fall Saturdays). Basketball at Memorial Gymnasium (Nov-Mar). Baseball at Hawkins Field (Feb-Jun). Cheaper tickets than pro teams, walkable from West End bars.' }
   ];
 
   // Sort by distance if location is available
@@ -5564,6 +5565,7 @@ async function showSports() {
     let html = `<div class="card">
       <div class="card-title">${star}${share}${team.emoji} ${team.name}</div>
       <div class="card-meta">${team.league} · ${team.venue} · ${team.neighborhood}${distStr}</div>`;
+    if (team.desc) html += `<div class="card-desc">${team.desc}</div>`;
     if (nextGame) {
       const dateStr = nextGame.date ? new Date(nextGame.date + 'T' + (nextGame.time || '19:00')).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'TBD';
       html += `<div class="card-desc" style="font-size:12px;color:#666;margin-top:4px;">Next game: ${nextGame.name}</div>
