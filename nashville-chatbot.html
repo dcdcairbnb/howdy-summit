@@ -2192,6 +2192,17 @@ function routeIntent(text) {
     showSearchPrompt();
     return;
   }
+
+  if (matches(lower, ['✅ trip checklist', 'trip checklist', 'checklist', 'nashville checklist', 'todo list', 'to-do'])) {
+    showTripChecklist();
+    return;
+  }
+  if (matches(lower, ['reset checklist', 'clear checklist'])) {
+    try { localStorage.removeItem(CHECKLIST_STORAGE_KEY); } catch (e) {}
+    addMessage('Checklist cleared.', 'bot');
+    showTripChecklist();
+    return;
+  }
   // Inline search: "search [query]" or "find [query]"
   const searchPrefix = lower.match(/^(search|find)\s+(.+)$/);
   if (searchPrefix && searchPrefix[2].length >= 2) {
@@ -2704,6 +2715,7 @@ function showWelcome() {
 function showMainMenu() {
   const replies = [
     '🔍 Search',
+    '✅ Trip Checklist',
     '🍽️ Eat & Drink',
     '🎵 Things to Do',
     '🏘️ Neighborhoods',
@@ -2723,6 +2735,101 @@ function showMainMenu() {
   if (holiday) replies.unshift(`${holiday.emoji} ${holiday.label}`);
   addQuickReplies(replies);
 }
+
+// Nashville Trip Checklist. Persistent via localStorage. Sections cover
+// before-arrival prep, must-do experiences, and recovery essentials.
+const NASHVILLE_CHECKLIST = [
+  { section: 'Before You Arrive', items: [
+    { id: 'pretrip-rsvp', label: 'Make group dinner reservations 2+ weeks ahead' },
+    { id: 'pretrip-pedal', label: 'Book pedal tavern or party bus' },
+    { id: 'pretrip-bna', label: 'Pre-book BNA airport transfer (or set Uber XL)' },
+    { id: 'pretrip-hotel', label: 'Confirm hotel or rental check-in time' },
+    { id: 'pretrip-pack', label: 'Pack cowboy boots, cowboy hat, comfortable walking shoes' },
+    { id: 'pretrip-charger', label: 'Pack portable phone charger' },
+    { id: 'pretrip-share', label: 'Share location with the group (👯 Group share)' }
+  ]},
+  { section: 'Music City Must-Dos', items: [
+    { id: 'do-broadway', label: 'Bar hop Lower Broadway (Tootsie\'s, Robert\'s, Acme)' },
+    { id: 'do-hotchicken', label: 'Try Nashville hot chicken (Hattie B\'s, Prince\'s, Bolton\'s)' },
+    { id: 'do-ryman', label: 'See a show at the Ryman or Bridgestone' },
+    { id: 'do-bluebird', label: 'Catch a songwriter round at Bluebird Cafe' },
+    { id: 'do-mural', label: 'Take a photo at the I Believe in Nashville mural' },
+    { id: 'do-rooftop', label: 'Drink on a rooftop bar (L.A. Jackson, White Limozeen, Bobby Hotel)' },
+    { id: 'do-distillery', label: 'Tour a distillery (Nelson\'s Green Brier or Corsair)' },
+    { id: 'do-parthenon', label: 'See the full-scale Parthenon at Centennial Park' },
+    { id: 'do-bbq', label: 'Eat BBQ (Martin\'s, Edley\'s, or Peg Leg Porker)' },
+    { id: 'do-pancake', label: 'Brunch at Biscuit Love or Pancake Pantry' }
+  ]},
+  { section: 'Neighborhoods Worth Exploring', items: [
+    { id: 'nb-gulch', label: 'The Gulch (rooftops, shopping, photo wings)' },
+    { id: 'nb-12s', label: '12 South (boutiques, brunch, Reese Witherspoon\'s store)' },
+    { id: 'nb-germantown', label: 'Germantown (foodie destination)' },
+    { id: 'nb-east', label: 'East Nashville (indie spots, vintage, dive bars)' },
+    { id: 'nb-midtown', label: 'Midtown (between Vandy and downtown)' },
+    { id: 'nb-wedgewood', label: 'Wedgewood-Houston (breweries and art)' }
+  ]},
+  { section: 'Recovery + Logistics', items: [
+    { id: 'rec-iv', label: 'Book mobile IV recovery (Reset IV, Drip Hydration)' },
+    { id: 'rec-water', label: 'Drink water between drinks (Nashville heat hits hard)' },
+    { id: 'rec-uber', label: 'Save Uber/Lyft pickup point at your rental' },
+    { id: 'rec-checkout', label: 'Set checkout reminder + 90 min buffer for BNA security' }
+  ]}
+];
+
+const CHECKLIST_STORAGE_KEY = 'howdy-nash-checklist';
+
+function getChecklistState() {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function setChecklistItem(id, checked) {
+  const state = getChecklistState();
+  if (checked) state[id] = true; else delete state[id];
+  try { localStorage.setItem(CHECKLIST_STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function showTripChecklist() {
+  const state = getChecklistState();
+  const totalItems = NASHVILLE_CHECKLIST.reduce((n, sec) => n + sec.items.length, 0);
+  const doneCount = NASHVILLE_CHECKLIST.reduce((n, sec) => n + sec.items.filter(i => state[i.id]).length, 0);
+  const pct = Math.round((doneCount / totalItems) * 100);
+  addMessage(`Your Nashville trip checklist. Progress saves automatically. ${doneCount} of ${totalItems} done (${pct}%).`, 'bot');
+  NASHVILLE_CHECKLIST.forEach(section => {
+    let html = `<div class="card" style="border-left:4px solid #d62828;">
+      <div class="card-title">${section.section}</div>`;
+    section.items.forEach(item => {
+      const checked = state[item.id] ? 'checked' : '';
+      html += `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer;border-top:1px solid #f0f0f0;">
+        <input type="checkbox" data-checklist-id="${item.id}" ${checked} style="margin-top:3px;width:18px;height:18px;cursor:pointer;">
+        <span style="flex:1;${checked ? 'text-decoration:line-through;color:#999;' : ''}">${item.label}</span>
+      </label>`;
+    });
+    html += `</div>`;
+    addMessage(html, 'bot', true);
+  });
+  // Wire up the checkboxes after they render.
+  setTimeout(() => {
+    document.querySelectorAll('[data-checklist-id]').forEach(box => {
+      if (box._wired) return;
+      box._wired = true;
+      box.addEventListener('change', e => {
+        const id = e.target.getAttribute('data-checklist-id');
+        setChecklistItem(id, e.target.checked);
+        const span = e.target.parentElement.querySelector('span');
+        if (span) {
+          span.style.textDecoration = e.target.checked ? 'line-through' : '';
+          span.style.color = e.target.checked ? '#999' : '';
+        }
+      });
+    });
+  }, 100);
+  addQuickReplies(['Reset checklist', '← Main menu']);
+}
+
+// Reset trigger handled in main matches chain below by listening for 'reset checklist'.
 
 // Global search across all curated data. Triggered by the Search pill or
 // "search/find <query>" typed into the chat. Returns ranked results across
