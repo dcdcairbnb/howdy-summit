@@ -5623,8 +5623,7 @@ async function showRestaurants(list, header) {
 
 // Pull recent setlists from setlist.fm for a given artist and render them
 // with Spotify links per song plus a one-tap "build a playlist" search.
-async function showSetlistsForArtist(artist, evt) {
-  if (evt && evt.preventDefault) evt.preventDefault();
+async function showSetlistsForArtist(artist) {
   if (!artist) return false;
   addMessage(`Pulling recent setlists for ${artist}...`, 'bot');
   try {
@@ -5681,14 +5680,14 @@ async function showLiveMusic() {
           const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
           const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
           const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
-          const safeArtist = (e.name || '').replace(/'/g, "\\'");
-          const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
+          const artistEncoded = encodeURIComponent(e.name || '');
+          const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
           let html = `<div class="card">
             <div class="card-title">${star}${share}${e.name}</div>
             <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
             ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
           if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
-          html += `<a href="#" onclick="return showSetlistsForArtist('${safeArtist}', event)" style="background:#7c3aed;color:#fff;">📜 Recent setlists</a>`;
+          html += `<a href="#" data-setlist-artist="${artistEncoded}" onclick="event.preventDefault(); showSetlistsForArtist(decodeURIComponent(this.dataset.setlistArtist)); return false;" style="background:#7c3aed;color:#fff;">📜 Recent setlists</a>`;
           html += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
           html += `</div>`;
           addMessage(html, 'bot', true);
