@@ -7006,11 +7006,13 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
-    // App Store download badge on the home screen. Hidden for users already
-    // running the Capacitor native iOS app or the saved PWA.
+    // App Store badge only for desktop / non-iOS users. Skip on iPhone Safari,
+    // saved PWA, and the Capacitor native iOS app to avoid layout-shift tap
+    // offset issues that have been reported on iOS Build 4.
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || /CapacitorWebView/i.test(navigator.userAgent);
-    if (!isStandalone && !isCapacitor) {
+    const isIosSafari = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isStandalone && !isCapacitor && !isIosSafari) {
       addMessage(renderAppStoreBadge(), 'bot', true);
     }
     // Skip the main menu and cheat sheet when the user is arriving via a group
