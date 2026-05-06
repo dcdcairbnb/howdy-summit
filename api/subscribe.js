@@ -69,13 +69,14 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
-// Bachelorette email body. Short and link-driven so Gmail does not flag the
-// email as spam (the word "bachelorette" plus party content otherwise triggers
-// filters). Full content lives at /bachelorette.html.
+// Bachelorette email body. Plain-text style with a single text link so Gmail
+// keeps it in Primary instead of Promotions tab. Full content lives at
+// /bachelorette.html.
 function buildBacheloretteBlock() {
-  return `<p style="margin:16px 0;text-align:center;"><a href="${BACHELORETTE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">Open the planner</a></p>
-<p style="margin:16px 0 8px;font-size:14px;color:#444;">Inside you will find a 3-day Nashville plan covering arrival, photo spots, dinner picks, group transport, and recovery tools. Bookmark the link, it loads fast on phones.</p>
-<p style="margin:8px 0 16px;font-size:14px;color:#666;">Reply to this email with your trip dates and I will personalize the plan with concerts, weather, and which spots to skip.</p>`;
+  return `<p style="margin:16px 0 12px;">Here is the planner I put together for your trip:</p>
+<p style="margin:16px 0;"><a href="${BACHELORETTE_URL}" style="color:#d62828;font-weight:600;">${BACHELORETTE_URL}</a></p>
+<p style="margin:16px 0 12px;">It covers arrival, photo spots, dinner picks, group transport, and recovery tools across 3 days. Loads fast on phones. Bookmark the link.</p>
+<p style="margin:16px 0 12px;">If you reply to this email with your trip dates I will personalize the plan with concerts, weather, and which spots to skip that weekend.</p>`;
 }
 
 function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
@@ -92,28 +93,23 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
   }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
 
+  // Plain-text style email with minimal HTML. Gmail's Promotions filter scores
+  // emails on visual signals: big colored CTA buttons, headers, dense styling.
+  // Looking like a normal person typing into Gmail keeps us in Primary.
   return `<!doctype html>
 <html>
-<head><meta charset="utf-8"><title>Welcome to Howdy Nash</title></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#222;">
-  <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;">
-    <div style="text-align:center;padding:16px 0;border-bottom:3px solid #d62828;">
-      <div style="font-size:28px;font-weight:800;color:#d62828;letter-spacing:-0.5px;">Howdy Nash</div>
-      <div style="font-size:13px;color:#666;margin-top:4px;">Your free Nashville guide</div>
-    </div>
-    <div style="padding:24px 0;line-height:1.6;font-size:16px;">
-      <p style="margin:0 0 12px;">${greeting},</p>
-      <p style="margin:0 0 12px;">${sourceBlurb}</p>
-      ${source === 'cheatsheet' ? `<p style="margin:16px 0;"><a href="${CHEATSHEET_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">Open the Cheat Sheet</a></p>` : ''}
-      ${source === 'bachelorette' ? buildBacheloretteBlock() : ''}
-      ${savedSpotsBlock}
-      <p style="margin:24px 0 12px;">P.S. Every Friday I send a roundup of upcoming Nashville festivals, concerts, and new restaurant openings. Reply to this email anytime, I read every one.</p>
-      <p style="margin:0;">Howdy,<br>Howdy Nash</p>
-    </div>
-    <div style="border-top:1px solid #eee;padding:16px 0;font-size:12px;color:#888;text-align:center;">
-      <a href="${SITE_URL}" style="color:#d62828;text-decoration:none;">howdynash.com</a> &middot; <a href="${unsubscribeUrl}" style="color:#888;text-decoration:underline;">Unsubscribe</a>
-      <div style="margin-top:8px;">You are receiving this because you signed up at howdynash.com. Unsubscribe anytime.</div>
-    </div>
+<head><meta charset="utf-8"><title>Howdy Nash</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#222;font-size:16px;line-height:1.55;">
+  <div style="max-width:560px;margin:0 auto;padding:20px 18px;">
+    <p style="margin:0 0 14px;">${greeting},</p>
+    <p style="margin:0 0 14px;">${sourceBlurb}</p>
+    ${source === 'cheatsheet' ? `<p style="margin:14px 0;"><a href="${CHEATSHEET_URL}" style="color:#d62828;font-weight:600;">${CHEATSHEET_URL}</a></p>` : ''}
+    ${source === 'bachelorette' ? buildBacheloretteBlock() : ''}
+    ${savedSpotsBlock}
+    <p style="margin:18px 0 14px;">Reply anytime. I read every email and I am happy to point you to the right spot for whatever you are looking for in Nashville.</p>
+    <p style="margin:0 0 4px;">Dan</p>
+    <p style="margin:0;color:#666;font-size:14px;">Howdy Nash</p>
+    <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent because you signed up at howdynash.com. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
   </div>
 </body>
 </html>`;
