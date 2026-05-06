@@ -5635,21 +5635,44 @@ document.addEventListener('click', (ev) => {
   showSetlistsForArtist(artist);
 });
 
+// Strip Ticketmaster prefixes and suffixes from event titles to isolate the
+// likely artist name. Examples:
+//   "FREE SHOW! Austin Mackay" -> "Austin Mackay"
+//   "Garth Brooks (Plus One Tour)" -> "Garth Brooks"
+//   "Eric Church with Special Guest" -> "Eric Church"
+//   "In The Round with Trae Sheehan, Tom Hampton & Todd Joseph" -> "Trae Sheehan"
+function cleanArtistName(raw) {
+  if (!raw) return '';
+  let s = String(raw);
+  s = s.replace(/^(FREE SHOW!|FREE!|FREE:|FREE -|SOLD OUT!|RESCHEDULED:?|POSTPONED:?)\s+/i, '');
+  s = s.replace(/\s*[\(\[][^)\]]*[\)\]]\s*$/, '');
+  s = s.replace(/\s+(with|feat\.?|featuring|presents|presented by|w\/)\s+.*$/i, '');
+  s = s.replace(/^In The Round with\s+/i, '');
+  s = s.split(/\s*[,&]\s+/)[0];
+  return s.trim();
+}
+
 // Pull recent setlists from setlist.fm for a given artist and render them
 // with Spotify links per song plus a one-tap "build a playlist" search.
-async function showSetlistsForArtist(artist) {
-  if (!artist) return false;
-  addMessage(`Pulling recent setlists for ${artist}...`, 'bot');
+async function showSetlistsForArtist(rawArtist) {
+  if (!rawArtist) return false;
+  const artist = cleanArtistName(rawArtist);
+  addMessage(`Searching setlists for "${artist}"...`, 'bot');
   try {
     const r = await fetch(`/api/setlists?artist=${encodeURIComponent(artist)}`);
-    if (!r.ok) {
-      addMessage("Couldn't load setlists. Setlist.fm may be rate-limited or the artist isn't logged.", 'bot');
+    if (!r.ok && r.status !== 404) {
+      addMessage(`Setlist.fm couldn't be reached right now. Try again in a minute.`, 'bot');
       return false;
     }
-    const data = await r.json();
+    const data = r.status === 404 ? { setlists: [] } : await r.json();
     const setlists = data.setlists || [];
     if (!setlists.length) {
-      addMessage(`No setlists found for ${artist} yet. Setlist.fm relies on fans logging shows after they happen.`, 'bot');
+      const sp = `https://open.spotify.com/search/${encodeURIComponent(artist)}`;
+      addMessage(`<div class="card">
+        <div class="card-title">No setlists logged for "${artist}"</div>
+        <div class="card-desc">Setlist.fm depends on fans posting shows. Smaller and local Nashville artists often aren't logged. Try the bigger acts (Eric Church, Morgan Wallen, Garth Brooks) or check this artist on Spotify directly.</div>
+        <a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>
+      </div>`, 'bot', true);
       return false;
     }
     addMessage(`${setlists.length} recent ${artist} setlists:`, 'bot');
