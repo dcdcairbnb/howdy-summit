@@ -2355,6 +2355,16 @@ function routeIntent(text) {
     return;
   }
 
+  if (matches(lower, ["mother's day", 'mothers day', 'mothers day brunch', "mother's day brunch", '💐 mother\'s day brunch', 'mom brunch'])) {
+    showHolidayBrunch('mothersDay');
+    return;
+  }
+  // Catch-all for any future holiday pill the main menu adds dynamically.
+  if (lower.includes('brunch') && /day/i.test(lower)) {
+    const active = getActiveHoliday();
+    if (active) { showHolidayBrunch(active.key); return; }
+  }
+
   if (matches(lower, ['nail salon', 'nail bar', 'manicure', 'pedicure', 'mani pedi', 'nails'])) {
     showNailSalons();
     return;
@@ -2672,7 +2682,7 @@ function showWelcome() {
 }
 
 function showMainMenu() {
-  addQuickReplies([
+  const replies = [
     '🍽️ Eat & Drink',
     '🎵 Things to Do',
     '🏘️ Neighborhoods',
@@ -2686,7 +2696,11 @@ function showMainMenu() {
     '★ My saved',
     'Local tips',
     '📧 Free 3-day guide'
-  ]);
+  ];
+  // Conditional holiday pill. Surfaces only the week of each holiday.
+  const holiday = getActiveHoliday();
+  if (holiday) replies.unshift(`${holiday.emoji} ${holiday.label}`);
+  addQuickReplies(replies);
 }
 
 function dismissCheatSheetCard() {
@@ -3138,6 +3152,80 @@ const CURATED_BREWERIES = [
   { name: "New Heights Brewing", neighborhood: "Wedgewood-Houston", desc: "Approachable craft beer in a casual taproom. Solid IPAs and lagers.", url: "https://newheightsbrewing.com" },
   { name: "Czann's Brewing Company", neighborhood: "Downtown", desc: "Small downtown brewery near SoBro. Approachable lineup, walkable from Broadway.", url: "https://www.czanns.com" }
 ];
+
+// Holiday brunch. Date-aware. Pill button on main menu auto-shows the week
+// of each holiday and hides after. Add new holidays by appending to this map.
+const CURATED_HOLIDAY_BRUNCH = {
+  mothersDay: {
+    label: "Mother's Day Brunch",
+    emoji: "💐",
+    // Mother's Day is the 2nd Sunday of May.
+    getDate: (year) => {
+      const may1 = new Date(year, 4, 1);
+      const firstSunday = 1 + ((7 - may1.getDay()) % 7);
+      return new Date(year, 4, firstSunday + 7);
+    },
+    intro: "Most Nashville brunch spots fill up 2 to 3 weeks before Mother's Day. Call directly if OpenTable shows nothing. Walk-in spots like Pancake Pantry and Biscuit Love work if you arrive before 9am or after 2pm.",
+    spots: [
+      { name: "Loveless Cafe", neighborhood: "Bellevue", desc: "Iconic Nashville biscuits, country ham, fried chicken. Mother's Day is their Super Bowl. Reservations required.", reservation: "https://www.opentable.com/r/loveless-cafe-nashville", phone: "(615) 646-9700" },
+      { name: "Adele's", neighborhood: "The Gulch", desc: "Jonathan Waxman seasonal Southern. Patio seating. Upscale brunch.", reservation: "https://www.opentable.com/r/adeles-nashville", phone: "(615) 988-9700" },
+      { name: "Husk Nashville", neighborhood: "Rutledge Hill", desc: "Sean Brock Southern in a historic mansion. Refined Mother's Day menu.", reservation: "https://www.opentable.com/r/husk-nashville", phone: "(615) 256-6565" },
+      { name: "Etch", neighborhood: "SoBro", desc: "Deb Paquette modern American. Inventive brunch dishes. Walk-in bar seats.", reservation: "https://www.opentable.com/r/etch-nashville", phone: "(615) 522-0685" },
+      { name: "Henrietta Red", neighborhood: "Germantown", desc: "Oysters, raw bar, Southern classics. Bright airy room.", reservation: "https://resy.com/cities/nashville-tn/venues/henrietta-red", phone: "(615) 490-8042" },
+      { name: "Margot Cafe", neighborhood: "East Nashville", desc: "Margot McCormack's French/Italian. Charming cottage. Sunday brunch is famous.", reservation: "https://www.opentable.com/r/margot-cafe-nashville", phone: "(615) 227-4668" },
+      { name: "Marsh House", neighborhood: "SoBro (Thompson Hotel)", desc: "Southern seafood in the Thompson Hotel. Brunch buffet on Sundays.", reservation: "https://www.opentable.com/r/marsh-house-nashville", phone: "(615) 262-6000" },
+      { name: "City House", neighborhood: "Germantown", desc: "Wood-fired Italian. Sunday Suppa is legendary. Reserve 3+ weeks out.", reservation: "https://www.opentable.com/r/city-house-nashville", phone: "(615) 736-5838" },
+      { name: "The Mockingbird", neighborhood: "Germantown", desc: "Modern American, comforting menu. Patio with greenery.", reservation: "https://www.opentable.com/r/the-mockingbird-nashville", phone: "(615) 736-5856" },
+      { name: "Cafe Roze", neighborhood: "East Nashville", desc: "All-day cafe with Mediterranean lean. Light brunch fare.", reservation: "https://resy.com/cities/nashville-tn/venues/cafe-roze", phone: "(615) 645-9100" },
+      { name: "The Hampton Social", neighborhood: "SoBro", desc: "Rosé all day, breezy beach club vibe. Walk-in friendly with a wait.", reservation: "https://www.opentable.com/r/the-hampton-social-nashville", phone: "(615) 891-3007" },
+      { name: "Pancake Pantry", neighborhood: "Hillsboro Village", desc: "No reservations. 24 pancake varieties. Mother's Day line is brutal but moves. Arrive before 8am.", reservation: null, phone: "(615) 383-9333" },
+      { name: "Biscuit Love (The Gulch)", neighborhood: "The Gulch", desc: "No reservations. Famous Bonut and biscuits. Get there before 9am or expect a 90-minute wait.", reservation: null, phone: "(615) 490-9584" }
+    ]
+  }
+  // Add Father's Day, Easter, Christmas Eve, Valentine's Day here using same shape.
+};
+
+// Returns the active holiday config if today is within 7 days before/after.
+// Used to conditionally show the pill on the main menu.
+function getActiveHoliday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  for (const [key, h] of Object.entries(CURATED_HOLIDAY_BRUNCH)) {
+    const date = h.getDate(year);
+    const daysFromNow = Math.round((date - now) / (1000 * 60 * 60 * 24));
+    // Show 7 days before through the day-of.
+    if (daysFromNow >= -1 && daysFromNow <= 7) {
+      return { key, daysFromNow, date, ...h };
+    }
+  }
+  return null;
+}
+
+function showHolidayBrunch(key) {
+  const holiday = CURATED_HOLIDAY_BRUNCH[key];
+  if (!holiday) { addMessage("That holiday isn't loaded yet.", 'bot'); return; }
+  const dateStr = holiday.getDate(new Date().getFullYear()).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  addMessage(`${holiday.emoji} ${holiday.label} is ${dateStr}.`, 'bot');
+  addMessage(holiday.intro, 'bot');
+  holiday.spots.forEach(s => {
+    let html = `<div class="card">
+      <div class="card-title">${s.name}</div>
+      <div class="card-meta">${s.neighborhood}</div>
+      <div class="card-desc">${s.desc}</div>`;
+    if (s.reservation) {
+      const reservationLabel = s.reservation.includes('resy.com') ? 'Reserve on Resy' : 'Reserve on OpenTable';
+      const reservationColor = s.reservation.includes('resy.com') ? '#e8351a' : '#da3743';
+      html += `<a href="${s.reservation}" target="_blank" rel="noopener" style="background:${reservationColor};color:#fff;">${reservationLabel}</a>`;
+    } else {
+      const otSearch = `https://www.opentable.com/s?term=${encodeURIComponent(s.name + ' Nashville')}`;
+      html += `<a href="${otSearch}" target="_blank" rel="noopener" style="background:#da3743;color:#fff;">Search OpenTable</a>`;
+      html += `<div class="card-desc" style="font-size:12px;color:#666;margin-top:6px;">Walk-in only. No reservations.</div>`;
+    }
+    if (s.phone) html += `<a href="tel:${s.phone}" style="background:#34a853;color:#fff;">Call ${s.phone}</a>`;
+    html += `</div>`;
+    addMessage(html, 'bot', true);
+  });
+}
 
 const CURATED_BAKERIES = [
   { name: "Five Daughters Bakery (12 South)", neighborhood: "12 South", desc: "Original location. Famous 100-layer donuts on the iconic 12 South strip. Cult weekend lines.", url: "https://www.fivedaughtersbakery.com", coords: { lat: 36.1224, lng: -86.7892 } },
