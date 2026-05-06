@@ -942,7 +942,6 @@ const NASHVILLE_DATA = {
     { name: "Kitchen Notes at the Omni", cuisine: "Modern Southern", neighborhood: "SoBro", price: "$$$", vibe: "Hotel restaurant with refined Southern brunch and dinner.", phone: "(615) 782-5300", booking: { opentable: "https://www.opentable.com/r/kitchen-notes-nashville" } },
     { name: "Bourbon Steak (Omni)", cuisine: "Steakhouse", neighborhood: "SoBro", price: "$$$$", vibe: "Michael Mina steakhouse at the Four Seasons. Bourbon-forward.", phone: "(615) 622-1110", booking: { opentable: "https://www.opentable.com/r/bourbon-steak-nashville" } },
     // Music Row entries
-    { name: "Patterson House", cuisine: "Cocktail bar", neighborhood: "Music Row / Midtown", price: "$$", vibe: "Speakeasy-style cocktails. House rules apply, walk-in only.", booking: { walkin: true } },
     { name: "Two Hands Corn Dogs", cuisine: "Korean", neighborhood: "Music Row", price: "$", vibe: "Late-night Korean street corn dogs and milkshakes.", booking: { walkin: true } },
     { name: "Suzy Wong's House of Yum", cuisine: "Asian fusion", neighborhood: "Music Row", price: "$$", vibe: "Pan-Asian small plates, drag brunch on weekends.", phone: "(615) 386-9966", booking: { walkin: true, yelp: "https://www.yelp.com/biz/suzy-wongs-house-of-yum-nashville" } },
     { name: "Bobby's Idle Hour", cuisine: "Songwriter bar", neighborhood: "Music Row", price: "$", vibe: "The last songwriters' bar on Music Row. Tradition, no frills.", booking: { walkin: true } },
@@ -3255,7 +3254,6 @@ function showBroadwayBars() {
 }
 
 const CURATED_COCKTAIL_BARS = [
-  { name: "The Patterson House", neighborhood: "Midtown", desc: "Speakeasy-style cocktail bar. House rules apply. Walk-in only.", url: null },
   { name: "Old Glory", neighborhood: "Edgehill", desc: "Stunning converted boiler room. Craft cocktails in industrial setting.", url: null },
   { name: "Pinewood Social", neighborhood: "SoBro", desc: "Cocktails plus bowling, pool, food. Day-to-night social hub.", url: "https://pinewoodsocial.com" },
   { name: "Bastion", neighborhood: "Wedgewood-Houston", desc: "Tiny attached bar to the Bastion restaurant. Tasting-menu vibe.", url: "https://www.bastionnashville.com" },
@@ -3299,7 +3297,11 @@ const CURATED_COCKTAIL_BARS = [
   { name: "Urban Cowboy Public House", neighborhood: "East Nashville", desc: "Bar attached to the Urban Cowboy B&B. Western-themed cocktails on a wraparound porch.", url: "https://urbancowboybnb.com/public-house" },
 
   // Hidden / speakeasy
-  { name: "Duck Club", neighborhood: "Midtown", desc: "Hidden cocktail bar with a supper club feel. Reservations recommended for dinner, walk-in for the bar when there's room.", url: null }
+  { name: "Duck Club", neighborhood: "Midtown", desc: "Hidden cocktail bar with a supper club feel. Reservations recommended for dinner, walk-in for the bar when there's room.", url: null },
+
+  // Midtown / Demonbreun strip
+  { name: "Losers Bar & Grill", neighborhood: "Midtown", desc: "Iconic Demonbreun dive bar. Live music, college crowd, late nights, cheap drinks.", url: "https://www.losersbar.com" },
+  { name: "Odies", neighborhood: "Midtown", desc: "Casual Midtown bar. Easy hang on Demonbreun.", url: null }
 ];
 
 function showCocktailBars() {
