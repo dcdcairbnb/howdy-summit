@@ -3079,7 +3079,10 @@ const CURATED_BREWERIES = [
 ];
 
 const CURATED_BAKERIES = [
-  { name: "Five Daughters Bakery", neighborhood: "12 South / Multiple", desc: "Famous 100-layer donuts. Cult lines on weekends, photo-friendly storefront. Multiple locations.", url: "https://www.fivedaughtersbakery.com" },
+  { name: "Five Daughters Bakery (12 South)", neighborhood: "12 South", desc: "Original location. Famous 100-layer donuts on the iconic 12 South strip. Cult weekend lines.", url: "https://www.fivedaughtersbakery.com", coords: { lat: 36.1224, lng: -86.7892 } },
+  { name: "Five Daughters Bakery (Marathon Village)", neighborhood: "Marathon Village", desc: "Inside the Marathon Motor Works historic complex. Same 100-layer donuts, often shorter line than 12 South.", url: "https://www.fivedaughtersbakery.com", coords: { lat: 36.1597, lng: -86.7975 } },
+  { name: "Five Daughters Bakery (East Nashville)", neighborhood: "East Nashville", desc: "Eastland Ave location. 100-layer donuts plus East Nashville coffee scene nearby.", url: "https://www.fivedaughtersbakery.com", coords: { lat: 36.1818, lng: -86.7470 } },
+  { name: "Five Daughters Bakery (Franklin)", neighborhood: "Franklin", desc: "Suburban Franklin location for Williamson County visitors. Same menu, easier parking.", url: "https://www.fivedaughtersbakery.com", coords: { lat: 35.9251, lng: -86.8689 } },
   { name: "Whitebrook Bakery", neighborhood: "Wedgewood-Houston", desc: "Sourdough, croissants, scones, and savory pastries. Limited seating, get there early.", url: "https://whitebrookbakery.com" },
   { name: "Yeast Nashville", neighborhood: "Wedgewood-Houston", desc: "Sourdough, pastries, and breakfast sandwiches. Small storefront with weekend lines.", url: "https://www.yeastnashville.com" },
   { name: "Sweet 16th Bakery", neighborhood: "East Nashville", desc: "Cult breakfast pastries, scones, and quiche. Tiny neighborhood spot. Cash or card, walk-in only.", url: "https://www.sweet16thbakery.com" },
@@ -6003,6 +6006,7 @@ function showNeighborhoodDetail(key) {
   const shoppingHere = (typeof CURATED_SHOPPING !== 'undefined') ? CURATED_SHOPPING.filter(s => matchesNeighborhood(s.neighborhood)) : [];
   const honkyHere = (typeof CURATED_HONKY_TONKS !== 'undefined') ? CURATED_HONKY_TONKS.filter(s => matchesNeighborhood(s.neighborhood)) : [];
   const breweriesHere = (typeof CURATED_BREWERIES !== 'undefined') ? CURATED_BREWERIES.filter(s => matchesNeighborhood(s.neighborhood)) : [];
+  const bakeriesHere = (typeof CURATED_BAKERIES !== 'undefined') ? CURATED_BAKERIES.filter(s => matchesNeighborhood(s.neighborhood)) : [];
   const distilleriesHere = (typeof CURATED_DISTILLERIES !== 'undefined') ? CURATED_DISTILLERIES.filter(s => matchesNeighborhood(s.neighborhood)) : [];
   const cocktailsHere = (typeof CURATED_COCKTAIL_BARS !== 'undefined') ? CURATED_COCKTAIL_BARS.filter(s => matchesNeighborhood(s.neighborhood)) : [];
   const rooftopsHere = (typeof CURATED_ROOFTOPS !== 'undefined') ? CURATED_ROOFTOPS.filter(s => matchesNeighborhood(s.neighborhood)) : [];
@@ -6027,6 +6031,10 @@ function showNeighborhoodDetail(key) {
   }
   if (breweriesHere.length > 0) {
     buttonsHtml += `<a href="#" onclick="navAction(() => showFilteredCurated(${JSON.stringify(breweriesHere).replace(/"/g, '&quot;')}, 'Breweries in ${n.name}:'), '${subMenu('brew')}', '${n.name}');return false;" style="background:#b45309;color:#fff;">🍺 Breweries (${breweriesHere.length})</a>`;
+    buttonCount++;
+  }
+  if (bakeriesHere.length > 0) {
+    buttonsHtml += `<a href="#" onclick="navAction(() => showFilteredCurated(${JSON.stringify(bakeriesHere).replace(/"/g, '&quot;')}, 'Bakeries in ${n.name}:'), '${subMenu('bake')}', '${n.name}');return false;" style="background:#f59e0b;color:#fff;">🥐 Bakeries (${bakeriesHere.length})</a>`;
     buttonCount++;
   }
   if (distilleriesHere.length > 0) {
