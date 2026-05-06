@@ -4802,14 +4802,14 @@ const VIATOR_PID = 'U00808374';
 const GETYOURGUIDE_PID = 'ACQGDWW';
 const AWIN_AIRBNB_MERCHANT_ID = '';
 const VRBO_AFFILIATE_TAG = '';
-// Amazon Associates tracking tag. Sign up at https://affiliate-program.amazon.com
-// to get yours, then paste here. Format: yourname-20. Buttons stay hidden
-// until this is set so we don't ship inactive links.
-const AMAZON_TAG = '';
+// Amazon Associates tracking tag. Skimlinks does NOT cover amazon.com (Amazon
+// terms ban link aggregators), so Amazon URLs need this tag appended directly.
+const AMAZON_TAG = 'howdynash-20';
 function amazonSearch(query) {
-  const base = `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
-  return AMAZON_TAG ? `${base}&tag=${AMAZON_TAG}` : base;
+  return `https://www.amazon.com/s?k=${encodeURIComponent(query)}&tag=${AMAZON_TAG}`;
 }
+// Alias for code that uses the longer name.
+const amazonSearchUrl = amazonSearch;
 
 function buildAirbnbUrl() {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -5287,12 +5287,7 @@ const EXPEDIA_TPID = '8000';
 // place on the page (Tiqets, Klook, Vrbo, Hotels.com, Tripadvisor, Welcome
 // Pickups, Kiwitaxi, TicketNetwork, Aviasales, Radical Storage, etc.).
 const TRAVELPAYOUTS_MARKER = '525866';
-// Amazon Associates US tag. Skimlinks does NOT cover amazon.com (Amazon's
-// terms ban link aggregators), so Amazon URLs need this tag appended directly.
-const AMAZON_TAG = 'howdynash-20';
-function amazonSearchUrl(q) {
-  return `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AMAZON_TAG}`;
-}
+// AMAZON_TAG and amazonSearch are declared earlier (line ~4808). Reusing.
 
 function buildBookingUrl() {
   const params = new URLSearchParams();

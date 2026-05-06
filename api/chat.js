@@ -1,6 +1,6 @@
 // Anthropic Claude chat endpoint. Uses Haiku for cost efficiency.
 // Required env: ANTHROPIC_API_KEY
-// Optional env: DAILY_BUDGET_USD (default 5), BUDGET_ALERT_EMAIL (default jayhawks01@gmail.com),
+// Optional env: DAILY_BUDGET_USD (default 5), BUDGET_ALERT_EMAIL (default howdy@howdynash.com),
 //               KV_REST_API_URL + KV_REST_API_TOKEN (Upstash Redis), RESEND_API_KEY
 
 import { Redis } from '@upstash/redis';
@@ -11,7 +11,7 @@ const HAIKU_INPUT_COST_PER_MTOK = 1.0;
 const HAIKU_OUTPUT_COST_PER_MTOK = 5.0;
 
 const DAILY_BUDGET_USD = Number(process.env.DAILY_BUDGET_USD || 5);
-const BUDGET_ALERT_EMAIL = process.env.BUDGET_ALERT_EMAIL || 'jayhawks01@gmail.com';
+const BUDGET_ALERT_EMAIL = process.env.BUDGET_ALERT_EMAIL || 'howdy@howdynash.com';
 const ALERT_THRESHOLD_PCT = 0.8; // email warning at 80% of daily budget
 
 let redis = null;
