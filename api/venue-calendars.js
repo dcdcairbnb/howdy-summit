@@ -1,11 +1,11 @@
 // Scrapes upcoming shows from Nashville's iconic music venues that aren't well
 // covered by Ticketmaster: Bluebird Cafe, Station Inn, Ryman Auditorium, Grand
-// Ole Opry. Each site has a different HTML structure, so each scraper is a
-// separate function. Returns a normalized list and caches at the edge.
+// Ole Opry. Strategy: extract JSON-LD Event schema (more reliable than regex
+// against arbitrary HTML), with regex fallback for sites that don't use it.
 
 const COMMON_HEADERS = {
-  'User-Agent': 'HowdyNash/1.0 (+https://howdynash.com)',
-  'Accept': 'text/html,application/xhtml+xml',
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9'
 };
 
@@ -22,7 +22,7 @@ function strip(html) {
 
 async function fetchHtml(url) {
   try {
-    const r = await fetch(url, { headers: COMMON_HEADERS, signal: AbortSignal.timeout(8000) });
+    const r = await fetch(url, { headers: COMMON_HEADERS, signal: AbortSignal.timeout(12000) });
     if (!r.ok) return null;
     return await r.text();
   } catch (e) {
@@ -30,84 +30,62 @@ async function fetchHtml(url) {
   }
 }
 
-async function scrapeBluebird() {
-  const url = 'https://bluebirdcafe.com/shows/';
-  const html = await fetchHtml(url);
+// Pull all JSON-LD blobs of @type Event from a page. Returns normalized events.
+function extractEvents(html, defaultVenue, defaultNeighborhood) {
   if (!html) return [];
-  const out = [];
-  const cardRe = /<article[^>]*class="[^"]*tribe-events-calendar-list__event[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
+  const events = [];
+  const ldRe = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let m;
-  while ((m = cardRe.exec(html)) && out.length < 12) {
-    const card = m[1];
-    const titleM = card.match(/<h3[^>]*tribe-events-calendar-list__event-title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i);
-    const title = strip(titleM ? titleM[1] : '');
-    const dateM = card.match(/<time[^>]*datetime="([^"]+)"/i);
-    const date = dateM ? dateM[1].slice(0, 10) : '';
-    const linkM = card.match(/<a[^>]*href="([^"]+)"/i);
-    const link = linkM ? linkM[1] : url;
-    if (title) out.push({ name: title, date, time: '', venue: 'The Bluebird Cafe', neighborhood: 'Green Hills', url: link, source: 'bluebird' });
+  while ((m = ldRe.exec(html))) {
+    let payload;
+    try { payload = JSON.parse(m[1].trim()); } catch { continue; }
+    const items = Array.isArray(payload) ? payload : (payload['@graph'] || [payload]);
+    for (const item of items) {
+      const type = item['@type'];
+      const isEvent = type === 'Event' || type === 'MusicEvent' || type === 'TheaterEvent' ||
+        (Array.isArray(type) && type.some(t => /event/i.test(t)));
+      if (!isEvent) continue;
+      const name = item.name || '';
+      const startDate = item.startDate || '';
+      const url = item.url || (item.offers && item.offers.url) || '';
+      const venueName = (item.location && (item.location.name || (Array.isArray(item.location) && item.location[0] && item.location[0].name))) || defaultVenue;
+      if (name) {
+        events.push({
+          name: strip(String(name)),
+          date: startDate ? String(startDate).slice(0, 10) : '',
+          time: startDate && startDate.length > 10 ? String(startDate).slice(11, 16) : '',
+          venue: venueName,
+          neighborhood: defaultNeighborhood,
+          url
+        });
+      }
+    }
   }
-  return out;
+  return events;
+}
+
+async function scrapeBluebird() {
+  const html = await fetchHtml('https://bluebirdcafe.com/shows/');
+  const events = extractEvents(html, 'The Bluebird Cafe', 'Green Hills');
+  return events.map(e => ({ ...e, source: 'bluebird' }));
 }
 
 async function scrapeStationInn() {
-  const url = 'https://stationinn.com/calendar/';
-  const html = await fetchHtml(url);
-  if (!html) return [];
-  const out = [];
-  const cardRe = /<div[^>]*class="[^"]*event[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
-  let m;
-  while ((m = cardRe.exec(html)) && out.length < 12) {
-    const card = m[1];
-    const titleM = card.match(/<(?:h2|h3|a)[^>]*>([^<]+(?:<[^/][^>]*>[^<]+<\/[^>]+>[^<]*)*)<\/(?:h2|h3|a)>/i);
-    const title = strip(titleM ? titleM[1] : '');
-    const dateM = card.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})|(\w+ \d{1,2},? \d{4})/);
-    const date = dateM ? dateM[0] : '';
-    const linkM = card.match(/<a[^>]*href="([^"]+)"/i);
-    const link = linkM ? linkM[1] : url;
-    if (title && title.length > 3) out.push({ name: title, date, time: '', venue: 'Station Inn', neighborhood: 'The Gulch', url: link, source: 'stationinn' });
-  }
-  return out;
+  const html = await fetchHtml('https://stationinn.com/calendar/');
+  const events = extractEvents(html, 'Station Inn', 'The Gulch');
+  return events.map(e => ({ ...e, source: 'stationinn' }));
 }
 
 async function scrapeRyman() {
-  const url = 'https://ryman.com/events/';
-  const html = await fetchHtml(url);
-  if (!html) return [];
-  const out = [];
-  const cardRe = /<div[^>]*class="[^"]*event-item[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
-  let m;
-  while ((m = cardRe.exec(html)) && out.length < 15) {
-    const card = m[1];
-    const titleM = card.match(/<(?:h2|h3|h4)[^>]*>([\s\S]*?)<\/(?:h2|h3|h4)>/i);
-    const title = strip(titleM ? titleM[1] : '');
-    const dateM = card.match(/<time[^>]*datetime="([^"]+)"/i) || card.match(/(\w+ \d{1,2},? \d{4})/);
-    const date = dateM ? (dateM[1] || dateM[0]) : '';
-    const linkM = card.match(/<a[^>]*href="([^"]+)"/i);
-    const link = linkM ? linkM[1] : url;
-    if (title) out.push({ name: title, date, time: '', venue: 'Ryman Auditorium', neighborhood: 'Downtown', url: link, source: 'ryman' });
-  }
-  return out;
+  const html = await fetchHtml('https://ryman.com/events/');
+  const events = extractEvents(html, 'Ryman Auditorium', 'Downtown');
+  return events.map(e => ({ ...e, source: 'ryman' }));
 }
 
 async function scrapeOpry() {
-  const url = 'https://www.opry.com/shows';
-  const html = await fetchHtml(url);
-  if (!html) return [];
-  const out = [];
-  const cardRe = /<div[^>]*class="[^"]*show-card[^"]*"[^>]*>([\s\S]*?)<\/article>|<article[^>]*class="[^"]*show[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
-  let m;
-  while ((m = cardRe.exec(html)) && out.length < 15) {
-    const card = m[1] || m[2] || '';
-    const titleM = card.match(/<(?:h2|h3|h4)[^>]*>([\s\S]*?)<\/(?:h2|h3|h4)>/i);
-    const title = strip(titleM ? titleM[1] : '');
-    const dateM = card.match(/<time[^>]*datetime="([^"]+)"/i) || card.match(/(\w+ \d{1,2})/);
-    const date = dateM ? (dateM[1] || dateM[0]) : '';
-    const linkM = card.match(/<a[^>]*href="([^"]+)"/i);
-    const link = linkM ? (linkM[1].startsWith('http') ? linkM[1] : 'https://www.opry.com' + linkM[1]) : url;
-    if (title) out.push({ name: title, date, time: '', venue: 'Grand Ole Opry', neighborhood: 'Opry Mills', url: link, source: 'opry' });
-  }
-  return out;
+  const html = await fetchHtml('https://www.opry.com/shows');
+  const events = extractEvents(html, 'Grand Ole Opry', 'Opry Mills');
+  return events.map(e => ({ ...e, source: 'opry' }));
 }
 
 export default async function handler(req, res) {
