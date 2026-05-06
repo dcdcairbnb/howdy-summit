@@ -2837,11 +2837,6 @@ function showTripChecklist() {
         <span style="flex:1;${checked ? 'text-decoration:line-through;color:#999;' : ''}">${item.label}</span>
       </label>`;
     });
-    // Inline reset button on the last section. Calls a JS function directly so
-    // it doesn't echo "Reset checklist" as a user message in chat.
-    if (idx === NASHVILLE_CHECKLIST.length - 1) {
-      html += `<div style="margin-top:14px;text-align:right;"><a href="#" onclick="resetChecklistDirect();return false;" style="background:#d62828;color:#fff;font-weight:600;display:inline-block;">Reset checklist</a></div>`;
-    }
     html += `</div>`;
     addMessage(html, 'bot', true);
   });
@@ -2861,7 +2856,22 @@ function showTripChecklist() {
       });
     });
   }, 100);
-  addQuickReplies(['← Main menu']);
+  // Custom pill row: Main menu uses normal quick-reply behavior, Reset
+  // checklist calls JS directly so it doesn't echo a user message bubble.
+  const wrap = document.createElement('div');
+  wrap.className = 'quick-replies';
+  const menuBtn = document.createElement('button');
+  menuBtn.className = 'quick-reply';
+  menuBtn.textContent = '← Main menu';
+  menuBtn.onclick = () => { handleUserMessage('← Main menu'); wrap.remove(); };
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'quick-reply';
+  resetBtn.textContent = 'Reset checklist';
+  resetBtn.onclick = () => { resetChecklistDirect(); };
+  wrap.appendChild(menuBtn);
+  wrap.appendChild(resetBtn);
+  messagesEl.appendChild(wrap);
+  scrollToView();
 }
 
 // Direct reset called from the inline button inside the checklist card. Skips
