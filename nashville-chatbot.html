@@ -2193,7 +2193,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['✅ trip checklist', 'trip checklist', 'checklist', 'nashville checklist', 'todo list', 'to-do'])) {
+  if (matches(lower, ['✅ nash check list', 'nash check list', 'nash checklist', '✅ trip checklist', 'trip checklist', 'checklist', 'nashville checklist', 'todo list', 'to-do'])) {
     showTripChecklist();
     return;
   }
@@ -2715,7 +2715,7 @@ function showWelcome() {
 function showMainMenu() {
   const replies = [
     '🔍 Search',
-    '✅ Trip Checklist',
+    '✅ Nash check list',
     '🍽️ Eat & Drink',
     '🎵 Things to Do',
     '🏘️ Neighborhoods',
@@ -6859,9 +6859,6 @@ setTimeout(() => {
     setTimeout(() => updateBackBtn(), 350);
   } else {
     addMessage(ctx.greeting, 'bot');
-    // Featured checklist card on the home screen. Shows progress at a glance
-    // and links into the full checklist with one tap.
-    addMessage(renderHomeChecklistCard(), 'bot', true);
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
