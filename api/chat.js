@@ -6,9 +6,39 @@
 import { Redis } from '@upstash/redis';
 import { Resend } from 'resend';
 
-// Haiku 4.5 pricing per million tokens. Adjust if Anthropic updates pricing.
-const HAIKU_INPUT_COST_PER_MTOK = 1.0;
-const HAIKU_OUTPUT_COST_PER_MTOK = 5.0;
+// Per-million-token pricing for both models. Sonnet costs 3x as much as
+// Haiku, so the budget guard treats them differently.
+const MODELS = {
+  haiku: {
+    id: 'claude-haiku-4-5-20251001',
+    inputCostPerMtok: 1.0,
+    outputCostPerMtok: 5.0,
+    maxTokens: 350
+  },
+  sonnet: {
+    id: 'claude-sonnet-4-6',
+    inputCostPerMtok: 3.0,
+    outputCostPerMtok: 15.0,
+    maxTokens: 600
+  }
+};
+
+// Patterns that should auto-promote to Sonnet for better reasoning, even if
+// the user hasn't toggled smart mode. Itinerary planning and multi-step
+// requests benefit most from the upgrade.
+const SMART_MODE_PATTERNS = [
+  /plan (me )?(a |my |an? )?(weekend|day|night|trip|itinerary|3.day|3 day|two.day|2.day|four.day|4.day|five.day|5.day|week)/i,
+  /build (me )?(a |an? )?(itinerary|plan|schedule|guide)/i,
+  /\b(\d+)[- ]day (trip|itinerary|plan|guide)/i,
+  /compare\s.+\s(vs|versus|against)\s/i,
+  /best (way|order|route) to (do|see|visit|hit|plan)/i,
+  /(detailed|step.by.step|full|comprehensive) (plan|guide|itinerary|breakdown)/i
+];
+
+function detectSmartMode(message) {
+  if (!message) return false;
+  return SMART_MODE_PATTERNS.some(re => re.test(message));
+}
 
 const DAILY_BUDGET_USD = Number(process.env.DAILY_BUDGET_USD || 5);
 const BUDGET_ALERT_EMAIL = process.env.BUDGET_ALERT_EMAIL || 'howdy@howdynash.com';
@@ -324,13 +354,18 @@ export default async function handler(req, res) {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
 
-  const { message, history = [], location = null } = body || {};
+  const { message, history = [], location = null, smartMode = false } = body || {};
   if (!message || typeof message !== 'string') {
     return res.status(400).json({ error: 'message is required' });
   }
   if (message.length > 2000) {
     return res.status(400).json({ error: 'message too long' });
   }
+
+  // Decide which model to use. Explicit smartMode flag wins; otherwise auto-
+  // detect trip-planning patterns that benefit from Sonnet's longer reasoning.
+  const useSonnet = smartMode === true || detectSmartMode(message);
+  const model = useSonnet ? MODELS.sonnet : MODELS.haiku;
 
   // Map the user's lat/lng to the closest Nashville neighborhood. Lets Claude
   // answer "near me" questions without re-asking. Coords come from the
@@ -341,8 +376,9 @@ export default async function handler(req, res) {
 
   // Cache hit: serve without spending tokens or counting against rate limit.
   // Only cache when there is no conversation history AND no location context
-  // (location-aware answers should never be cached across users).
-  if ((!history || history.length === 0) && !userNeighborhood) {
+  // AND not in smart mode. Smart mode answers vary in depth and shouldn't
+  // be served from a Haiku cache.
+  if ((!history || history.length === 0) && !userNeighborhood && !useSonnet) {
     const cached = getCachedReply(message);
     if (cached) {
       res.setHeader('Cache-Control', 'no-store');
@@ -405,8 +441,8 @@ The user shared their location and is currently in ${userNeighborhood.name}. Whe
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 350,
+        model: model.id,
+        max_tokens: model.maxTokens,
         system: systemPrompt,
         messages
       })
@@ -421,17 +457,18 @@ The user shared their location and is currently in ${userNeighborhood.name}. Whe
     const data = await r.json();
     const reply = data.content?.[0]?.text || '';
 
-    // Cache only fresh, no-history, no-location questions. Location-aware
-    // answers vary per user and should not be served from a shared cache.
-    if (reply && (!history || history.length === 0) && !userNeighborhood) {
+    // Cache only fresh, no-history, no-location, no-smart questions.
+    // Location-aware and smart-mode answers vary per user / per session.
+    if (reply && (!history || history.length === 0) && !userNeighborhood && !useSonnet) {
       setCachedReply(message, reply);
     }
 
-    // Tally the real cost of this call from Anthropic's usage block.
+    // Tally the real cost of this call. Sonnet costs 3x Haiku, so the budget
+    // guard hits sooner if smart mode is in heavy use.
     const inTok = Number(data.usage?.input_tokens || 0);
     const outTok = Number(data.usage?.output_tokens || 0);
-    const callCostUsd = (inTok / 1_000_000) * HAIKU_INPUT_COST_PER_MTOK
-                      + (outTok / 1_000_000) * HAIKU_OUTPUT_COST_PER_MTOK;
+    const callCostUsd = (inTok / 1_000_000) * model.inputCostPerMtok
+                      + (outTok / 1_000_000) * model.outputCostPerMtok;
     const callCostCents = Math.max(1, Math.round(callCostUsd * 10000) / 100); // store with 0.01 cent precision rounded to whole cent
     const newTotalCents = await addTodaySpend(Math.round(callCostUsd * 100));
     const newTotalUsd = newTotalCents / 100;
@@ -443,10 +480,12 @@ The user shared their location and is currently in ${userNeighborhood.name}. Whe
 
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Cache', 'MISS');
+    res.setHeader('X-Model', useSonnet ? 'sonnet' : 'haiku');
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
     res.status(200).json({
       reply,
-      stopReason: data.stop_reason
+      stopReason: data.stop_reason,
+      modelUsed: useSonnet ? 'sonnet' : 'haiku'
     });
   } catch (e) {
     if (e.name === 'AbortError') {
