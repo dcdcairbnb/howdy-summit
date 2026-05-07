@@ -1145,13 +1145,14 @@ const NASHVILLE_DATA = {
 
 let navHistory = [];
 let messageSnapshots = [];
-// Restore cached location from sessionStorage so a refresh does not lose it.
-// Cache for 60 minutes max, then re-fetch.
+// Restore cached location from localStorage so it survives app kills on iOS.
+// Cache for 24 hours, then re-fetch. We also silently re-fetch on every launch
+// when permission is already granted, so the cached value is a fallback.
 const LOCATION_CACHE_KEY = 'howdy-nash-location';
-const LOCATION_CACHE_TTL_MS = 60 * 60 * 1000;
+const LOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 let userLocation = (function loadCachedLocation() {
   try {
-    const raw = sessionStorage.getItem(LOCATION_CACHE_KEY);
+    const raw = localStorage.getItem(LOCATION_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !parsed.lat || !parsed.lng || !parsed.savedAt) return null;
@@ -1287,9 +1288,9 @@ function requestLocation() {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude
       };
-      // Persist for the session so a refresh does not lose location.
+      // Persist across app launches so iOS users don't have to re-share each time.
       try {
-        sessionStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+        localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
           lat: userLocation.lat,
           lng: userLocation.lng,
           savedAt: Date.now()
@@ -1724,16 +1725,14 @@ function maybeShowWelcomeTour() {
 }
 
 // Location permission prompt modal
+// On every launch we ALWAYS check current permission state. If already granted,
+// silently re-fetch (no prompt, no friction). The auto-prompt-v2 flag only
+// blocks the initial prompt, not the silent re-fetch.
 function maybeShowLocationPrompt() {
-  if (userLocation) return;
   if (!navigator.geolocation) return;
 
-  // New auto-prompt flag (v2). If user denies, we set this and never auto-ask again.
-  // Intentionally ignoring the old 'howdy-nashville-location-asked' key so users
-  // who dismissed the legacy custom modal get a fresh chance with the native prompt.
-  if (localStorage.getItem('howdy-location-autoprompt-v2')) return;
-
   const fireAutoPrompt = () => {
+    if (localStorage.getItem('howdy-location-autoprompt-v2')) return;
     setTimeout(() => {
       localStorage.setItem('howdy-location-autoprompt-v2', '1');
       requestLocation();
@@ -1743,7 +1742,8 @@ function maybeShowLocationPrompt() {
   if (navigator.permissions) {
     navigator.permissions.query({ name: 'geolocation' }).then(p => {
       if (p.state === 'granted') {
-        // Permission already granted - fetch silently, no prompt
+        // Permission granted at OS level. Always silently refresh on launch
+        // so the user never sees a prompt and the location stays current.
         requestLocation();
         localStorage.setItem('howdy-location-autoprompt-v2', '1');
         return;
