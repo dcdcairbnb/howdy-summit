@@ -3165,9 +3165,13 @@ function showAddMemberCard() {
   wrap.className = 'message bot split-form-block';
   wrap.innerHTML = `<div class="card" style="border-left:4px solid #34a853;">
     <div class="card-title">Add person to trip</div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+    <div style="font-size:12px;color:#666;margin-top:4px;">Payment handles let others pay this person back if they front a bill.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
       <input id="newMemberName" type="text" placeholder="Name" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <input id="newMemberEmail" type="email" placeholder="Email" maxlength="120" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newMemberVenmo" type="text" placeholder="Venmo handle (optional, e.g., @SarahK)" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newMemberCashapp" type="text" placeholder="Cash App handle (optional, e.g., $SarahK)" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newMemberPaypal" type="text" placeholder="PayPal.me link (optional)" maxlength="80" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;padding:6px 0;">
         <input type="checkbox" id="newMemberOptIn" style="width:16px;height:16px;cursor:pointer;">
         <span>Email me Nashville tips and deals (optional)</span>
@@ -3183,9 +3187,12 @@ function addMember() {
   if (!trip) return;
   const name = document.getElementById('newMemberName').value.trim();
   const email = document.getElementById('newMemberEmail').value.trim();
+  const venmo = document.getElementById('newMemberVenmo').value.trim();
+  const cashapp = document.getElementById('newMemberCashapp').value.trim();
+  const paypal = document.getElementById('newMemberPaypal').value.trim();
   const optIn = document.getElementById('newMemberOptIn').checked;
   if (!name || !email) { addMessage('Name and email required.', 'bot'); return; }
-  trip.members.push({ id: uid(), name, email, venmo: '', cashapp: '', paypal: '', isPayer: false, optIn });
+  trip.members.push({ id: uid(), name, email, venmo, cashapp, paypal, isPayer: false, optIn });
   saveTrip(trip);
   addMessage(`${name} added.`, 'bot');
   showTripOverview();
