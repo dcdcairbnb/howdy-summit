@@ -2792,7 +2792,11 @@ async function askClaude(userText) {
     const r = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userText, history: llmHistory })
+      body: JSON.stringify({
+        message: userText,
+        history: llmHistory,
+        location: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null
+      })
     });
     const typingEl = document.getElementById(typingId);
     if (typingEl) typingEl.parentElement.remove();

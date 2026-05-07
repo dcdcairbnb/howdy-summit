@@ -128,6 +128,49 @@ FORMAT RULES
 - Phone numbers and addresses are fine when known.
 - Never invent prices, hours, or reservation availability. Say "call to confirm" or "check their website."`;
 
+// Nashville neighborhood centroids. Used to map a user's lat/lng to the
+// closest neighborhood so the AI answers "near me" without re-asking.
+// Coords are approximate centers, not precise polygons.
+const NEIGHBORHOODS = [
+  { name: 'Downtown / Broadway', lat: 36.1620, lng: -86.7780 },
+  { name: 'SoBro', lat: 36.1555, lng: -86.7760 },
+  { name: 'The Gulch', lat: 36.1530, lng: -86.7820 },
+  { name: 'Midtown', lat: 36.1510, lng: -86.7950 },
+  { name: 'Germantown', lat: 36.1810, lng: -86.7870 },
+  { name: 'East Nashville', lat: 36.1820, lng: -86.7490 },
+  { name: '12 South', lat: 36.1240, lng: -86.7890 },
+  { name: 'Wedgewood-Houston', lat: 36.1370, lng: -86.7840 },
+  { name: 'Berry Hill', lat: 36.1170, lng: -86.7700 },
+  { name: 'The Nations', lat: 36.1570, lng: -86.8350 },
+  { name: 'Sylvan Park', lat: 36.1530, lng: -86.8300 },
+  { name: 'Hillsboro Village', lat: 36.1340, lng: -86.7990 },
+  { name: 'Music Row', lat: 36.1500, lng: -86.7920 },
+  { name: 'Belle Meade', lat: 36.1080, lng: -86.8580 },
+  { name: 'Green Hills', lat: 36.1060, lng: -86.8170 }
+];
+
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const R = 3958.8;
+  const toRad = d => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+          + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function nashvilleNeighborhood(lat, lng) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const n of NEIGHBORHOODS) {
+    const d = haversineMiles(lat, lng, n.lat, n.lng);
+    if (d < bestDist) { bestDist = d; best = n; }
+  }
+  // If user is more than 12 miles from any centroid, treat as outside Nashville.
+  if (bestDist > 12) return { name: 'outside Nashville', distanceMiles: bestDist };
+  return { name: best.name, distanceMiles: bestDist };
+}
+
 // Simple in-memory rate limiter. Resets when function instance recycles.
 const rateLimitStore = new Map();
 const RATE_LIMIT_PER_DAY = 15;
@@ -209,7 +252,7 @@ export default async function handler(req, res) {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
 
-  const { message, history = [] } = body || {};
+  const { message, history = [], location = null } = body || {};
   if (!message || typeof message !== 'string') {
     return res.status(400).json({ error: 'message is required' });
   }
@@ -217,9 +260,17 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'message too long' });
   }
 
+  // Map the user's lat/lng to the closest Nashville neighborhood. Lets Claude
+  // answer "near me" questions without re-asking. Coords come from the
+  // browser's Geolocation API so accuracy varies.
+  const userNeighborhood = location && location.lat && location.lng
+    ? nashvilleNeighborhood(location.lat, location.lng)
+    : null;
+
   // Cache hit: serve without spending tokens or counting against rate limit.
-  // Only cache when there is no conversation history (fresh question).
-  if (!history || history.length === 0) {
+  // Only cache when there is no conversation history AND no location context
+  // (location-aware answers should never be cached across users).
+  if ((!history || history.length === 0) && !userNeighborhood) {
     const cached = getCachedReply(message);
     if (cached) {
       res.setHeader('Cache-Control', 'no-store');
@@ -250,6 +301,19 @@ export default async function handler(req, res) {
   }
   messages.push({ role: 'user', content: message.slice(0, 2000) });
 
+  // Build a location-aware system prompt addendum. If the user shared their
+  // location, tell Claude where they are so "near me" works without re-asking.
+  let systemPrompt = SYSTEM_PROMPT;
+  if (userNeighborhood) {
+    if (userNeighborhood.name === 'outside Nashville') {
+      systemPrompt += `\n\nUSER LOCATION
+The user shared their location and they appear to be outside Nashville (about ${userNeighborhood.distanceMiles.toFixed(1)} miles from the city). When they ask about "near me", confirm whether they want recommendations near downtown Nashville, or near where they will be staying, before assuming.`;
+    } else {
+      systemPrompt += `\n\nUSER LOCATION
+The user shared their location and is currently in ${userNeighborhood.name}. When they ask about "near me", "close by", "around here", or anything spatial, recommend spots in or adjacent to ${userNeighborhood.name}. Do not ask where they are. Mention the neighborhood naturally in your reply.`;
+    }
+  }
+
   try {
     const r = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -261,7 +325,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 350,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         messages
       })
     }, 15000);
@@ -275,8 +339,9 @@ export default async function handler(req, res) {
     const data = await r.json();
     const reply = data.content?.[0]?.text || '';
 
-    // Cache only fresh, no-history questions to keep replies relevant.
-    if (reply && (!history || history.length === 0)) {
+    // Cache only fresh, no-history, no-location questions. Location-aware
+    // answers vary per user and should not be served from a shared cache.
+    if (reply && (!history || history.length === 0) && !userNeighborhood) {
       setCachedReply(message, reply);
     }
 
