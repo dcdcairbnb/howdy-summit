@@ -171,6 +171,78 @@ function nashvilleNeighborhood(lat, lng) {
   return { name: best.name, distanceMiles: bestDist };
 }
 
+// Curated list of real Nashville restaurants per neighborhood. The AI uses
+// this as ground truth instead of hallucinating which spots are where.
+// Each entry: name, optional cuisine. Keep this list tight and accurate.
+const NEIGHBORHOOD_PICKS = {
+  'Downtown / Broadway': [
+    'Husk (Southern, in SoBro just south)',
+    'Pinewood Social (modern American, in SoBro)',
+    'Bourbon Steak (steakhouse, JW Marriott)',
+    'The Listening Room Cafe (live music dinner, SoBro)',
+    'Hattie B\'s (hot chicken, walk to SoBro)',
+    'Eric Church\'s Chief\'s (Southern, Lower Broadway)',
+    'Acme Feed & Seed (rooftop, Lower Broadway)'
+  ],
+  'SoBro': [
+    'Husk', 'Pinewood Social', 'Hattie B\'s SoBro', 'The Listening Room Cafe',
+    'Mastro\'s Steakhouse', 'Adele\'s', 'The Diner'
+  ],
+  'The Gulch': [
+    'Biscuit Love', 'Otaku Ramen', 'Saint Anejo', 'Bakersfield', 'Peg Leg Porker (BBQ)',
+    'Kayne Prime (steakhouse)', 'Hal\'s Steakhouse', 'L.A. Jackson rooftop',
+    'The Band Box', 'Yolan (Italian)'
+  ],
+  'Midtown': [
+    'Pancake Pantry', 'The Catbird Seat (fine dining)', 'Hattie B\'s Midtown (original)',
+    'Kayne Prime', 'Ruth\'s Chris', 'The Capital Grille', 'Fleming\'s', 'Patterson House (cocktails)',
+    'White Limozeen rooftop', 'Bastion'
+  ],
+  'Germantown': [
+    'Rolf and Daughters (Italian)', 'City House (wood-fired Italian)', 'Henrietta Red (seafood)',
+    'Butcher and Bee (Mediterranean)', '5th & Taylor (modern American)', 'The Optimist (seafood)',
+    'Geist', 'Pearl Diver', 'Von Elrod\'s Beer Hall', 'Otaku Ramen Germantown',
+    'Monell\'s (Southern family-style)', 'Steadfast Coffee', 'Honest Coffee', 'Hampton Social',
+    'Nashville Farmers\' Market food hall'
+  ],
+  'East Nashville': [
+    'Mas Tacos Por Favor', 'Margot Cafe', 'Folk (pizza)', 'Five Points Pizza',
+    'Lockeland Table', 'Two Ten Jack (ramen/izakaya)', 'Rosepepper Cantina',
+    'The 5 Spot (live music)', 'Prince\'s Hot Chicken (original location)',
+    'Nicoletto\'s Italian'
+  ],
+  '12 South': [
+    'Burger Up', 'Locust (tasting menu)', 'Le Sel (French)', 'Las Paletas',
+    'Edley\'s BBQ', 'Bartaco', 'Five Daughters Bakery', 'I Believe In Nashville mural'
+  ],
+  'Wedgewood-Houston': [
+    'Bastion', 'Detroit Cowboy (pizza)', 'Falcon Coffee Bar', 'Tennessee Brew Works',
+    'Jackalope Brewing', '3rd & Lindsley (live music)', 'Diskin Cider'
+  ],
+  'Berry Hill': [
+    'Sky Blue Cafe (breakfast)', 'Edley\'s BBQ (Berry Hill)', 'Patsy Cline mural'
+  ],
+  'The Nations': [
+    'The Picnic Tap', 'Local Distro', 'Sinema', 'Centennial', 'Riverside Grillshack'
+  ],
+  'Sylvan Park': [
+    'Mas Tacos (sister location)', 'Park Cafe', 'Local Taco', 'Sylvan Park Restaurant'
+  ],
+  'Hillsboro Village': [
+    'Pancake Pantry', 'Jinya Ramen Bar', 'Fido (coffee)', 'Sunflower Cafe', 'Cabana'
+  ],
+  'Music Row': [
+    'White Limozeen rooftop', 'Conrad Nashville hotel bar'
+  ],
+  'Belle Meade': [
+    'Sperry\'s Restaurant (steakhouse)', 'Belle Meade Plantation', 'Cheekwood Estate (gardens)'
+  ],
+  'Green Hills': [
+    'Bluebird Cafe (songwriter rounds, book early)', 'Edley\'s BBQ (Green Hills location)',
+    'The Mall at Green Hills (Apple, luxury shops)', 'Shabu Shabu (hot pot)'
+  ]
+};
+
 // Simple in-memory rate limiter. Resets when function instance recycles.
 const rateLimitStore = new Map();
 const RATE_LIMIT_PER_DAY = 15;
@@ -303,14 +375,24 @@ export default async function handler(req, res) {
 
   // Build a location-aware system prompt addendum. If the user shared their
   // location, tell Claude where they are so "near me" works without re-asking.
+  // Also inject a curated list of REAL spots in that neighborhood as ground
+  // truth so Claude does not invent which restaurants belong where.
   let systemPrompt = SYSTEM_PROMPT;
   if (userNeighborhood) {
     if (userNeighborhood.name === 'outside Nashville') {
       systemPrompt += `\n\nUSER LOCATION
 The user shared their location and they appear to be outside Nashville (about ${userNeighborhood.distanceMiles.toFixed(1)} miles from the city). When they ask about "near me", confirm whether they want recommendations near downtown Nashville, or near where they will be staying, before assuming.`;
     } else {
+      const picks = NEIGHBORHOOD_PICKS[userNeighborhood.name];
+      const groundTruth = picks && picks.length
+        ? `\n\nCONFIRMED SPOTS IN ${userNeighborhood.name.toUpperCase()}
+These are real, verified picks in this neighborhood. Use ONLY these (or other places you are confident are in ${userNeighborhood.name}) when giving "near me" recommendations:
+- ${picks.join('\n- ')}
+
+Do NOT invent restaurant locations. If a user asks for a type of food that is not on this list, either suggest the closest match from the list, or be honest and say "I'd need to double-check that, but in ${userNeighborhood.name} you have..." and then list confirmed spots from above.`
+        : '';
       systemPrompt += `\n\nUSER LOCATION
-The user shared their location and is currently in ${userNeighborhood.name}. When they ask about "near me", "close by", "around here", or anything spatial, recommend spots in or adjacent to ${userNeighborhood.name}. Do not ask where they are. Mention the neighborhood naturally in your reply.`;
+The user shared their location and is currently in ${userNeighborhood.name}. When they ask about "near me", "close by", "around here", or anything spatial, recommend spots in or adjacent to ${userNeighborhood.name}. Do not ask where they are. Mention the neighborhood naturally in your reply.${groundTruth}`;
     }
   }
 
