@@ -275,6 +275,11 @@
     .capacitor .header {
       padding-top: max(48px, env(safe-area-inset-top));
     }
+    /* Slim mode (after navigating into a menu) needs to keep clearing the
+       iPhone notch. Without this, the title slides up under the camera island. */
+    .capacitor .header.slim {
+      padding-top: max(40px, env(safe-area-inset-top));
+    }
     .capacitor .messages {
       padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
@@ -306,7 +311,7 @@
     flex-shrink: 0;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
-  .header.slim { padding: 8px 16px; gap: 10px; }
+  .header.slim { padding: 8px 16px; gap: 10px; padding-top: max(8px, env(safe-area-inset-top)); }
   .header.slim .avatar { width: 28px; height: 28px; font-size: 14px; }
   .header.slim .header-text h1 { font-size: 14px; }
   .header.slim .header-text p { display: none; }
