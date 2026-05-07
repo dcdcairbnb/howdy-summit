@@ -267,19 +267,19 @@
     .bottom-nav {
       padding-bottom: max(14px, env(safe-area-inset-bottom));
     }
-    /* Capacitor iOS quirk: contentInset:"always" already adds top inset to the
-       WebView. CSS safe-area-inset-top adds it AGAIN, causing tap coordinates
-       to be offset downward by ~status bar height. The .capacitor class is set
-       by JS at startup. Without this, taps register on the pill below where
-       the user actually touched. */
+    /* Capacitor iOS uses contentInset:"always" which adds a native inset, but
+       we still need CSS padding so the avatar and title sit below the status
+       bar visually. The actual tap-offset bug came from modal auto-focus, not
+       padding (fixed elsewhere). Use a generous top padding so the logo is
+       clearly visible. */
     .capacitor .header {
-      padding-top: 18px;
+      padding-top: max(48px, env(safe-area-inset-top));
     }
-    /* Bigger touch targets help compensate for any remaining tap offset on
-       iOS Capacitor. Add visible bottom padding inside container so menu pills
-       don't fall under the iPhone home indicator. */
     .capacitor .messages {
       padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    .capacitor .header .avatar {
+      margin-left: 4px;
     }
     .ride-row, .delivery-row {
       flex-wrap: wrap;
