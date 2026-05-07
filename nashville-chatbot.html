@@ -645,6 +645,7 @@
     font-size: 13px;
     line-height: 1.5;
     color: #333;
+    position: relative;
   }
   .modal-box h2 {
     font-size: 17px;
@@ -806,6 +807,7 @@
 </div>
 <div class="modal-overlay" id="disclaimerModal" onclick="if(event.target===this)closeDisclaimer()">
   <div class="modal-box">
+    <button onclick="closeDisclaimer()" aria-label="Close" style="position:absolute;top:12px;right:12px;background:#f0f0f0;border:none;width:36px;height:36px;border-radius:50%;font-size:22px;line-height:1;color:#666;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;">&times;</button>
     <h2>Disclaimer & Privacy</h2>
     <p>Howdy Nash is an independent Nashville tourism guide. We aggregate data from third-party services to help you discover the city.</p>
 
