@@ -83,7 +83,51 @@ function buildBacheloretteBlock() {
 function titleCase(s) {
   return String(s || '').toLowerCase().replace(/(^|\s|-)([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
 }
-function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
+// Trip summary email body for the Split Costs feature. Each member gets a
+// personalized email showing what they owe (or that they're the payer) with
+// one-tap pay deeplinks for Venmo, Cash App, and PayPal. Generated from
+// tripData payload sent by the client.
+function buildTripSummaryBlock(tripData) {
+  if (!tripData) return '';
+  const { tripName, payerName, payerVenmo, payerCashapp, payerPaypal, memberOwes, isPayer, totalSpent, expenses } = tripData;
+  const expList = (expenses || []).slice(0, 30).map(e => `<li style="margin:4px 0;"><strong>$${Number(e.amount).toFixed(2)}</strong> ${escapeHtml(e.description || '')} <span style="color:#888;">(paid by ${escapeHtml(e.paidByName || '')}, split ${e.splitCount} ways)</span></li>`).join('');
+  if (isPayer) {
+    return `<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Your trip')} summary</strong></p>
+<p style="margin:8px 0;">You fronted the bill. Total spent: $${Number(totalSpent || 0).toFixed(2)}.</p>
+<p style="margin:8px 0;">Each person on the trip got their own email with what they owe and one-tap pay buttons.</p>
+<p style="margin:14px 0 6px;font-weight:600;">Expenses tracked:</p>
+<ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${expList || '<li>No expenses</li>'}</ul>`;
+  }
+  // Build pay buttons (only show what the payer set up)
+  const amount = Math.max(0, Number(memberOwes || 0));
+  const note = encodeURIComponent(`${tripName || 'Nashville trip'}`);
+  const buttons = [];
+  if (payerVenmo) {
+    const handle = String(payerVenmo).replace(/^@/, '').trim();
+    const url = `https://venmo.com/${encodeURIComponent(handle)}?txn=pay&amount=${amount.toFixed(2)}&note=${note}`;
+    buttons.push(`<a href="${url}" style="color:#3D95CE;font-weight:700;">Pay with Venmo</a>`);
+  }
+  if (payerCashapp) {
+    const handle = String(payerCashapp).replace(/^\$/, '').trim();
+    const url = `https://cash.app/$${encodeURIComponent(handle)}/${amount.toFixed(2)}`;
+    buttons.push(`<a href="${url}" style="color:#00D632;font-weight:700;">Pay with Cash App</a>`);
+  }
+  if (payerPaypal) {
+    let handle = String(payerPaypal).trim();
+    handle = handle.replace(/^https?:\/\/(www\.)?paypal\.me\//i, '').replace(/^@/, '');
+    const url = `https://paypal.me/${encodeURIComponent(handle)}/${amount.toFixed(2)}`;
+    buttons.push(`<a href="${url}" style="color:#0070BA;font-weight:700;">Pay with PayPal</a>`);
+  }
+  const buttonsHtml = buttons.length ? `<p style="margin:14px 0;">${buttons.join(' &middot; ')}</p>` : '';
+  return `<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Nashville trip')} summary</strong></p>
+<p style="margin:8px 0;">You owe ${escapeHtml(payerName || 'the payer')}: <strong>$${amount.toFixed(2)}</strong></p>
+${buttonsHtml}
+<p style="margin:14px 0 6px;font-weight:600;">Trip expenses:</p>
+<ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${expList || '<li>No expenses</li>'}</ul>
+<p style="margin:8px 0;font-size:14px;color:#666;">Split evenly across the people in each line item. Total trip: $${Number(totalSpent || 0).toFixed(2)}.</p>`;
+}
+
+function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData }) {
   const firstName = name ? titleCase(name.split(' ')[0]) : '';
   const greeting = firstName ? `Howdy ${firstName}` : 'Howdy';
   let savedSpotsBlock = '';
@@ -95,6 +139,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
     'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
     'bachelorette': 'Thanks for signing up. I built a Nashville group trip planner page just for trips like yours.',
+    'trip-summary': tripData && tripData.isPayer ? `Here is the summary from your ${tripData.tripName || 'Nashville trip'}. Each person on the trip got their own email with what they owe.` : `Here is your share from the ${tripData && tripData.tripName || 'Nashville trip'}. Tap a payment button below to settle up in seconds.`,
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
   }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
 
@@ -111,6 +156,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }) {
     <p style="margin:0 0 14px;">${sourceBlurb}</p>
     ${source === 'cheatsheet' ? `<p style="margin:14px 0;"><a href="${CHEATSHEET_URL}" style="color:#d62828;font-weight:600;">${CHEATSHEET_URL}</a></p>` : ''}
     ${source === 'bachelorette' ? buildBacheloretteBlock() : ''}
+    ${source === 'trip-summary' ? buildTripSummaryBlock(tripData) : ''}
     ${savedSpotsBlock}
     <p style="margin:18px 0 14px;">Reply anytime. I read every email and I am happy to point you to the right spot for whatever you are looking for in Nashville.</p>
     <p style="margin:0 0 4px;">Dan</p>
@@ -384,6 +430,8 @@ export default async function handler(req, res) {
   const name = String(body.name || '').trim().slice(0, 100);
   const source = String(body.source || 'general').trim().slice(0, 50);
   const savedSpots = Array.isArray(body.savedSpots) ? body.savedSpots.slice(0, 50) : null;
+  const optIn = !!body.optIn;
+  const tripData = (source === 'trip-summary' && body.tripData && typeof body.tripData === 'object') ? body.tripData : null;
 
   if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: 'valid email required' });
@@ -391,34 +439,41 @@ export default async function handler(req, res) {
 
   try {
     await ensureTable();
-    const token = crypto.randomBytes(24).toString('hex');
-    const upsert = `
-      INSERT INTO subscribers (email, name, source, unsubscribe_token, consent_ip, saved_spots)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (email) DO UPDATE SET
-        name = COALESCE(EXCLUDED.name, subscribers.name),
-        source = COALESCE(EXCLUDED.source, subscribers.source),
-        unsubscribed_at = NULL,
-        saved_spots = COALESCE(EXCLUDED.saved_spots, subscribers.saved_spots)
-      RETURNING unsubscribe_token, subscribed_at
-    `;
-    const result = await getPool().query(upsert, [
-      email,
-      name || null,
-      source,
-      token,
-      ip.slice(0, 45),
-      savedSpots ? JSON.stringify(savedSpots) : null
-    ]);
-    const stored = result.rows[0];
-    const unsubscribeToken = stored.unsubscribe_token;
-    const unsubscribeUrl = `${SITE_URL}/api/unsubscribe?token=${unsubscribeToken}`;
+    let unsubscribeUrl = `${SITE_URL}`;
+    // For trip-summary source, only add to the marketing subscribers table if
+    // the user explicitly opted in. The summary email itself is transactional
+    // and goes out regardless. This keeps us CAN-SPAM compliant.
+    const shouldStoreSubscriber = source !== 'trip-summary' || optIn;
+    if (shouldStoreSubscriber) {
+      const token = crypto.randomBytes(24).toString('hex');
+      const upsert = `
+        INSERT INTO subscribers (email, name, source, unsubscribe_token, consent_ip, saved_spots)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (email) DO UPDATE SET
+          name = COALESCE(EXCLUDED.name, subscribers.name),
+          source = COALESCE(EXCLUDED.source, subscribers.source),
+          unsubscribed_at = NULL,
+          saved_spots = COALESCE(EXCLUDED.saved_spots, subscribers.saved_spots)
+        RETURNING unsubscribe_token, subscribed_at
+      `;
+      const result = await getPool().query(upsert, [
+        email,
+        name || null,
+        source,
+        token,
+        ip.slice(0, 45),
+        savedSpots ? JSON.stringify(savedSpots) : null
+      ]);
+      const stored = result.rows[0];
+      unsubscribeUrl = `${SITE_URL}/api/unsubscribe?token=${stored.unsubscribe_token}`;
+    }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     const subject = {
       'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet',
       'saved-spots': 'Your Nashville saved spots',
       'bachelorette': 'Your Nashville group trip planner',
+      'trip-summary': tripData && tripData.isPayer ? `Your ${tripData.tripName || 'Nashville trip'} summary` : `Your share of the ${tripData && tripData.tripName || 'Nashville trip'}`,
       'general': 'Welcome to Howdy Nash'
     }[source] || 'Welcome to Howdy Nash';
 
@@ -426,7 +481,7 @@ export default async function handler(req, res) {
       from: FROM_EMAIL,
       to: email,
       subject,
-      html: buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots }),
+      html: buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData }),
       headers: {
         'List-Unsubscribe': `<${unsubscribeUrl}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'

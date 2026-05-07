@@ -2319,6 +2319,16 @@ function routeIntent(text) {
     return;
   }
 
+  if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
+    showSplitCosts();
+    return;
+  }
+  if (matches(lower, ['+ add person', 'add person'])) { showAddMemberCard(); return; }
+  if (matches(lower, ['+ add expense', 'add expense'])) { showAddExpenseCard(); return; }
+  if (matches(lower, ['view balance'])) { showTripSummary(); return; }
+  if (matches(lower, ['send summary'])) { sendTripSummary(); return; }
+  if (matches(lower, ['end trip'])) { endTrip(); return; }
+
   if (matches(lower, ['📦 shop amazon', 'shop amazon', 'amazon', 'amazon shop', 'shop on amazon'])) {
     addMessage(renderAmazonHomeCard(), 'bot', true);
     const cats = ['bridesquad', 'cowgirl', 'packsmart', 'whiskey', 'creator', 'travel'];
@@ -2844,6 +2854,7 @@ function showMainMenu() {
     '👶 Family friendly',
     '👰 Bachelorette',
     '👯 Group share',
+    '💰 Split Costs',
     '🛒 Essentials',
     '📦 Shop Amazon',
     'Weather',
@@ -2998,6 +3009,350 @@ function resetChecklistDirect() {
 }
 
 // Reset trigger handled in main matches chain below by listening for 'reset checklist'.
+
+// =============================================================================
+// SPLIT COSTS FEATURE
+// =============================================================================
+// Group expense splitter. The payer (one person) tracks expenses during a
+// trip. Members are added with name + email + payment handles. At end of trip
+// the payer taps "Send summary" and each member gets a personalized email
+// showing what they owe with one-tap pay buttons (Venmo, Cash App, PayPal).
+// Email signup checkbox defaults to UNCHECKED for trust.
+
+const TRIP_STORAGE_KEY = 'howdy-nash-trip';
+
+function getTrip() {
+  try {
+    const raw = localStorage.getItem(TRIP_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function saveTrip(trip) {
+  try { localStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(trip)); } catch (e) {}
+}
+
+function clearTrip() {
+  try { localStorage.removeItem(TRIP_STORAGE_KEY); } catch (e) {}
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function showSplitCosts() {
+  // Clear the chat so Split Costs feels like a dedicated screen with no
+  // prior history pushing the form/cards out of view.
+  if (messagesEl) messagesEl.innerHTML = '';
+  const trip = getTrip();
+  if (!trip) {
+    addMessage(`💰 Split Costs lets one person track group expenses, then send everyone exactly what they owe with one-tap Venmo, Cash App, or PayPal links. No app to install for the group. Painless.`, 'bot');
+    addMessage(renderTripStartCard(), 'bot', true);
+    addQuickReplies(['← Main menu']);
+    return;
+  }
+  // Existing trip — show overview
+  showTripOverview();
+}
+
+function renderTripStartCard() {
+  return `<div class="card" style="border-left:4px solid #d62828;">
+    <div class="card-title">Start a new trip</div>
+    <div class="card-desc" style="margin-bottom:10px;">Track group expenses and send each person their share at the end.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input id="tripNameInput" type="text" placeholder="Trip name (e.g., Sarah's Bachelorette)" maxlength="60" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="tripPayerName" type="text" placeholder="Your name" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="tripPayerEmail" type="email" placeholder="Your email (for the summary)" maxlength="120" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="tripPayerVenmo" type="text" placeholder="Your Venmo handle (optional, e.g., @DanCrose)" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="tripPayerCashapp" type="text" placeholder="Your Cash App handle (optional, e.g., $DanCrose)" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="tripPayerPaypal" type="text" placeholder="Your PayPal.me link (optional, e.g., paypal.me/DanCrose)" maxlength="80" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <button onclick="createTrip();return false;" style="background:#d62828;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Start trip</button>
+    </div>
+  </div>`;
+}
+
+function createTrip() {
+  const name = document.getElementById('tripNameInput').value.trim();
+  const payerName = document.getElementById('tripPayerName').value.trim();
+  const payerEmail = document.getElementById('tripPayerEmail').value.trim();
+  const payerVenmo = document.getElementById('tripPayerVenmo').value.trim();
+  const payerCashapp = document.getElementById('tripPayerCashapp').value.trim();
+  const payerPaypal = document.getElementById('tripPayerPaypal').value.trim();
+  if (!name || !payerName || !payerEmail) {
+    addMessage('Trip name, your name, and your email are required.', 'bot');
+    return;
+  }
+  if (!payerVenmo && !payerCashapp && !payerPaypal) {
+    addMessage('Add at least one payment handle (Venmo, Cash App, or PayPal) so people can pay you back.', 'bot');
+    return;
+  }
+  const payerId = uid();
+  const trip = {
+    id: uid(),
+    name,
+    startedAt: Date.now(),
+    payerId,
+    members: [{
+      id: payerId,
+      name: payerName,
+      email: payerEmail,
+      venmo: payerVenmo,
+      cashapp: payerCashapp,
+      paypal: payerPaypal,
+      isPayer: true,
+      optIn: false
+    }],
+    expenses: []
+  };
+  saveTrip(trip);
+  addMessage(`Trip "${name}" started. Add the rest of the group below.`, 'bot');
+  showTripOverview();
+}
+
+function showTripOverview() {
+  const trip = getTrip();
+  if (!trip) { showSplitCosts(); return; }
+  // Clear the chat so the trip overview is the only thing visible, no
+  // pile-up of cards forcing the user to scroll.
+  if (messagesEl) messagesEl.innerHTML = '';
+  const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
+  const memberCount = trip.members.length;
+  // Build the entire overview into a single container so future redraws
+  // can replace it cleanly.
+  const wrap = document.createElement('div');
+  wrap.className = 'trip-overview-block';
+  let html = '';
+  html += `<div class="message bot"><div class="card" style="border-left:4px solid #d62828;">
+    <div class="card-title">${trip.name}</div>
+    <div class="card-meta">${memberCount} ${memberCount === 1 ? 'person' : 'people'} · $${totalSpent.toFixed(2)} tracked · ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}</div>
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+      <a href="#" onclick="showAddMemberCard();return false;" style="background:#d62828;color:#fff;font-weight:600;">+ Add person</a>
+      <a href="#" onclick="showAddExpenseCard();return false;" style="background:#34a853;color:#fff;font-weight:600;">+ Add expense</a>
+      <a href="#" onclick="showTripSummary();return false;" style="background:#444;color:#fff;font-weight:600;">View balance</a>
+    </div>
+  </div></div>`;
+  // Members card
+  html += `<div class="message bot"><div class="card"><div class="card-title">People on the trip</div>`;
+  trip.members.forEach(m => {
+    html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;">
+      ${m.isPayer ? '⭐ ' : ''}${m.name}${m.email ? ` <span style="color:#888;font-size:12px;">${m.email}</span>` : ''}
+    </div>`;
+  });
+  html += `</div></div>`;
+  // Expenses card
+  if (trip.expenses.length > 0) {
+    html += `<div class="message bot"><div class="card"><div class="card-title">Expenses</div>`;
+    trip.expenses.slice(-10).reverse().forEach(e => {
+      const paidBy = trip.members.find(m => m.id === e.paidBy);
+      html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;">
+        <strong>$${e.amount.toFixed(2)}</strong> ${e.description}
+        <div style="color:#888;font-size:12px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+  wrap.innerHTML = html;
+  messagesEl.appendChild(wrap);
+  // Scroll to top of the messages container so the user sees the trip header.
+  if (messagesEl) messagesEl.scrollTop = 0;
+  addQuickReplies(['+ Add person', '+ Add expense', 'View balance', 'Send summary', 'End trip', '← Main menu']);
+}
+
+function showAddMemberCard() {
+  // Clear the chat so the form is the only thing on screen — no scroll buildup.
+  if (messagesEl) messagesEl.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'message bot split-form-block';
+  wrap.innerHTML = `<div class="card" style="border-left:4px solid #34a853;">
+    <div class="card-title">Add person to trip</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+      <input id="newMemberName" type="text" placeholder="Name" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newMemberEmail" type="email" placeholder="Email" maxlength="120" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;padding:6px 0;">
+        <input type="checkbox" id="newMemberOptIn" style="width:16px;height:16px;cursor:pointer;">
+        <span>Email me Nashville tips and deals (optional)</span>
+      </label>
+      <button onclick="addMember();return false;" style="background:#34a853;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Add</button>
+    </div>
+  </div>`;
+  messagesEl.appendChild(wrap);
+}
+
+function addMember() {
+  const trip = getTrip();
+  if (!trip) return;
+  const name = document.getElementById('newMemberName').value.trim();
+  const email = document.getElementById('newMemberEmail').value.trim();
+  const optIn = document.getElementById('newMemberOptIn').checked;
+  if (!name || !email) { addMessage('Name and email required.', 'bot'); return; }
+  trip.members.push({ id: uid(), name, email, venmo: '', cashapp: '', paypal: '', isPayer: false, optIn });
+  saveTrip(trip);
+  addMessage(`${name} added.`, 'bot');
+  showTripOverview();
+}
+
+function showAddExpenseCard() {
+  const trip = getTrip();
+  if (!trip) return;
+  // Clear the chat so the form is the only thing on screen — no scroll buildup.
+  if (messagesEl) messagesEl.innerHTML = '';
+  const memberOptions = trip.members.map(m => `<option value="${m.id}">${m.name}${m.isPayer ? ' (you)' : ''}</option>`).join('');
+  const wrap = document.createElement('div');
+  wrap.className = 'message bot split-form-block';
+  wrap.innerHTML = `<div class="card" style="border-left:4px solid #34a853;">
+    <div class="card-title">Add expense</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+      <input id="newExpAmount" type="number" step="0.01" min="0" placeholder="Amount (e.g., 87.50)" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <label style="font-size:13px;color:#555;">Paid by:</label>
+      <select id="newExpPaidBy" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;">${memberOptions}</select>
+      <div style="font-size:13px;color:#555;margin-top:4px;">Split between (uncheck to exclude):</div>
+      <div id="splitMembers" style="display:flex;flex-direction:column;gap:6px;">
+        ${trip.members.map(m => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" checked style="width:16px;height:16px;cursor:pointer;"> ${m.name}${m.isPayer ? ' (you)' : ''}</label>`).join('')}
+      </div>
+      <button onclick="addExpense();return false;" style="background:#34a853;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin-top:8px;">Add expense</button>
+    </div>
+  </div>`;
+  messagesEl.appendChild(wrap);
+}
+
+function addExpense() {
+  const trip = getTrip();
+  if (!trip) return;
+  const amount = parseFloat(document.getElementById('newExpAmount').value);
+  const description = document.getElementById('newExpDesc').value.trim();
+  const paidBy = document.getElementById('newExpPaidBy').value;
+  const splitWith = Array.from(document.querySelectorAll('[data-split-id]:checked')).map(c => c.getAttribute('data-split-id'));
+  if (!amount || amount <= 0) { addMessage('Enter a valid amount.', 'bot'); return; }
+  if (!description) { addMessage('Add a description.', 'bot'); return; }
+  if (splitWith.length === 0) { addMessage('Select at least one person to split with.', 'bot'); return; }
+  trip.expenses.push({ id: uid(), amount, description, paidBy, splitWith, createdAt: Date.now() });
+  saveTrip(trip);
+  addMessage(`Added: $${amount.toFixed(2)} ${description}`, 'bot');
+  showTripOverview();
+}
+
+// Calculate net balance for each member. Positive = they are owed money,
+// negative = they owe. Currently uses simple per-expense even split.
+function calculateBalances(trip) {
+  const balances = {};
+  trip.members.forEach(m => { balances[m.id] = 0; });
+  trip.expenses.forEach(e => {
+    const sharePerPerson = e.amount / e.splitWith.length;
+    balances[e.paidBy] += e.amount; // they paid the full thing
+    e.splitWith.forEach(memberId => {
+      balances[memberId] -= sharePerPerson; // they each owe their share
+    });
+  });
+  return balances;
+}
+
+function showTripSummary() {
+  const trip = getTrip();
+  if (!trip) return;
+  const balances = calculateBalances(trip);
+  const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
+  let html = `<div class="card"><div class="card-title">${trip.name} - Balance</div>
+    <div class="card-meta">Total: $${totalSpent.toFixed(2)} · ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}</div>`;
+  trip.members.forEach(m => {
+    const bal = balances[m.id];
+    const txt = bal > 0.01 ? `is owed $${bal.toFixed(2)}` : (bal < -0.01 ? `owes $${Math.abs(bal).toFixed(2)}` : 'is even');
+    const color = bal > 0.01 ? '#1b8a3e' : (bal < -0.01 ? '#d62828' : '#666');
+    html += `<div style="padding:8px 0;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;">
+      <span>${m.isPayer ? '⭐ ' : ''}${m.name}</span>
+      <span style="color:${color};font-weight:600;">${txt}</span>
+    </div>`;
+  });
+  html += `</div>`;
+  addMessage(html, 'bot', true);
+  addQuickReplies(['+ Add expense', 'Send summary', 'End trip', '← Main menu']);
+}
+
+async function sendTripSummary() {
+  const trip = getTrip();
+  if (!trip) return;
+  if (trip.members.length < 2) {
+    addMessage('Add at least one other person before sending the summary.', 'bot');
+    return;
+  }
+  if (trip.expenses.length === 0) {
+    addMessage('Add at least one expense before sending the summary.', 'bot');
+    return;
+  }
+  // Confirmation prompt with a quick recap so the user knows what's about to happen.
+  const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
+  const ok = confirm(`Send summary to ${trip.members.length} people?\n\nEach person gets their own email with what they owe and pay buttons. This cannot be undone.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`);
+  if (!ok) return;
+  addMessage('Sending the summary to everyone...', 'bot');
+  const balances = calculateBalances(trip);
+  const payer = trip.members.find(m => m.isPayer);
+  let sentCount = 0, errCount = 0;
+  for (const m of trip.members) {
+    try {
+      const memberOwes = balances[m.id] < -0.01 ? Math.abs(balances[m.id]) : 0;
+      const r = await fetch(`${API_BASE}/api/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: m.email,
+          name: m.name,
+          source: 'trip-summary',
+          optIn: !!m.optIn,
+          tripData: {
+            tripName: trip.name,
+            payerName: payer.name,
+            payerVenmo: payer.venmo,
+            payerCashapp: payer.cashapp,
+            payerPaypal: payer.paypal,
+            memberOwes,
+            isPayer: !!m.isPayer,
+            totalSpent: trip.expenses.reduce((s, e) => s + e.amount, 0),
+            expenses: trip.expenses.map(e => ({
+              amount: e.amount,
+              description: e.description,
+              paidByName: (trip.members.find(mm => mm.id === e.paidBy) || {}).name || '',
+              splitCount: e.splitWith.length
+            }))
+          }
+        })
+      });
+      if (r.ok) sentCount++; else errCount++;
+    } catch (e) {
+      errCount++;
+    }
+  }
+  // Mark the trip as having sent the summary so End Trip stops nagging.
+  if (sentCount > 0) {
+    trip.summarySentAt = Date.now();
+    saveTrip(trip);
+  }
+  addMessage(`Summary sent to ${sentCount} ${sentCount === 1 ? 'person' : 'people'}.${errCount > 0 ? ` ${errCount} failed.` : ''}`, 'bot');
+  addQuickReplies(['View balance', 'End trip', '← Main menu']);
+}
+
+function endTrip() {
+  const trip = getTrip();
+  if (!trip) { addMessage('No active trip to end.', 'bot'); return; }
+  let prompt;
+  if (!trip.summarySentAt) {
+    // Hard warning — the user is about to nuke a trip without sending out the
+    // payment summary, which means everyone loses track of what they owe.
+    prompt = `⚠️ WAIT. You have not sent the summary yet.\n\nIf you end the trip now, all expenses are deleted and the group has no record of what they owe.\n\nAre you SURE you want to end without sending?\n\nTap Cancel and choose "Send summary" first.`;
+  } else {
+    const sentAgo = Math.round((Date.now() - trip.summarySentAt) / 60000);
+    prompt = `End "${trip.name}" and clear all data?\n\nSummary was sent ${sentAgo} min ago. Each person has their email. Safe to end.`;
+  }
+  if (!confirm(prompt)) {
+    // User canceled — re-render the trip overview so they don't end up on
+    // a blank screen wondering where their data went.
+    showTripOverview();
+    return;
+  }
+  clearTrip();
+  if (messagesEl) messagesEl.innerHTML = '';
+  addMessage('Trip cleared. Tap 💰 Split Costs to start a new one.', 'bot');
+  addQuickReplies(['← Main menu']);
+}
 
 // Home-screen checklist card. Compact preview with progress bar that links
 // into the full checklist. Hides itself when the user has completed everything.
