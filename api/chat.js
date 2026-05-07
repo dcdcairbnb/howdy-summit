@@ -156,7 +156,22 @@ FORMAT RULES
 - Plain text only. No markdown. No bold asterisks. No italic asterisks. No # headers. No - or * bullets.
 - Lists go inline: "Try Husk, Hattie B's, and Pinewood Social" not bullet points.
 - Phone numbers and addresses are fine when known.
-- Never invent prices, hours, or reservation availability. Say "call to confirm" or "check their website."`;
+- Never invent prices, hours, or reservation availability. Say "call to confirm" or "check their website."
+
+HOURS GUIDANCE - DO NOT RECOMMEND THESE FOR DINNER
+These spots close before 7pm. Never recommend them when the user asks about dinner, tonight, late night, or any evening meal:
+- Nashville Farmers' Market food hall (closes 6pm daily)
+- Pancake Pantry (breakfast/brunch only, closes 4pm)
+- Biscuit Love (breakfast/brunch only, closes 3pm)
+- Loveless Cafe (closes 9pm but skews early diners)
+- Steadfast Coffee, Honest Coffee, Falcon Coffee Bar, Bongo Java (coffee shops, close by 5-6pm)
+- Frothy Monkey Germantown locations (coffee, close 6pm weekdays)
+- Sky Blue Cafe (breakfast/brunch only)
+- Las Paletas (popsicle shop, closes 6pm)
+- Five Daughters Bakery (closes 6pm)
+
+LATE NIGHT FOOD (open past 10pm)
+For late dinner or post-bar food, recommend: Pearl Diver (Germantown), Robert's Western World (downtown, fried bologna), Tootsie's (downtown bar food), Hattie B's (varies, check), 5 Spot late nights, McDonald's, Waffle House (24/7).`;
 
 // Nashville neighborhood centroids. Used to map a user's lat/lng to the
 // closest neighborhood so the AI answers "near me" without re-asking.
@@ -229,11 +244,15 @@ const NEIGHBORHOOD_PICKS = {
     'White Limozeen rooftop', 'Bastion'
   ],
   'Germantown': [
-    'Rolf and Daughters (Italian)', 'City House (wood-fired Italian)', 'Henrietta Red (seafood)',
-    'Butcher and Bee (Mediterranean)', '5th & Taylor (modern American)', 'The Optimist (seafood)',
-    'Geist', 'Pearl Diver', 'Von Elrod\'s Beer Hall', 'Otaku Ramen Germantown',
-    'Monell\'s (Southern family-style)', 'Steadfast Coffee', 'Honest Coffee', 'Hampton Social',
-    'Nashville Farmers\' Market food hall'
+    'Rolf and Daughters (Italian, dinner)', 'City House (wood-fired Italian, dinner)',
+    'Henrietta Red (seafood, dinner)', 'Butcher and Bee (Mediterranean, lunch+dinner)',
+    '5th & Taylor (modern American, dinner)', 'The Optimist (seafood, dinner)',
+    'Geist (modern American, dinner)', 'Pearl Diver (cocktails+late night food)',
+    'Von Elrod\'s Beer Hall (German, lunch+dinner)', 'Otaku Ramen Germantown (lunch+dinner)',
+    'Monell\'s (Southern family-style, lunch+dinner, closes ~8pm)',
+    'Hampton Social (Coastal American, lunch+dinner)',
+    'Steadfast Coffee (coffee, closes 5pm)', 'Honest Coffee (coffee, closes 5pm)',
+    'Nashville Farmers\' Market food hall (lunch only, closes 6pm)'
   ],
   'East Nashville': [
     'Mas Tacos Por Favor', 'Margot Cafe', 'Folk (pizza)', 'Five Points Pizza',

@@ -835,6 +835,9 @@
     <h3>Data Accuracy</h3>
     <p>Restaurant info, hours, prices, ratings, and event details come from third parties including Foursquare, Google Places, Ticketmaster, SeatGeek, and the City of Nashville Open Data Portal. Information may be inaccurate or outdated. Verify with the venue before going.</p>
 
+    <h3>AI Chatbot</h3>
+    <p>The Howdy Nash chatbot uses AI to answer questions. AI responses can be wrong, outdated, or made up. Before traveling to any spot the chatbot recommends, confirm the address, hours, prices, and reservation details directly with the venue. Howdy Nash is not responsible for closed restaurants, sold-out events, or anything else the AI gets wrong.</p>
+
     <h3>Location Data</h3>
     <p>If you share your location for nearby search, we use it only to find restaurants, events, and stores around you. We do not store this location on our servers, sell it, or share it beyond the API providers needed to fulfill your request.</p>
 
@@ -2798,6 +2801,13 @@ function buildAffiliatePanel(venues) {
 }
 
 async function askClaude(userText) {
+  // Show a one-time AI accuracy notice the first time the user chats with
+  // the AI in this device. Helps set expectations so people verify hours
+  // before they show up to a closed restaurant.
+  if (!localStorage.getItem('howdy-ai-notice-seen')) {
+    addMessage('Heads up: I use AI to answer your questions. AI gets things wrong sometimes. Always verify hours and prices with the venue before you go.', 'bot');
+    localStorage.setItem('howdy-ai-notice-seen', '1');
+  }
   const typingId = 'typing-' + Date.now();
   addMessage(`<div id="${typingId}" class="typing">Thinking...</div>`, 'bot', true);
   try {
