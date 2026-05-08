@@ -3855,17 +3855,15 @@ async function showCuratedThenLive(curatedList, query, type, label) {
     }
   }
 
-  addMessage(`Top Nashville ${label}:`, 'bot');
-  items.forEach(({ item, match }) => {
-    addMessage(renderCuratedCard(item, label, match), 'bot', true);
-  });
+  addMessage(`Top Nashville ${label}. Showing 5 at a time:`, 'bot');
+  paginateMessages(items, ({ item, match }) => renderCuratedCard(item, label, match));
 
   if (!live || !live.length) return;
   const curatedNames = new Set(curatedList.map(c => nameKey(c.name)));
-  const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 6);
+  const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 12);
   if (extras.length === 0) return;
   addMessage(`More ${label} nearby:`, 'bot');
-  extras.forEach(s => {
+  paginateMessages(extras, s => {
     const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
     const ratingStr = s.rating ? `★ ${s.rating}` : '';
     const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
@@ -3882,7 +3880,7 @@ async function showCuratedThenLive(curatedList, query, type, label) {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 }
 
