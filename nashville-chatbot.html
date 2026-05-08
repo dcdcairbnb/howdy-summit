@@ -6407,8 +6407,8 @@ async function showStoreType(query, type, label) {
     addMessage(`No ${label} found nearby. Try sharing your location or check Google Maps.`, 'bot');
     return;
   }
-  addMessage(`Found ${list.length} ${label} ${userLocation ? 'sorted by distance' : 'in Nashville'}:`, 'bot');
-  list.slice(0, 8).forEach(s => {
+  addMessage(`Found ${list.length} ${label} ${userLocation ? 'sorted by distance' : 'in Nashville'}. Showing 5 at a time:`, 'bot');
+  paginateMessages(list, s => {
     const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
     const ratingStr = s.rating ? `★ ${s.rating}` : '';
     const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
@@ -6425,7 +6425,7 @@ async function showStoreType(query, type, label) {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 }
 
@@ -6801,6 +6801,38 @@ async function showRestaurants(list, header) {
 // can step backward through pages before popping to the previous menu.
 let _pagedEventsState = null;
 
+// Generic forward-only paginator for chat-style lists. Shows 5 items, then a
+// "Show next N" button that loads the next batch in line. No prev button, no
+// re-rendering. Used across live music, events, attractions, and other Things
+// to Do views so every list feels consistent.
+function paginateMessages(items, renderHtmlFn, pageSize = 5) {
+  if (!items || items.length === 0) return;
+  let idx = 0;
+  function renderBatch() {
+    const slice = items.slice(idx, idx + pageSize);
+    slice.forEach(item => {
+      const html = renderHtmlFn(item);
+      if (html) addMessage(html, 'bot', true);
+    });
+    idx += pageSize;
+    if (idx >= items.length) return;
+    const remaining = items.length - idx;
+    const showCount = Math.min(pageSize, remaining);
+    const btnId = 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    addMessage(`<div class="quick-replies"><button id="${btnId}" class="quick-reply">Show next ${showCount} of ${remaining} more →</button></div>`, 'bot', true);
+    setTimeout(() => {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const wrap = btn.closest('.message') || btn.parentElement;
+        if (wrap) wrap.remove();
+        renderBatch();
+      });
+    }, 50);
+  }
+  renderBatch();
+}
+
 // Paginate live music events 5 at a time, like restaurants/bakeries.
 function showEventsPaged(events, startIdx, pageContainer) {
   const isRerender = !!pageContainer;
@@ -6879,8 +6911,9 @@ async function showLiveMusic() {
   // Kick off venue calendar scrape in parallel with the main fetch
   fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
     if (!data || !data.events || !data.events.length) return;
-    addMessage(`Plus ${data.events.length} shows scraped from iconic Nashville venues:`, 'bot');
-    data.events.slice(0, 20).forEach(e => {
+    const slice = data.events.slice(0, 20);
+    addMessage(`Plus ${data.events.length} shows scraped from iconic Nashville venues. Showing 5 at a time:`, 'bot');
+    paginateMessages(slice, e => {
       const dateStr = e.date || 'Date TBA';
       const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
       let html = `<div class="card">
@@ -6889,7 +6922,7 @@ async function showLiveMusic() {
       if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
       html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
       html += `</div>`;
-      addMessage(html, 'bot', true);
+      return html;
     });
   }).catch(() => { /* venue scrape failed silently */ });
 
@@ -6958,7 +6991,7 @@ async function showLiveMusic() {
     });
     enrichedVenues.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
-  enrichedVenues.forEach(({ item: v, match, dist }) => {
+  paginateMessages(enrichedVenues, ({ item: v, match, dist }) => {
     const isApprox = dist != null && match?.distanceMiles == null;
     const distStr = dist != null ? ` · 📍 ${dist} mi${isApprox ? ' (approx)' : ''}` : '';
     const ratingStr = match && match.rating ? `★ ${match.rating}` : '';
@@ -6970,7 +7003,7 @@ async function showLiveMusic() {
       <div class="card-desc">${v.desc}</div>`;
     if (v.url) html += `<a href="${v.url}" target="_blank">Get tickets</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 }
 
@@ -6979,8 +7012,8 @@ async function showEvents() {
     addMessage("Pulling live events from Ticketmaster...", 'bot');
     const live = await apiSearchEvents('', '');
     if (live && live.length) {
-      addMessage(`${live.length} upcoming Nashville events:`, 'bot');
-      live.slice(0, 10).forEach(e => {
+      addMessage(`${live.length} upcoming Nashville events. Showing 5 at a time:`, 'bot');
+      paginateMessages(live, e => {
         const dateStr = e.date + (e.time ? ' at ' + e.time : '');
         const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
         const star = renderSaveStar({ name: e.name, note: `${dateStr} · ${e.venue || ''}`, address: e.venue || '' });
@@ -6991,19 +7024,19 @@ async function showEvents() {
           <div class="card-desc">${e.genre || e.classification || ''}${e.priceMin ? ' · From $' + e.priceMin : ''}</div>`;
         if (e.url) html += `<a href="${e.url}" target="_blank">Get tickets</a>`;
         html += `</div>`;
-        addMessage(html, 'bot', true);
+        return html;
       });
       return;
     }
   }
-  addMessage("Here's what's happening around town:", 'bot');
-  NASHVILLE_DATA.events.forEach(e => {
+  addMessage("Here's what's happening around town. Showing 5 at a time:", 'bot');
+  paginateMessages(NASHVILLE_DATA.events, e => {
     let html = `<div class="card">
       <div class="card-title">${e.name}</div>
       <div class="card-meta">${e.date} · ${e.venue}</div>`;
     if (e.url) html += `<a href="${e.url}" target="_blank">Tickets & info</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 }
 
@@ -7036,8 +7069,8 @@ async function showAttractions() {
     attractions.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
 
-  addMessage("Top Nashville attractions:", 'bot');
-  attractions.forEach(({ item: a, match, dist, approx }) => {
+  addMessage("Top Nashville attractions. Showing 5 at a time:", 'bot');
+  paginateMessages(attractions, ({ item: a, match, dist, approx }) => {
     const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
     const ratingStr = match && match.rating ? ` · ★ ${match.rating}` : '';
     const star = renderSaveStar({ name: a.name, note: a.type, address: match?.address || a.neighborhood || 'Nashville' });
@@ -7060,7 +7093,7 @@ async function showAttractions() {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 
   // Then add live API attractions if available.
