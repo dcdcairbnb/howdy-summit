@@ -3855,33 +3855,38 @@ async function showCuratedThenLive(curatedList, query, type, label) {
     }
   }
 
-  addMessage(`Top Nashville ${label}. Showing 5 at a time:`, 'bot');
-  paginateMessages(items, ({ item, match }) => renderCuratedCard(item, label, match));
+  // Chain: render curated list first. Once user paginates through it,
+  // render the "More nearby" extras. Prevents two Show-next buttons from
+  // showing at the same time and confusing which list they belong to.
+  function renderExtras() {
+    if (!live || !live.length) return;
+    const curatedNames = new Set(curatedList.map(c => nameKey(c.name)));
+    const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 12);
+    if (extras.length === 0) return;
+    addMessage(`More ${label} nearby:`, 'bot');
+    paginateMessages(extras, s => {
+      const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
+      const ratingStr = s.rating ? `★ ${s.rating}` : '';
+      const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
+      const safeName = (s.name || '').replace(/'/g, "\\'");
+      const star = renderSaveStar({ name: s.name, note: label, address: s.address });
+      const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
+      let html = `<div class="card">
+        <div class="card-title">${star}${share}${s.name}</div>
+        <div class="card-meta">${ratingStr}${reviewStr}${distStr}</div>
+        <div class="card-desc">${s.address || ''}</div>`;
+      if (s.mapsUrl) html += `<a href="${s.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+      if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
+      html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
+      html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
+      html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
+      html += `</div>`;
+      return html;
+    });
+  }
 
-  if (!live || !live.length) return;
-  const curatedNames = new Set(curatedList.map(c => nameKey(c.name)));
-  const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 12);
-  if (extras.length === 0) return;
-  addMessage(`More ${label} nearby:`, 'bot');
-  paginateMessages(extras, s => {
-    const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
-    const ratingStr = s.rating ? `★ ${s.rating}` : '';
-    const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
-    const safeName = (s.name || '').replace(/'/g, "\\'");
-    const star = renderSaveStar({ name: s.name, note: label, address: s.address });
-    const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
-    let html = `<div class="card">
-      <div class="card-title">${star}${share}${s.name}</div>
-      <div class="card-meta">${ratingStr}${reviewStr}${distStr}</div>
-      <div class="card-desc">${s.address || ''}</div>`;
-    if (s.mapsUrl) html += `<a href="${s.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-    if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
-    html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
-    html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-    html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
-    html += `</div>`;
-    return html;
-  });
+  addMessage(`Top Nashville ${label}. Showing 5 at a time:`, 'bot');
+  paginateMessages(items, ({ item, match }) => renderCuratedCard(item, label, match), 5, renderExtras);
 }
 
 const CURATED_HONKY_TONKS = [
@@ -6509,7 +6514,72 @@ function daysUntilFestival(festival) {
 async function showFestivals() {
   addMessage("Nashville festivals coming up next. Showing 5 at a time:", 'bot');
 
-  // Sort by next occurrence so the soonest festival appears first.
+  // Fetch live festivals first so we can chain after the curated pagination.
+  let fresh = [];
+  try {
+    const [scraperRes, apiRes] = await Promise.all([
+      fetch(`${API_BASE}/api/festivals?source=visitmusiccity`, { signal: AbortSignal.timeout(10000) }).catch(() => null),
+      fetch(`${API_BASE}/api/festivals${userLocation ? '?lat=' + userLocation.lat + '&lng=' + userLocation.lng : ''}`, { signal: AbortSignal.timeout(10000) }).catch(() => null)
+    ]);
+    let liveEvents = [];
+    if (scraperRes && scraperRes.ok) {
+      const data = await scraperRes.json();
+      (data.events || []).forEach(e => liveEvents.push({
+        name: e.name, date: e.date, venue: e.venue, url: e.url, source: 'Visit Music City'
+      }));
+    }
+    if (apiRes && apiRes.ok) {
+      const data = await apiRes.json();
+      (data.festivals || []).slice(0, 10).forEach(e => liveEvents.push({
+        name: e.name, date: e.date, venue: e.venue, url: e.url, source: 'Ticketmaster'
+      }));
+    }
+    const curatedNames = new Set(CURATED_NASHVILLE_FESTIVALS.map(f => f.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)));
+    const seen = new Set(curatedNames);
+    for (const e of liveEvents) {
+      const key = (e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      fresh.push(e);
+      if (fresh.length >= 15) break;
+    }
+  } catch (e) {
+    console.warn('live festivals fetch failed', e);
+  }
+
+  // Render local sources card at the very end of the chain
+  function renderLocalSources() {
+    const localSources = `<div class="card">
+      <div class="card-title">More Nashville events</div>
+      <div class="card-desc">For the complete local calendar:</div>
+      <a href="https://www.visitmusiccity.com/nashville-events/upcoming-events" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Visit Music City</a>
+      <a href="https://nashvilleguru.com/nashville-events" target="_blank" rel="noopener" style="background:#444;color:#fff;">Nashville Guru</a>
+      <a href="https://www.nashvillescene.com/calendar" target="_blank" rel="noopener" style="background:#777;color:#fff;">Nashville Scene</a>
+    </div>`;
+    addMessage(localSources, 'bot', true);
+  }
+
+  // After curated pagination completes, render the live events block, then
+  // local sources card.
+  function renderLiveFestivalsThenSources() {
+    if (fresh.length === 0) {
+      renderLocalSources();
+      return;
+    }
+    addMessage(`Plus ${fresh.length} live events from Visit Music City and Ticketmaster. Showing 5 at a time:`, 'bot');
+    paginateMessages(fresh, f => {
+      const star = renderSaveStar({ name: f.name, note: f.date, address: f.venue });
+      const share = renderShareButton({ name: f.name, desc: `${f.date || ''} at ${f.venue || 'Nashville'}`, url: f.url || '' });
+      let html = `<div class="card">
+        <div class="card-title">${star}${share}${f.name}</div>
+        <div class="card-meta">${f.date || 'TBA'}${f.venue ? ' · ' + f.venue : ''} · via ${f.source}</div>`;
+      if (f.url) html += `<a href="${f.url}" target="_blank" rel="noopener">Event details</a>`;
+      html += `</div>`;
+      return html;
+    }, 5, renderLocalSources);
+  }
+
+  // Sort curated by next occurrence and paginate. Chain via onComplete.
   const sorted = [...CURATED_NASHVILLE_FESTIVALS].sort((a, b) => daysUntilFestival(a) - daysUntilFestival(b));
   paginateMessages(sorted, f => {
     const dateLabel = f.dates || f.month;
@@ -6524,77 +6594,7 @@ async function showFestivals() {
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     html += `</div>`;
     return html;
-  });
-
-  // Live data: pull from Visit Music City scraper plus our combined feeds.
-  try {
-    // Both feeds now come from /api/festivals (the visitmusiccity scraper was merged
-    // into festivals.js to stay under Vercel Hobby's 12-function limit).
-    const [scraperRes, apiRes] = await Promise.all([
-      fetch(`${API_BASE}/api/festivals?source=visitmusiccity`, { signal: AbortSignal.timeout(10000) }).catch(() => null),
-      fetch(`${API_BASE}/api/festivals${userLocation ? '?lat=' + userLocation.lat + '&lng=' + userLocation.lng : ''}`, { signal: AbortSignal.timeout(10000) }).catch(() => null)
-    ]);
-
-    let liveEvents = [];
-    if (scraperRes && scraperRes.ok) {
-      const data = await scraperRes.json();
-      (data.events || []).forEach(e => liveEvents.push({
-        name: e.name,
-        date: e.date,
-        venue: e.venue,
-        url: e.url,
-        source: 'Visit Music City'
-      }));
-    }
-    if (apiRes && apiRes.ok) {
-      const data = await apiRes.json();
-      (data.festivals || []).slice(0, 10).forEach(e => liveEvents.push({
-        name: e.name,
-        date: e.date,
-        venue: e.venue,
-        url: e.url,
-        source: 'Ticketmaster'
-      }));
-    }
-
-    // Dedupe against curated list and self.
-    const curatedNames = new Set(CURATED_NASHVILLE_FESTIVALS.map(f => f.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)));
-    const seen = new Set(curatedNames);
-    const fresh = [];
-    for (const e of liveEvents) {
-      const key = (e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      fresh.push(e);
-      if (fresh.length >= 15) break;
-    }
-
-    if (fresh.length > 0) {
-      addMessage(`Plus ${fresh.length} live events from Visit Music City and Ticketmaster. Showing 5 at a time:`, 'bot');
-      paginateMessages(fresh, f => {
-        const star = renderSaveStar({ name: f.name, note: f.date, address: f.venue });
-        const share = renderShareButton({ name: f.name, desc: `${f.date || ''} at ${f.venue || 'Nashville'}`, url: f.url || '' });
-        let html = `<div class="card">
-          <div class="card-title">${star}${share}${f.name}</div>
-          <div class="card-meta">${f.date || 'TBA'}${f.venue ? ' · ' + f.venue : ''} · via ${f.source}</div>`;
-        if (f.url) html += `<a href="${f.url}" target="_blank" rel="noopener">Event details</a>`;
-        html += `</div>`;
-        return html;
-      });
-    }
-  } catch (e) {
-    console.warn('live festivals fetch failed', e);
-  }
-
-  // Always show local source links so users can dig deeper
-  const localSources = `<div class="card">
-    <div class="card-title">More Nashville events</div>
-    <div class="card-desc">For the complete local calendar:</div>
-    <a href="https://www.visitmusiccity.com/nashville-events/upcoming-events" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Visit Music City</a>
-    <a href="https://nashvilleguru.com/nashville-events" target="_blank" rel="noopener" style="background:#444;color:#fff;">Nashville Guru</a>
-    <a href="https://www.nashvillescene.com/calendar" target="_blank" rel="noopener" style="background:#777;color:#fff;">Nashville Scene</a>
-  </div>`;
-  addMessage(localSources, 'bot', true);
+  }, 5, renderLiveFestivalsThenSources);
 }
 
 function showDeliveryOptions() {
@@ -7124,6 +7124,34 @@ async function showAttractions() {
     attractions.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
 
+  // Chain: render curated attractions first. Once user finishes paginating,
+  // render the "More nearby attractions" extras. Avoids two Show-next buttons
+  // appearing simultaneously.
+  function renderExtras() {
+    if (!live || !live.length) return;
+    try {
+      const curatedNames = new Set(NASHVILLE_DATA.attractions.map(a => nameKey(a.name)));
+      const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 12);
+      if (extras.length === 0) return;
+      addMessage(`${extras.length} more nearby attractions:`, 'bot');
+      paginateMessages(extras, a => {
+        const distStr = a.distanceMiles != null ? ` · 📍 ${a.distanceMiles} mi` : '';
+        const star = renderSaveStar({ name: a.name, note: 'Nashville attraction', address: a.address || '' });
+        const share = renderShareButton({ name: a.name, desc: a.address || 'Nashville attraction', url: a.website || a.mapsUrl || '' });
+        let html = `<div class="card">
+          <div class="card-title">${star}${share}${a.name}</div>
+          <div class="card-meta">${a.rating ? '★' + a.rating : ''} ${a.reviewCount ? '(' + a.reviewCount + ' reviews)' : ''}${distStr}</div>
+          <div class="card-desc">${a.address || ''}</div>`;
+        if (a.mapsUrl) html += `<a href="${a.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+        if (a.website) html += `<a href="${a.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
+        html += `</div>`;
+        return html;
+      });
+    } catch (e) {
+      console.warn('attractions extras failed', e);
+    }
+  }
+
   addMessage("Top Nashville attractions. Showing 5 at a time:", 'bot');
   paginateMessages(attractions, ({ item: a, match, dist, approx }) => {
     const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
@@ -7138,8 +7166,6 @@ async function showAttractions() {
     if (a.url) html += `<a href="${a.url}" target="_blank">Learn more</a>`;
     const mapsUrl = match?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(a.name + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-    // Tiqets and GetYourGuide for skip-the-line tickets and guided tours.
-    // Drive auto-tags both URLs.
     const tiqetsUrl = `https://www.tiqets.com/en/search?q=${encodeURIComponent(a.name + ' Nashville')}`;
     const gygUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(a.name + ' Nashville')}`;
     html += `<a href="${tiqetsUrl}" target="_blank" rel="noopener" style="background:#ff5722;color:#fff;">Book on Tiqets</a>`;
@@ -7149,31 +7175,7 @@ async function showAttractions() {
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
     return html;
-  });
-
-  // Then add live API attractions if available.
-  if (!live || !live.length) return;
-  try {
-    const curatedNames = new Set(NASHVILLE_DATA.attractions.map(a => nameKey(a.name)));
-    const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 8);
-    if (extras.length === 0) return;
-    addMessage(`${extras.length} more nearby attractions:`, 'bot');
-    extras.forEach(a => {
-      const distStr = a.distanceMiles != null ? ` · 📍 ${a.distanceMiles} mi` : '';
-      const star = renderSaveStar({ name: a.name, note: 'Nashville attraction', address: a.address || '' });
-      const share = renderShareButton({ name: a.name, desc: a.address || 'Nashville attraction', url: a.website || a.mapsUrl || '' });
-      let html = `<div class="card">
-        <div class="card-title">${star}${share}${a.name}</div>
-        <div class="card-meta">${a.rating ? '★' + a.rating : ''} ${a.reviewCount ? '(' + a.reviewCount + ' reviews)' : ''}${distStr}</div>
-        <div class="card-desc">${a.address || ''}</div>`;
-      if (a.mapsUrl) html += `<a href="${a.mapsUrl}" target="_blank">Open in Maps</a>`;
-      if (a.website) html += `<a href="${a.website}" target="_blank">Website</a>`;
-      html += `</div>`;
-      addMessage(html, 'bot', true);
-    });
-  } catch (e) {
-    console.warn('attractions API failed', e);
-  }
+  }, 5, renderExtras);
 }
 
 function showNeighborhoods(text) {
