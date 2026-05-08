@@ -2335,10 +2335,11 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
-    showSplitCosts();
-    return;
-  }
+  // Split Costs hidden in production until full testing is complete.
+  // if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
+  //   showSplitCosts();
+  //   return;
+  // }
   if (matches(lower, ['+ add person', 'add person'])) { showAddMemberCard(); return; }
   if (matches(lower, ['+ add expense', 'add expense'])) { showAddExpenseCard(); return; }
   if (matches(lower, ['view balance'])) { showTripSummary(); return; }
@@ -2881,7 +2882,7 @@ function showMainMenu() {
     '👶 Family friendly',
     '👰 Bachelorette',
     '👯 Group share',
-    '💰 Split Costs',
+    // '💰 Split Costs', // hidden in production until testing is complete
     '🛒 Essentials',
     '📦 Shop Amazon',
     'Weather',
