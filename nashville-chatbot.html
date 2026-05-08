@@ -6033,15 +6033,14 @@ function showTours() {
     }
   ];
 
-  categories.forEach(c => {
-    const html = `<div class="card">
+  paginateMessages(categories, c => {
+    return `<div class="card">
       <div class="card-title">${c.title}</div>
       <div class="card-desc">${c.desc}</div>
       <a href="${c.viator}" target="_blank" rel="noopener" style="background:#328e3a;">Browse on Viator</a>
       <a href="${c.gyg}" target="_blank" rel="noopener" style="background:#ff5533;">Browse on GetYourGuide</a>
       <a href="${c.expedia}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;">Browse on Expedia</a>
     </div>`;
-    addMessage(html, 'bot', true);
   });
 }
 
@@ -6508,11 +6507,11 @@ function daysUntilFestival(festival) {
 }
 
 async function showFestivals() {
-  addMessage("Nashville festivals coming up next:", 'bot');
+  addMessage("Nashville festivals coming up next. Showing 5 at a time:", 'bot');
 
   // Sort by next occurrence so the soonest festival appears first.
   const sorted = [...CURATED_NASHVILLE_FESTIVALS].sort((a, b) => daysUntilFestival(a) - daysUntilFestival(b));
-  sorted.forEach(f => {
+  paginateMessages(sorted, f => {
     const dateLabel = f.dates || f.month;
     const star = renderSaveStar({ name: f.name, note: dateLabel, address: f.venue });
     const share = renderShareButton({ name: f.name, desc: `${dateLabel} - ${f.venue}`, url: f.url || '' });
@@ -6524,7 +6523,7 @@ async function showFestivals() {
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(f.venue + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 
   // Live data: pull from Visit Music City scraper plus our combined feeds.
@@ -6571,8 +6570,8 @@ async function showFestivals() {
     }
 
     if (fresh.length > 0) {
-      addMessage(`Plus ${fresh.length} live events from Visit Music City and Ticketmaster:`, 'bot');
-      fresh.forEach(f => {
+      addMessage(`Plus ${fresh.length} live events from Visit Music City and Ticketmaster. Showing 5 at a time:`, 'bot');
+      paginateMessages(fresh, f => {
         const star = renderSaveStar({ name: f.name, note: f.date, address: f.venue });
         const share = renderShareButton({ name: f.name, desc: `${f.date || ''} at ${f.venue || 'Nashville'}`, url: f.url || '' });
         let html = `<div class="card">
@@ -6580,7 +6579,7 @@ async function showFestivals() {
           <div class="card-meta">${f.date || 'TBA'}${f.venue ? ' · ' + f.venue : ''} · via ${f.source}</div>`;
         if (f.url) html += `<a href="${f.url}" target="_blank" rel="noopener">Event details</a>`;
         html += `</div>`;
-        addMessage(html, 'bot', true);
+        return html;
       });
     }
   } catch (e) {
