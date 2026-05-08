@@ -2036,11 +2036,14 @@ function goBack() {
   else if (target === 'around') showGetAroundMenu(true);
   else if (target === 'essentials') showEssentialsMenu(true);
   else if (target === 'bachelorette') showBachelorette(true);
-  else if (target === 'family') showFamilyFriendly();
+  else if (target === 'family') showFamilyFriendly(true);
   else if (target === 'saved') showSavedSpots();
   else if (target === 'honkytonks') showHonkyTonks();
   else if (target === 'rehydration') showRehydration();
-  else if (target === 'photospots') showPhotoSpots();
+  else if (target === 'photospots') showPhotoSpots(true);
+  else if (target === 'freethings') showFreeThings(true);
+  else if (target === 'eastnashville') showEastNashville(true);
+  else if (target === 'linedancing') showLineDancing(true);
   else if (target === 'spas') showSpas();
   else if (target === 'shopping') showShopping();
   else if (target === 'mobileglam') showMobileGlam();
@@ -2080,7 +2083,7 @@ function navigateToSavedMenu(menuName) {
   else if (menuName === 'essentials') showEssentialsMenu(true);
   else if (menuName === 'saved') showSavedSpots();
   else if (menuName === 'bachelorette') showBachelorette(true);
-  else if (menuName === 'family') showFamilyFriendly();
+  else if (menuName === 'family') showFamilyFriendly(true);
   else showMainMenu();
 }
 
@@ -4698,24 +4701,29 @@ function showMobileGlam() {
     addMessage('<div class="card"><div class="card-title">💡 Booking tip</div><div class="card-desc">Book glam 4-6 weeks ahead for weekend bachelorettes. Spray tans the day before, hair and makeup the morning of, lashes 2-3 days before for fluff time.</div></div>', 'bot', true);
   }, 600);
 }
-function showPhotoSpots() {
+function showPhotoSpots(skipPush) {
+  if (!skipPush) pushMenu('photospots');
   showCuratedThenLive(CURATED_PHOTO_SPOTS, 'instagram mural photo spot landmark', 'tourist_attraction', 'photo spots');
   setTimeout(() => addMessage(renderAmazonShopCard('creator'), 'bot', true), 600);
 }
-function showFreeThings() {
+function showFreeThings(skipPush) {
+  if (!skipPush) pushMenu('freethings');
   showCuratedThenLive(CURATED_FREE_THINGS, 'free park museum mural', 'tourist_attraction', 'free things to do');
 }
-function showEastNashville() {
+function showEastNashville(skipPush) {
+  if (!skipPush) pushMenu('eastnashville');
   showCuratedThenLive(CURATED_EAST_NASHVILLE_GEMS, 'East Nashville restaurant bar coffee', 'restaurant', 'East Nashville hidden gems');
 }
-function showFamilyFriendly() {
+function showFamilyFriendly(skipPush) {
+  if (!skipPush) pushMenu('family');
   addMessage("Nashville with kids. Music City does family well.", 'bot');
   showCuratedThenLive(CURATED_FAMILY_FRIENDLY, 'family kids attraction park zoo museum', 'tourist_attraction', 'family-friendly Nashville spots');
   setTimeout(() => {
     addMessage('<div class="card"><div class="card-title">🍗 Kids on Lower Broadway</div><div class="card-desc">Most Broadway honky tonks allow all ages until 6pm. After 6pm they switch to 21 and over. Best to do honky tonk hop before dinner with kids. Tootsie\'s, Robert\'s, and Acme Feed and Seed are the most kid-friendly during the day.</div></div>', 'bot', true);
   }, 600);
 }
-function showLineDancing() {
+function showLineDancing(skipPush) {
+  if (!skipPush) pushMenu('linedancing');
   addMessage("Where to line dance and two-step in Nashville. Wildhorse Saloon teaches free lessons every night at 7pm.", 'bot');
   showCuratedThenLive(CURATED_LINE_DANCING, 'line dancing two step country dance', 'restaurant', 'line dancing spots');
 }
@@ -5641,7 +5649,7 @@ function showBachelorette(skipPush) {
     }
   ];
 
-  cards.forEach(c => {
+  paginateMessages(cards, c => {
     // Compute distance from user to the card's neighborhood center, if any
     let metaLine = '';
     if (c.mobile) {
@@ -5670,17 +5678,18 @@ function showBachelorette(skipPush) {
       }
     });
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
+  }, 5, () => {
+    // After all bachelorette cards have been paginated, show the closing
+    // pro tip and the email signup card.
+    addMessage("Pro tip: book Bluebird and party buses 4 to 6 weeks ahead for weekend bachelorettes. They sell out.", 'bot');
+    const card = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
+      <div class="card-title">📧 Email me the full bachelorette planner</div>
+      <div class="card-desc">All of this in one PDF, plus packing list, group photo spots, and Sunday recovery brunch picks. Forward to your group.</div>
+      <button onclick="openSignupModal('bachelorette'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email me the planner</button>
+    </div>`;
+    addMessage(card, 'bot', true);
   });
-
-  addMessage("Pro tip: book Bluebird and party buses 4 to 6 weeks ahead for weekend bachelorettes. They sell out.", 'bot');
-  // Bachelorette email capture. Highest-LTV segment.
-  const card = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
-    <div class="card-title">📧 Email me the full bachelorette planner</div>
-    <div class="card-desc">All of this in one PDF, plus packing list, group photo spots, and Sunday recovery brunch picks. Forward to your group.</div>
-    <button onclick="openSignupModal('bachelorette'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email me the planner</button>
-  </div>`;
-  addMessage(card, 'bot', true);
 }
 
 function getTimeContext() {
