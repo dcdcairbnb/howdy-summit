@@ -1990,6 +1990,13 @@ function updateBackBtn() {
 }
 
 function goBack() {
+  // Generic paginateMessages back: if a paginated view is active and the
+  // user has clicked "Show next 5" at least once, step back one batch
+  // instead of popping the menu stack.
+  if (_pagedMessagesState && _pagedMessagesState.canGoBack && _pagedMessagesState.canGoBack()) {
+    _pagedMessagesState.goBack();
+    return;
+  }
   // If user is on a paged restaurants view past page 1, step back one page first
   // before popping the menu stack. Page 1 with no further history falls through
   // to normal menu navigation.
@@ -2010,10 +2017,11 @@ function goBack() {
     showEventsPaged(_pagedEventsState.events, newIdx, _pagedEventsState.container);
     return;
   }
-  // Leaving paged view, clear the tracking state.
+  // Leaving paged view, clear all tracking state.
   _pagedRestaurantsState = null;
   _pagedCuratedState = null;
   _pagedEventsState = null;
+  _pagedMessagesState = null;
 
   if (menuStack.length < 2) return;
   menuStack.pop();
@@ -6797,16 +6805,21 @@ async function showRestaurants(list, header) {
 // can step backward through pages before popping to the previous menu.
 let _pagedEventsState = null;
 
+// Tracks the currently-active paginateMessages instance so the global Back
+// button can step backward through batches before popping the menu stack.
+let _pagedMessagesState = null;
+
 // Generic forward-only paginator for chat-style lists. Shows 5 items, then a
-// "Show next N" button that loads the next batch in line. No prev button, no
-// re-rendering.
+// "Show next N" button that loads the next batch in line.
 //
 // onComplete fires once the user reaches the end of the list (no more items
 // to show). Use this to chain to a follow-up section so two paginated lists
 // don't render in the same view at the same time and confuse the user.
 //
-// On each batch after the first, anchor the chat scroll to the first newly
-// rendered card so the user lands at the new content.
+// Back-button support: each batch tracks its DOM elements. When goBack runs
+// and the current paginateMessages instance has a previous batch, it removes
+// the most recent batch + Next button and re-renders the Next button so the
+// user can step back through the list.
 function paginateMessages(items, renderHtmlFn, pageSize = 5, onComplete) {
   if (!items || items.length === 0) {
     if (onComplete) onComplete();
@@ -6814,17 +6827,45 @@ function paginateMessages(items, renderHtmlFn, pageSize = 5, onComplete) {
   }
   let idx = 0;
   let isFirstBatch = true;
+  const batches = []; // Each entry: array of DOM elements added in that batch
+  let currentNextBtnWrap = null;
+
+  function renderNextButton() {
+    if (idx >= items.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+    const remaining = items.length - idx;
+    const showCount = Math.min(pageSize, remaining);
+    const btnId = 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    currentNextBtnWrap = addMessage(`<div class="quick-replies"><button id="${btnId}" class="quick-reply">Show next ${showCount} of ${remaining} more →</button></div>`, 'bot', true);
+    setTimeout(() => {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const wrap = btn.closest('.message') || btn.parentElement;
+        if (wrap) wrap.remove();
+        currentNextBtnWrap = null;
+        renderBatch();
+      });
+    }, 50);
+  }
+
   function renderBatch() {
     const slice = items.slice(idx, idx + pageSize);
+    const batchEls = [];
     let firstNewElement = null;
     slice.forEach(item => {
       const html = renderHtmlFn(item);
       if (html) {
         const el = addMessage(html, 'bot', true);
+        batchEls.push(el);
         if (firstNewElement == null) firstNewElement = el;
       }
     });
+    batches.push(batchEls);
     idx += pageSize;
+
     if (!isFirstBatch && firstNewElement) {
       scrollAnchor = firstNewElement;
       setTimeout(() => {
@@ -6834,23 +6875,29 @@ function paginateMessages(items, renderHtmlFn, pageSize = 5, onComplete) {
     }
     isFirstBatch = false;
 
-    if (idx >= items.length) {
-      if (onComplete) onComplete();
-      return;
-    }
-    const remaining = items.length - idx;
-    const showCount = Math.min(pageSize, remaining);
-    const btnId = 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    addMessage(`<div class="quick-replies"><button id="${btnId}" class="quick-reply">Show next ${showCount} of ${remaining} more →</button></div>`, 'bot', true);
-    setTimeout(() => {
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
-      btn.addEventListener('click', () => {
-        const wrap = btn.closest('.message') || btn.parentElement;
-        if (wrap) wrap.remove();
-        renderBatch();
-      });
-    }, 50);
+    // Expose this instance to the global Back button. Multiple paginateMessages
+    // calls in one view (chained via onComplete) will replace this state as
+    // each becomes active.
+    _pagedMessagesState = {
+      canGoBack: () => batches.length > 1,
+      goBack: () => {
+        if (batches.length <= 1) return false;
+        // Remove most recent batch DOM elements
+        const lastBatch = batches.pop();
+        lastBatch.forEach(el => el && el.remove());
+        // Remove current Next button
+        if (currentNextBtnWrap) {
+          currentNextBtnWrap.remove();
+          currentNextBtnWrap = null;
+        }
+        idx = Math.max(0, idx - pageSize);
+        // Re-render Next button at the new position
+        renderNextButton();
+        return true;
+      }
+    };
+
+    renderNextButton();
   }
   renderBatch();
 }
