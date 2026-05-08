@@ -6803,16 +6803,37 @@ let _pagedEventsState = null;
 // "Show next N" button that loads the next batch in line. No prev button, no
 // re-rendering. Used across live music, events, attractions, and other Things
 // to Do views so every list feels consistent.
+//
+// On each batch after the first, anchor the chat scroll to the first newly
+// rendered card so the user lands right at the new content (instead of
+// snapping back to the original user message scroll anchor).
 function paginateMessages(items, renderHtmlFn, pageSize = 5) {
   if (!items || items.length === 0) return;
   let idx = 0;
+  let isFirstBatch = true;
   function renderBatch() {
     const slice = items.slice(idx, idx + pageSize);
+    let firstNewElement = null;
     slice.forEach(item => {
       const html = renderHtmlFn(item);
-      if (html) addMessage(html, 'bot', true);
+      if (html) {
+        const el = addMessage(html, 'bot', true);
+        if (firstNewElement == null) firstNewElement = el;
+      }
     });
     idx += pageSize;
+    // After the first batch, snap the scroll anchor to the first new card so
+    // clicking "Show next" lands the user at the new content, not back at
+    // wherever they were before.
+    if (!isFirstBatch && firstNewElement) {
+      scrollAnchor = firstNewElement;
+      setTimeout(() => {
+        try { firstNewElement.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+        catch (e) { /* older safari */ }
+      }, 60);
+    }
+    isFirstBatch = false;
+
     if (idx >= items.length) return;
     const remaining = items.length - idx;
     const showCount = Math.min(pageSize, remaining);
