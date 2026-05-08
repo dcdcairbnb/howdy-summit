@@ -1160,6 +1160,50 @@ const NASHVILLE_DATA = {
 
 let navHistory = [];
 let messageSnapshots = [];
+
+// Lightweight client-side error reporter. Reports uncaught errors and unhandled
+// promise rejections to /api/subscribe?action=log-error. Server dedupes per
+// hour and emails howdy@howdynash.com on first occurrence. Local rate limit
+// here prevents a buggy loop from drowning the inbox before the server sees it.
+(function setupErrorReporter() {
+  const recentLocalErrors = new Set();
+  const MAX_LOCAL_REPORTS = 5;
+  let localReportCount = 0;
+  function reportError(payload) {
+    if (localReportCount >= MAX_LOCAL_REPORTS) return;
+    const key = `${payload.message}::${payload.line}`;
+    if (recentLocalErrors.has(key)) return;
+    recentLocalErrors.add(key);
+    localReportCount++;
+    try {
+      fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'log-error', ...payload })
+      }).catch(() => {});
+    } catch (e) { /* swallow */ }
+  }
+  window.addEventListener('error', e => {
+    reportError({
+      message: String(e.message || 'unknown error').slice(0, 500),
+      stack: String(e.error && e.error.stack || '').slice(0, 2000),
+      url: String(window.location.href || '').slice(0, 500),
+      line: e.lineno || 0,
+      col: e.colno || 0
+    });
+  });
+  window.addEventListener('unhandledrejection', e => {
+    const reason = e.reason;
+    reportError({
+      message: 'Unhandled promise rejection: ' + String(reason && reason.message || reason || 'unknown').slice(0, 400),
+      stack: String(reason && reason.stack || '').slice(0, 2000),
+      url: String(window.location.href || '').slice(0, 500),
+      line: 0,
+      col: 0
+    });
+  });
+})();
+
 // Restore cached location from localStorage so it survives app kills on iOS.
 // Cache for 24 hours, then re-fetch. We also silently re-fetch on every launch
 // when permission is already granted, so the cached value is a fallback.

@@ -47,6 +47,24 @@ const rateLimitStore = new Map();
 const RATE_LIMIT_PER_HOUR = 10;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
+// Error reporter dedupe + rate limit. Stops a buggy page from spamming inbox.
+const errorRateLimitStore = new Map();
+const ERROR_RATE_LIMIT_PER_HOUR = 20;
+const recentErrorFingerprints = new Map();
+const ERROR_REPORTER_TO = 'howdy@howdynash.com';
+
+function checkErrorRateLimit(ip) {
+  const now = Date.now();
+  const record = errorRateLimitStore.get(ip);
+  if (!record || now - record.windowStart > RATE_LIMIT_WINDOW_MS) {
+    errorRateLimitStore.set(ip, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (record.count >= ERROR_RATE_LIMIT_PER_HOUR) return false;
+  record.count += 1;
+  return true;
+}
+
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) return String(forwarded).split(',')[0].trim();
@@ -427,6 +445,57 @@ export default async function handler(req, res) {
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
+  }
+
+  // Client-side error reporter. Browser POSTs window.onerror events here.
+  // Dedupes by error fingerprint over a 1-hour window to avoid email floods.
+  // Quiet in production logs (no console.error spam) but emails on first hit.
+  if (body.action === 'log-error') {
+    const ipAddr = getClientIp(req);
+    if (!checkErrorRateLimit(ipAddr)) {
+      return res.status(429).json({ ok: false });
+    }
+    const errMsg = String(body.message || '').slice(0, 500);
+    const errStack = String(body.stack || '').slice(0, 2000);
+    const errUrl = String(body.url || '').slice(0, 500);
+    const errLine = Number(body.line) || 0;
+    const errCol = Number(body.col) || 0;
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 300);
+    if (!errMsg) return res.status(200).json({ ok: true });
+
+    // Dedupe key: same message + same line. Reduces email count for repeated errors.
+    const fingerprint = `${errMsg}::${errLine}`;
+    if (recentErrorFingerprints.has(fingerprint)) {
+      return res.status(200).json({ ok: true, dedup: true });
+    }
+    recentErrorFingerprints.set(fingerprint, Date.now());
+    // Trim the fingerprint cache periodically
+    if (recentErrorFingerprints.size > 200) {
+      const cutoff = Date.now() - 60 * 60 * 1000;
+      for (const [k, t] of recentErrorFingerprints) {
+        if (t < cutoff) recentErrorFingerprints.delete(k);
+      }
+    }
+
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: ERROR_REPORTER_TO,
+        subject: `Howdy Nash JS error: ${errMsg.slice(0, 80)}`,
+        text: `A new client-side error fired on howdynash.com.\n\n` +
+          `Message: ${errMsg}\n` +
+          `URL: ${errUrl}\n` +
+          `Line: ${errLine}, Column: ${errCol}\n` +
+          `User Agent: ${userAgent}\n` +
+          `IP: ${ipAddr}\n\n` +
+          `Stack trace:\n${errStack}\n\n` +
+          `This is the first occurrence in the last hour. Repeats are silenced.`
+      });
+    } catch (e) {
+      console.error('error-report email failed', e.message);
+    }
+    return res.status(200).json({ ok: true });
   }
 
   const ip = getClientIp(req);
