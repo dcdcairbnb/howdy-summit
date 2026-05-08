@@ -6932,82 +6932,7 @@ async function showLiveMusic() {
     addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
   }
 
-  // Pull API events first. Pagination chains the always-on venues section
-  // through onComplete so the next section never appears until the user
-  // finishes (or there were no events to start with).
-  let apiEventsRendered = false;
-  if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
-    try {
-      const live = await apiSearchEvents('', 'Music');
-      if (live && live.length) {
-        const sorted = [...live].sort((a, b) => {
-          const dateA = a.date || '9999-12-31';
-          const dateB = b.date || '9999-12-31';
-          if (dateA !== dateB) return dateA.localeCompare(dateB);
-          const distA = a.distanceMiles ?? 9999;
-          const distB = b.distanceMiles ?? 9999;
-          return distA - distB;
-        });
-        const capped = sorted.slice(0, 50);
-        const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
-        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 at a time:`, 'bot');
-        apiEventsRendered = true;
-        paginateMessages(capped, e => {
-          const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
-          const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-          const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
-          const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
-          const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
-          const artistEncoded = encodeURIComponent(e.name || '');
-          const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
-          let card = `<div class="card">
-            <div class="card-title">${star}${share}${e.name}</div>
-            <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
-            ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
-          if (e.url) card += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
-          const tnSearch = `https://www.ticketnetwork.com/search?q=${encodeURIComponent(e.name + ' Nashville')}`;
-          card += `<a href="${tnSearch}" target="_blank" rel="noopener" style="background:#0a3d62;color:#fff;">Resale on TicketNetwork</a>`;
-          card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
-          card += `</div>`;
-          return card;
-        }, 5, () => {
-          // Once the user has paginated through all events, show the iconic
-          // venue calendar scrape (flat) followed by the always-on venues
-          // (paginated). Chaining them prevents two "Show next" buttons
-          // from confusing the user about which list they belong to.
-          renderVenueCalendarThenAlwaysOn();
-        });
-      }
-    } catch (e) {
-      console.warn('live music API failed', e);
-    }
-  }
-  if (!apiEventsRendered) {
-    // No API events available. Skip straight to the venue calendar + always-on.
-    renderVenueCalendarThenAlwaysOn();
-  }
-
-  function renderVenueCalendarThenAlwaysOn() {
-    fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
-      if (data && data.events && data.events.length) {
-        const slice = data.events.slice(0, 20);
-        addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues:`, 'bot');
-        slice.forEach(e => {
-          const dateStr = e.date || 'Date TBA';
-          const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
-          let html = `<div class="card">
-            <div class="card-title">${e.name}</div>
-            <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
-          if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
-          html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
-          html += `</div>`;
-          addMessage(html, 'bot', true);
-        });
-      }
-    }).catch(() => {});
-    addMessage("Plus the always-on live music spots:", 'bot');
-  }
-  const venues = [
+  const ALWAYS_ON_VENUES = [
     { name: "Lower Broadway Honky Tonks", neighborhood: "Lower Broadway", desc: "Free live music starting at 10am daily. Tootsie's, Robert's, Acme, Legends Corner.", url: null },
     { name: "Grand Ole Opry", neighborhood: "Opry Mills", desc: "The institution. Shows Tue, Fri, Sat. Get tickets in advance.", url: "https://www.opry.com" },
     { name: "Bluebird Cafe", neighborhood: "Green Hills", desc: "Intimate songwriter rounds in Green Hills. Reservations open weeks ahead.", url: "https://bluebirdcafe.com" },
@@ -7027,41 +6952,114 @@ async function showLiveMusic() {
     { name: "Marathon Music Works", neighborhood: "Marathon Village", desc: "Mid-size venue in Marathon Village. National touring acts.", url: "https://www.marathonmusicworks.com" },
     { name: "Cannery Hall", neighborhood: "Wedgewood-Houston", desc: "Reopened 2024. Multi-room music venue in old cannery building.", url: "https://canneryhall.com" }
   ];
-  let enrichedVenues = venues.map(v => ({ item: v, match: null, dist: null }));
-  if (apiServices.google && userLocation) {
+
+  // Render always-on venues with distance enrichment. Last step in the chain.
+  async function renderAlwaysOnVenues() {
+    let enrichedVenues = ALWAYS_ON_VENUES.map(v => ({ item: v, match: null, dist: null }));
+    if (apiServices.google && userLocation) {
+      try {
+        const liveVenues = await apiSearchPlaces('live music venue concert hall', '');
+        enrichedVenues = ALWAYS_ON_VENUES.map(v => ({ item: v, match: findLiveMatch(v, liveVenues), dist: null }));
+      } catch (e) { /* enrichment optional */ }
+    }
+    if (userLocation) {
+      enrichedVenues = enrichedVenues.map(x => {
+        let dist = x.match?.distanceMiles ?? null;
+        if (dist == null && x.item.neighborhood) {
+          const nb = neighborhoodCoords(x.item.neighborhood);
+          if (nb) dist = haversineMiles(userLocation, nb);
+        }
+        return { ...x, dist };
+      });
+      enrichedVenues.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
+    }
+    addMessage("Plus the always-on live music spots:", 'bot');
+    paginateMessages(enrichedVenues, ({ item: v, match, dist }) => {
+      const isApprox = dist != null && match?.distanceMiles == null;
+      const distStr = dist != null ? ` · 📍 ${dist} mi${isApprox ? ' (approx)' : ''}` : '';
+      const ratingStr = match && match.rating ? `★ ${match.rating}` : '';
+      const star = renderSaveStar({ name: v.name, note: v.desc, address: match?.address || v.neighborhood || 'Nashville' });
+      const share = renderShareButton({ name: v.name, desc: v.desc, url: v.url || '' });
+      let html = `<div class="card">
+        <div class="card-title">${star}${share}${v.name}</div>
+        ${ratingStr || distStr ? `<div class="card-meta">${v.neighborhood || ''}${ratingStr || distStr ? ' · ' + ratingStr + distStr : ''}</div>` : (v.neighborhood ? `<div class="card-meta">${v.neighborhood}</div>` : '')}
+        <div class="card-desc">${v.desc}</div>`;
+      if (v.url) html += `<a href="${v.url}" target="_blank">Get tickets</a>`;
+      html += `</div>`;
+      return html;
+    });
+  }
+
+  // Render iconic venue calendar (flat) then chain to always-on venues.
+  function renderVenueCalendarThenAlwaysOn() {
+    fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
+      if (data && data.events && data.events.length) {
+        const slice = data.events.slice(0, 20);
+        addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues:`, 'bot');
+        slice.forEach(e => {
+          const dateStr = e.date || 'Date TBA';
+          const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
+          let html = `<div class="card">
+            <div class="card-title">${e.name}</div>
+            <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
+          if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
+          html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+          html += `</div>`;
+          addMessage(html, 'bot', true);
+        });
+      }
+      renderAlwaysOnVenues();
+    }).catch(() => renderAlwaysOnVenues());
+  }
+
+  // Pull API events. If we have any, paginate them and chain via onComplete.
+  // If none, skip directly to venue calendar + always-on.
+  if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
     try {
-      const liveVenues = await apiSearchPlaces('live music venue concert hall', '');
-      enrichedVenues = venues.map(v => ({ item: v, match: findLiveMatch(v, liveVenues), dist: null }));
+      const live = await apiSearchEvents('', 'Music');
+      if (live && live.length) {
+        const sorted = [...live].sort((a, b) => {
+          const dateA = a.date || '9999-12-31';
+          const dateB = b.date || '9999-12-31';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          const distA = a.distanceMiles ?? 9999;
+          const distB = b.distanceMiles ?? 9999;
+          return distA - distB;
+        });
+        // Cap at 25 so the user reaches the always-on section in 5 clicks max.
+        const capped = sorted.slice(0, 25);
+        const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
+        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 at a time:`, 'bot');
+        paginateMessages(capped, e => {
+          const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
+          const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+          const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
+          const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
+          const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
+          const artistEncoded = encodeURIComponent(e.name || '');
+          const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
+          let card = `<div class="card">
+            <div class="card-title">${star}${share}${e.name}</div>
+            <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
+            ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
+          if (e.url) card += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
+          const tnSearch = `https://www.ticketnetwork.com/search?q=${encodeURIComponent(e.name + ' Nashville')}`;
+          card += `<a href="${tnSearch}" target="_blank" rel="noopener" style="background:#0a3d62;color:#fff;">Resale on TicketNetwork</a>`;
+          card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+          card += `</div>`;
+          return card;
+        }, 5, () => {
+          // After events fully paginated, chain to venue calendar + always-on
+          renderVenueCalendarThenAlwaysOn();
+        });
+        return;
+      }
     } catch (e) {
-      console.warn('venue distance enrichment failed', e);
+      console.warn('live music API failed', e);
     }
   }
-  // Compute distance with neighborhood fallback
-  if (userLocation) {
-    enrichedVenues = enrichedVenues.map(x => {
-      let dist = x.match?.distanceMiles ?? null;
-      if (dist == null && x.item.neighborhood) {
-        const nb = neighborhoodCoords(x.item.neighborhood);
-        if (nb) dist = haversineMiles(userLocation, nb);
-      }
-      return { ...x, dist };
-    });
-    enrichedVenues.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
-  }
-  paginateMessages(enrichedVenues, ({ item: v, match, dist }) => {
-    const isApprox = dist != null && match?.distanceMiles == null;
-    const distStr = dist != null ? ` · 📍 ${dist} mi${isApprox ? ' (approx)' : ''}` : '';
-    const ratingStr = match && match.rating ? `★ ${match.rating}` : '';
-    const star = renderSaveStar({ name: v.name, note: v.desc, address: match?.address || v.neighborhood || 'Nashville' });
-    const share = renderShareButton({ name: v.name, desc: v.desc, url: v.url || '' });
-    let html = `<div class="card">
-      <div class="card-title">${star}${share}${v.name}</div>
-      ${ratingStr || distStr ? `<div class="card-meta">${v.neighborhood || ''}${ratingStr || distStr ? ' · ' + ratingStr + distStr : ''}</div>` : (v.neighborhood ? `<div class="card-meta">${v.neighborhood}</div>` : '')}
-      <div class="card-desc">${v.desc}</div>`;
-    if (v.url) html += `<a href="${v.url}" target="_blank">Get tickets</a>`;
-    html += `</div>`;
-    return html;
-  });
+  // Fallback when no API events: render venue calendar + always-on directly.
+  renderVenueCalendarThenAlwaysOn();
 }
 
 async function showEvents() {
