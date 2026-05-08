@@ -51,7 +51,7 @@ const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const errorRateLimitStore = new Map();
 const ERROR_RATE_LIMIT_PER_HOUR = 20;
 const recentErrorFingerprints = new Map();
-const ERROR_REPORTER_TO = 'howdy@howdynash.com';
+const ERROR_REPORTER_TO = 'howdynashhq@gmail.com';
 
 function checkErrorRateLimit(ip) {
   const now = Date.now();
