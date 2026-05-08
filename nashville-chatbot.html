@@ -6963,8 +6963,29 @@ async function showLiveMusic() {
         });
         const capped = sorted.slice(0, 50);
         const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
-        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 per page.`, 'bot');
-        showEventsPaged(capped, 0);
+        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 at a time:`, 'bot');
+        // Use append-style pagination so clicking "Show next 5" adds 5 more
+        // below instead of replacing the previous 5 in place. Avoids the
+        // jumpy "scroll to top" feel the older showEventsPaged caused.
+        paginateMessages(capped, e => {
+          const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
+          const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+          const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
+          const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
+          const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
+          const artistEncoded = encodeURIComponent(e.name || '');
+          const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
+          let card = `<div class="card">
+            <div class="card-title">${star}${share}${e.name}</div>
+            <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
+            ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
+          if (e.url) card += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
+          const tnSearch = `https://www.ticketnetwork.com/search?q=${encodeURIComponent(e.name + ' Nashville')}`;
+          card += `<a href="${tnSearch}" target="_blank" rel="noopener" style="background:#0a3d62;color:#fff;">Resale on TicketNetwork</a>`;
+          card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+          card += `</div>`;
+          return card;
+        });
         addMessage("Plus the always-on live music spots:", 'bot');
       }
     } catch (e) {
