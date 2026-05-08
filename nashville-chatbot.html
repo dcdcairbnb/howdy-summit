@@ -1559,8 +1559,9 @@ function showSavedSpots() {
     addMessage('You have no saved spots yet. Tap the star on any restaurant or attraction to save it.', 'bot');
     return;
   }
-  addMessage(`Your ${saved.length} saved spot${saved.length === 1 ? '' : 's'}:`, 'bot');
-  saved.forEach(spot => {
+  const showingNote = saved.length > 5 ? '. Showing 5 at a time' : '';
+  addMessage(`Your ${saved.length} saved spot${saved.length === 1 ? '' : 's'}${showingNote}:`, 'bot');
+  paginateMessages(saved, spot => {
     const safeName = (spot.name || '').replace(/'/g, "\\'");
     let html = `<div class="card">
       <div class="card-title">${spot.name || 'Saved spot'}</div>
@@ -1569,15 +1570,16 @@ function showSavedSpots() {
       <button onclick="removeSavedAndRefresh('${safeName}'); return false;" style="background:#999;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;margin-top:6px;font-size:12px;">Remove</button>`;
     if (spot.phone) html += `<a class="call-btn" href="tel:${spot.phone}">Call ${spot.phone}</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
+  }, 5, () => {
+    // Email-my-spots capture point. Highest engagement moment.
+    const emailCard = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
+      <div class="card-title">📧 Email me my list</div>
+      <div class="card-desc">Get your saved spots emailed to you. Forward to friends, open on any device.</div>
+      <button onclick="openSignupModal('saved-spots'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email my saved spots</button>
+    </div>`;
+    addMessage(emailCard, 'bot', true);
   });
-  // Email-my-spots capture point. Highest engagement moment.
-  const emailCard = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
-    <div class="card-title">📧 Email me my list</div>
-    <div class="card-desc">Get your saved spots emailed to you. Forward to friends, open on any device.</div>
-    <button onclick="openSignupModal('saved-spots'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email my saved spots</button>
-  </div>`;
-  addMessage(emailCard, 'bot', true);
 }
 
 // Email signup modal. Three sources: cheatsheet, saved-spots, bachelorette, general.
@@ -3679,8 +3681,9 @@ const CURATED_RESTROOMS = [
 ];
 
 function showRestrooms() {
+  let list = CURATED_RESTROOMS;
   if (userLocation) {
-    const list = [...CURATED_RESTROOMS].map(r => {
+    list = [...CURATED_RESTROOMS].map(r => {
       let dist = null;
       if (r.coords) dist = haversineMiles(userLocation, r.coords);
       if (dist == null && r.neighborhood) {
@@ -3689,12 +3692,11 @@ function showRestrooms() {
       }
       return { ...r, _dist: dist == null ? 9999 : dist };
     }).sort((a, b) => a._dist - b._dist);
-    addMessage(`Public restrooms (${list.length} total, closest first):`, 'bot');
-    list.forEach(r => addMessage(renderCuratedCard(r, 'public restroom', null), 'bot', true));
+    addMessage(`Public restrooms (${list.length} total, closest first). Showing 5 at a time:`, 'bot');
   } else {
-    addMessage(`Free public restrooms in Nashville (${CURATED_RESTROOMS.length} options). Tap Share location for closest first.`, 'bot');
-    CURATED_RESTROOMS.forEach(r => addMessage(renderCuratedCard(r, 'public restroom', null), 'bot', true));
+    addMessage(`Free public restrooms in Nashville (${CURATED_RESTROOMS.length} options). Tap Share location for closest first. Showing 5 at a time:`, 'bot');
   }
+  paginateMessages(list, r => renderCuratedCard(r, 'public restroom', null), 5);
 }
 
 
@@ -4089,7 +4091,7 @@ function showHolidayBrunch(key) {
   const dateStr = holiday.getDate(new Date().getFullYear()).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   addMessage(`${holiday.emoji} ${holiday.label} is ${dateStr}.`, 'bot');
   addMessage(holiday.intro, 'bot');
-  holiday.spots.forEach(s => {
+  paginateMessages(holiday.spots, s => {
     let html = `<div class="card">
       <div class="card-title">${s.name}</div>
       <div class="card-meta">${s.neighborhood}</div>
@@ -4105,8 +4107,8 @@ function showHolidayBrunch(key) {
     }
     if (s.phone) html += `<a href="tel:${s.phone}" style="background:#34a853;color:#fff;">Call ${s.phone}</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
+    return html;
+  }, 5);
 }
 
 const CURATED_BAKERIES = [
@@ -4260,9 +4262,9 @@ const CURATED_BROADWAY_BARS = [
 ];
 
 function showBroadwayBars() {
-  addMessage("Lower Broadway is the heart of Nashville nightlife. Here are all the bars on the strip:", 'bot');
+  addMessage(`Lower Broadway is the heart of Nashville nightlife. ${CURATED_BROADWAY_BARS.length} bars on the strip. Showing 5 at a time:`, 'bot');
 
-  CURATED_BROADWAY_BARS.forEach(s => {
+  paginateMessages(CURATED_BROADWAY_BARS, s => {
     const star = renderSaveStar({ name: s.name, note: s.desc || s.neighborhood, address: s.neighborhood });
     const share = renderShareButton({ name: s.name, desc: s.desc, url: s.url || '' });
     let html = `<div class="card">
@@ -4277,10 +4279,10 @@ function showBroadwayBars() {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
+  }, 5, () => {
+    addMessage("Pro tips: Most Broadway bars have free music starting around 10am. No cover. Tip the bands. Head to upper floors for shorter waits and rooftop views. Walk the strip from 1st to 5th Ave to compare crowds.", 'bot');
   });
-
-  addMessage("Pro tips: Most Broadway bars have free music starting around 10am. No cover. Tip the bands. Head to upper floors for shorter waits and rooftop views. Walk the strip from 1st to 5th Ave to compare crowds.", 'bot');
 }
 
 const CURATED_COCKTAIL_BARS = [
@@ -7072,13 +7074,13 @@ async function showLiveMusic() {
     });
   }
 
-  // Render iconic venue calendar (flat) then chain to always-on venues.
+  // Render iconic venue calendar (paginated) then chain to always-on venues.
   function renderVenueCalendarThenAlwaysOn() {
     fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
       if (data && data.events && data.events.length) {
         const slice = data.events.slice(0, 20);
-        addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues:`, 'bot');
-        slice.forEach(e => {
+        addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues. Showing 5 at a time:`, 'bot');
+        paginateMessages(slice, e => {
           const dateStr = e.date || 'Date TBA';
           const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
           let html = `<div class="card">
@@ -7087,10 +7089,11 @@ async function showLiveMusic() {
           if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
           html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
           html += `</div>`;
-          addMessage(html, 'bot', true);
-        });
+          return html;
+        }, 5, renderAlwaysOnVenues);
+      } else {
+        renderAlwaysOnVenues();
       }
-      renderAlwaysOnVenues();
     }).catch(() => renderAlwaysOnVenues());
   }
 
@@ -7398,25 +7401,28 @@ const NEIGHBORHOOD_GUIDES = [
 
 function showNeighborhoodsExplorer() {
   pushMenu('neighborhoods');
-  addMessage("Nashville neighborhoods. Tap one to see what to eat, drink, shop, and see there.", 'bot');
-  NEIGHBORHOOD_GUIDES.forEach((n, idx) => {
-    let dist = '';
+  addMessage(`Nashville neighborhoods (${NEIGHBORHOOD_GUIDES.length}). Tap one to see what to eat, drink, shop, and see there. Showing 5 at a time:`, 'bot');
+  // Sort by distance when location is available so closest neighborhoods come first
+  let withIdx = NEIGHBORHOOD_GUIDES.map((n, idx) => {
+    let miles = null;
     if (userLocation) {
       const nb = neighborhoodCoords(n.key) || neighborhoodCoords(n.name);
-      if (nb) {
-        const miles = haversineMiles(userLocation, nb);
-        if (miles != null) dist = ` · 📍 ${miles} mi`;
-      }
+      if (nb) miles = haversineMiles(userLocation, nb);
     }
-    // Use index-based menu name to dodge keys with spaces or hyphens
-    const html = `<div class="card">
+    return { n, idx, miles };
+  });
+  if (userLocation) {
+    withIdx.sort((a, b) => (a.miles ?? 9999) - (b.miles ?? 9999));
+  }
+  paginateMessages(withIdx, ({ n, idx, miles }) => {
+    const dist = miles != null ? ` · 📍 ${miles} mi` : '';
+    return `<div class="card">
       <div class="card-title">${n.emoji} ${n.name}</div>
       <div class="card-meta">${n.vibe}${dist}</div>
       <div class="card-desc">${n.blurb}</div>
       <a href="#" onclick="navAction(() => showNeighborhoodDetailByIndex(${idx}), 'neighborhood-${idx}', 'Neighborhoods');return false;" style="background:#d62828;color:#fff;">Explore ${n.name}</a>
     </div>`;
-    addMessage(html, 'bot', true);
-  });
+  }, 5);
 }
 
 function showNeighborhoodDetailByIndex(idx) {
@@ -7532,8 +7538,9 @@ function showFilteredAttractions(items, header) {
     addMessage('No attractions curated for this neighborhood yet.', 'bot');
     return;
   }
-  addMessage(`${header} (${items.length})`, 'bot');
-  items.forEach(a => {
+  const showingNote = items.length > 5 ? '. Showing 5 at a time' : '';
+  addMessage(`${header} (${items.length})${showingNote}`, 'bot');
+  paginateMessages(items, a => {
     const star = renderSaveStar({ name: a.name, note: a.type || '', address: a.neighborhood || 'Nashville' });
     const share = renderShareButton({ name: a.name, desc: a.desc || a.type || '', url: a.url || '' });
     let html = `<div class="card">
@@ -7544,8 +7551,8 @@ function showFilteredAttractions(items, header) {
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(a.name + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
+    return html;
+  }, 5);
 }
 
 // Generic helper: render a pre-filtered curated list using the standard card.
@@ -7554,7 +7561,6 @@ function showFilteredCurated(items, header) {
     addMessage('Nothing curated for this filter yet.', 'bot');
     return;
   }
-  addMessage(`${header} (${items.length})`, 'bot');
   // Compute distance via neighborhood fallback
   let withDist = items.map(item => {
     let dist = null;
@@ -7570,9 +7576,9 @@ function showFilteredCurated(items, header) {
   if (userLocation) {
     withDist.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
-  withDist.forEach(({ item }) => {
-    addMessage(renderCuratedCard(item, header), 'bot', true);
-  });
+  const showingNote = withDist.length > 5 ? '. Showing 5 at a time' : '';
+  addMessage(`${header} (${withDist.length})${showingNote}`, 'bot');
+  paginateMessages(withDist, ({ item }) => renderCuratedCard(item, header), 5);
 }
 
 // PWA: register service worker for offline support and home screen install.
