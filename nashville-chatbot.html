@@ -6800,14 +6800,19 @@ let _pagedEventsState = null;
 
 // Generic forward-only paginator for chat-style lists. Shows 5 items, then a
 // "Show next N" button that loads the next batch in line. No prev button, no
-// re-rendering. Used across live music, events, attractions, and other Things
-// to Do views so every list feels consistent.
+// re-rendering.
+//
+// onComplete fires once the user reaches the end of the list (no more items
+// to show). Use this to chain to a follow-up section so two paginated lists
+// don't render in the same view at the same time and confuse the user.
 //
 // On each batch after the first, anchor the chat scroll to the first newly
-// rendered card so the user lands right at the new content (instead of
-// snapping back to the original user message scroll anchor).
-function paginateMessages(items, renderHtmlFn, pageSize = 5) {
-  if (!items || items.length === 0) return;
+// rendered card so the user lands at the new content.
+function paginateMessages(items, renderHtmlFn, pageSize = 5, onComplete) {
+  if (!items || items.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
   let idx = 0;
   let isFirstBatch = true;
   function renderBatch() {
@@ -6821,9 +6826,6 @@ function paginateMessages(items, renderHtmlFn, pageSize = 5) {
       }
     });
     idx += pageSize;
-    // After the first batch, snap the scroll anchor to the first new card so
-    // clicking "Show next" lands the user at the new content, not back at
-    // wherever they were before.
     if (!isFirstBatch && firstNewElement) {
       scrollAnchor = firstNewElement;
       setTimeout(() => {
@@ -6833,7 +6835,10 @@ function paginateMessages(items, renderHtmlFn, pageSize = 5) {
     }
     isFirstBatch = false;
 
-    if (idx >= items.length) return;
+    if (idx >= items.length) {
+      if (onComplete) onComplete();
+      return;
+    }
     const remaining = items.length - idx;
     const showCount = Math.min(pageSize, remaining);
     const btnId = 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -6926,33 +6931,15 @@ async function showLiveMusic() {
   } else {
     addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
   }
-  // Kick off venue calendar scrape in parallel with the main fetch.
-  // Render flat (no pagination) since the always-on venues section below
-  // is already paginated and stacking two paginated sections in one view
-  // confuses the user about which "Show next 5" button belongs to which list.
-  fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
-    if (!data || !data.events || !data.events.length) return;
-    const slice = data.events.slice(0, 20);
-    addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues:`, 'bot');
-    slice.forEach(e => {
-      const dateStr = e.date || 'Date TBA';
-      const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
-      let html = `<div class="card">
-        <div class="card-title">${e.name}</div>
-        <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
-      if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
-      html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
-      html += `</div>`;
-      addMessage(html, 'bot', true);
-    });
-  }).catch(() => { /* venue scrape failed silently */ });
 
-  // First, try to pull live concert lineups from the events API
+  // Pull API events first. Pagination chains the always-on venues section
+  // through onComplete so the next section never appears until the user
+  // finishes (or there were no events to start with).
+  let apiEventsRendered = false;
   if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
     try {
       const live = await apiSearchEvents('', 'Music');
       if (live && live.length) {
-        // Sort by date ascending, then by distance if user location is set
         const sorted = [...live].sort((a, b) => {
           const dateA = a.date || '9999-12-31';
           const dateB = b.date || '9999-12-31';
@@ -6964,9 +6951,7 @@ async function showLiveMusic() {
         const capped = sorted.slice(0, 50);
         const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
         addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 at a time:`, 'bot');
-        // Use append-style pagination so clicking "Show next 5" adds 5 more
-        // below instead of replacing the previous 5 in place. Avoids the
-        // jumpy "scroll to top" feel the older showEventsPaged caused.
+        apiEventsRendered = true;
         paginateMessages(capped, e => {
           const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
           const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
@@ -6985,12 +6970,42 @@ async function showLiveMusic() {
           card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
           card += `</div>`;
           return card;
+        }, 5, () => {
+          // Once the user has paginated through all events, show the iconic
+          // venue calendar scrape (flat) followed by the always-on venues
+          // (paginated). Chaining them prevents two "Show next" buttons
+          // from confusing the user about which list they belong to.
+          renderVenueCalendarThenAlwaysOn();
         });
-        addMessage("Plus the always-on live music spots:", 'bot');
       }
     } catch (e) {
       console.warn('live music API failed', e);
     }
+  }
+  if (!apiEventsRendered) {
+    // No API events available. Skip straight to the venue calendar + always-on.
+    renderVenueCalendarThenAlwaysOn();
+  }
+
+  function renderVenueCalendarThenAlwaysOn() {
+    fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
+      if (data && data.events && data.events.length) {
+        const slice = data.events.slice(0, 20);
+        addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues:`, 'bot');
+        slice.forEach(e => {
+          const dateStr = e.date || 'Date TBA';
+          const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
+          let html = `<div class="card">
+            <div class="card-title">${e.name}</div>
+            <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
+          if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
+          html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+          html += `</div>`;
+          addMessage(html, 'bot', true);
+        });
+      }
+    }).catch(() => {});
+    addMessage("Plus the always-on live music spots:", 'bot');
   }
   const venues = [
     { name: "Lower Broadway Honky Tonks", neighborhood: "Lower Broadway", desc: "Free live music starting at 10am daily. Tootsie's, Robert's, Acme, Legends Corner.", url: null },
