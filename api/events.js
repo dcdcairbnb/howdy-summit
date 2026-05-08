@@ -234,6 +234,6 @@ export default async function handler(req, res) {
       total: combined.length
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("[events] error", e); res.status(500).json({ error: "internal server error" });
   }
 }

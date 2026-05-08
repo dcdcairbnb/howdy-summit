@@ -62,6 +62,6 @@ export default async function handler(req, res) {
       flights
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("[flights] error", e); res.status(500).json({ error: "internal server error" });
   }
 }

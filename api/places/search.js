@@ -87,6 +87,6 @@ export default async function handler(req, res) {
       results
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("[places_search] error", e); res.status(500).json({ error: "internal server error" });
   }
 }

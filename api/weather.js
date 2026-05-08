@@ -86,6 +86,6 @@ export default async function handler(req, res) {
       updated: forecastData.properties?.updated
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("[weather] error", e); res.status(500).json({ error: "internal server error" });
   }
 }

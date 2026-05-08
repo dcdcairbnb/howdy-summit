@@ -274,7 +274,7 @@ export default async function handler(req, res) {
         events
       });
     } catch (e) {
-      return res.status(500).json({ error: e.message, events: [] });
+      return console.error("[festivals] error", e); res.status(500).json({ error: "internal server error", events: [] });
     }
   }
 
@@ -315,6 +315,6 @@ export default async function handler(req, res) {
       total: combined.length
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("[festivals] error", e); res.status(500).json({ error: "internal server error" });
   }
 }
