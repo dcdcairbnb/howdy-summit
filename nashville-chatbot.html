@@ -6926,12 +6926,15 @@ async function showLiveMusic() {
   } else {
     addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
   }
-  // Kick off venue calendar scrape in parallel with the main fetch
+  // Kick off venue calendar scrape in parallel with the main fetch.
+  // Render flat (no pagination) since the always-on venues section below
+  // is already paginated and stacking two paginated sections in one view
+  // confuses the user about which "Show next 5" button belongs to which list.
   fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
     if (!data || !data.events || !data.events.length) return;
     const slice = data.events.slice(0, 20);
-    addMessage(`Plus ${data.events.length} shows scraped from iconic Nashville venues. Showing 5 at a time:`, 'bot');
-    paginateMessages(slice, e => {
+    addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues:`, 'bot');
+    slice.forEach(e => {
       const dateStr = e.date || 'Date TBA';
       const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
       let html = `<div class="card">
@@ -6940,7 +6943,7 @@ async function showLiveMusic() {
       if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
       html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
       html += `</div>`;
-      return html;
+      addMessage(html, 'bot', true);
     });
   }).catch(() => { /* venue scrape failed silently */ });
 
