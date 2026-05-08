@@ -370,6 +370,11 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') {
+    // Reject oversized payloads up front. 50KB is way more than any legitimate
+    // chat message + history needs. Stops attackers from tying up the function.
+    if (body.length > 50000) {
+      return res.status(413).json({ error: 'request body too large' });
+    }
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
 
@@ -380,6 +385,22 @@ export default async function handler(req, res) {
   if (message.length > 2000) {
     return res.status(400).json({ error: 'message too long' });
   }
+  // Validate history is an array of well-formed turns. Untrusted input could
+  // try to inject extra system messages or oversized strings.
+  if (!Array.isArray(history) || history.length > 20) {
+    return res.status(400).json({ error: 'invalid history' });
+  }
+  for (const turn of history) {
+    if (!turn || typeof turn !== 'object' || typeof turn.role !== 'string' || typeof turn.content !== 'string') {
+      return res.status(400).json({ error: 'invalid history turn' });
+    }
+    if (turn.content.length > 5000) {
+      return res.status(400).json({ error: 'history turn too long' });
+    }
+    if (turn.role !== 'user' && turn.role !== 'assistant') {
+      return res.status(400).json({ error: 'invalid history role' });
+    }
+  }
 
   // Decide which model to use. Explicit smartMode flag wins; otherwise auto-
   // detect trip-planning patterns that benefit from Sonnet's longer reasoning.
@@ -388,10 +409,17 @@ export default async function handler(req, res) {
 
   // Map the user's lat/lng to the closest Nashville neighborhood. Lets Claude
   // answer "near me" questions without re-asking. Coords come from the
-  // browser's Geolocation API so accuracy varies.
-  const userNeighborhood = location && location.lat && location.lng
-    ? nashvilleNeighborhood(location.lat, location.lng)
-    : null;
+  // browser's Geolocation API so accuracy varies. Validate ranges so a
+  // malformed payload can't trigger NaN or huge bbox lookups.
+  let userNeighborhood = null;
+  if (location && typeof location === 'object') {
+    const lat = Number(location.lat);
+    const lng = Number(location.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)
+        && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      userNeighborhood = nashvilleNeighborhood(lat, lng);
+    }
+  }
 
   // Cache hit: serve without spending tokens or counting against rate limit.
   // Only cache when there is no conversation history AND no location context

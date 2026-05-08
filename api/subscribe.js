@@ -372,7 +372,15 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') {
+    // Cap body size at 100KB. Trip-summary payloads with expense lists are
+    // the largest legitimate use case and they fit easily under this cap.
+    if (body.length > 100000) {
+      return res.status(413).json({ error: 'request body too large' });
+    }
     try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  if (!body || typeof body !== 'object') {
+    return res.status(400).json({ error: 'invalid body' });
   }
 
   // Newsletter actions (admin only)
@@ -426,12 +434,42 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'too many signups, try again later' });
   }
 
-  const email = String(body.email || '').trim().toLowerCase();
+  const email = String(body.email || '').trim().toLowerCase().slice(0, 254);
   const name = String(body.name || '').trim().slice(0, 100);
   const source = String(body.source || 'general').trim().slice(0, 50);
-  const savedSpots = Array.isArray(body.savedSpots) ? body.savedSpots.slice(0, 50) : null;
   const optIn = !!body.optIn;
-  const tripData = (source === 'trip-summary' && body.tripData && typeof body.tripData === 'object') ? body.tripData : null;
+  // Sanitize savedSpots: cap each field so an attacker can't store huge blobs.
+  const savedSpots = Array.isArray(body.savedSpots)
+    ? body.savedSpots.slice(0, 50).map(s => ({
+        name: String(s && s.name || '').slice(0, 200),
+        note: String(s && s.note || '').slice(0, 500),
+        address: String(s && s.address || '').slice(0, 300),
+        phone: String(s && s.phone || '').slice(0, 30)
+      }))
+    : null;
+  // Sanitize tripData: validate structure, cap each field, drop unexpected keys.
+  let tripData = null;
+  if (source === 'trip-summary' && body.tripData && typeof body.tripData === 'object') {
+    const t = body.tripData;
+    tripData = {
+      tripName: String(t.tripName || 'Nashville trip').slice(0, 100),
+      payerName: String(t.payerName || '').slice(0, 100),
+      payerVenmo: String(t.payerVenmo || '').slice(0, 50),
+      payerCashapp: String(t.payerCashapp || '').slice(0, 50),
+      payerPaypal: String(t.payerPaypal || '').slice(0, 200),
+      memberOwes: Math.max(0, Math.min(100000, Number(t.memberOwes) || 0)),
+      isPayer: !!t.isPayer,
+      totalSpent: Math.max(0, Math.min(1000000, Number(t.totalSpent) || 0)),
+      expenses: Array.isArray(t.expenses)
+        ? t.expenses.slice(0, 100).map(e => ({
+            amount: Math.max(0, Math.min(100000, Number(e && e.amount) || 0)),
+            description: String(e && e.description || '').slice(0, 80),
+            paidByName: String(e && e.paidByName || '').slice(0, 100),
+            splitCount: Math.max(1, Math.min(50, Number(e && e.splitCount) || 1))
+          }))
+        : []
+    };
+  }
 
   if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: 'valid email required' });
