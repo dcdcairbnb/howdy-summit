@@ -1247,6 +1247,7 @@ function refreshLocationIfStale() {
         }));
       } catch (e) {}
       if (typeof updateRideLinks === 'function') updateRideLinks();
+      if (typeof syncLocationBarVisibility === 'function') syncLocationBarVisibility();
     },
     () => { /* permission denied or unavailable; keep cached value */ },
     // Low-accuracy mode: Wi-Fi + cell towers, no GPS chip wake. ~50m accuracy
@@ -1260,6 +1261,28 @@ document.addEventListener('visibilitychange', () => {
 });
 // Refresh once on initial load so a stale cache from yesterday is replaced fast.
 setTimeout(refreshLocationIfStale, 1500);
+
+// Hide the "Share location" bar at the bottom of the screen on every launch
+// where we already have a location (cached or just refreshed). Otherwise the
+// bar shows up after the user kills and reopens the app, making it look like
+// they need to share location again even though permission was granted and
+// the cached fix is still valid.
+function syncLocationBarVisibility() {
+  const bar = document.getElementById('locationBar');
+  const btn = document.getElementById('locationBtn');
+  if (!bar) return;
+  if (userLocation) {
+    bar.style.display = 'none';
+    if (btn) btn.textContent = 'Refresh';
+  } else {
+    bar.style.display = '';
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', syncLocationBarVisibility);
+} else {
+  syncLocationBarVisibility();
+}
 
 // API config. When deployed to Vercel, leave as relative path.
 // For local dev pointing at a hosted backend, change to your Vercel URL.
