@@ -1257,7 +1257,27 @@ function refreshLocationIfStale() {
 }
 // Refresh on app foreground (returning from another app or unlocking phone).
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') refreshLocationIfStale();
+  if (document.visibilityState !== 'visible') return;
+  refreshLocationIfStale();
+  // If the user is in an active group, poll immediately so an "ended" state
+  // shown by the leader while we were backgrounded surfaces right away
+  // instead of waiting up to 10 seconds for the next interval tick.
+  try {
+    const saved = typeof getSavedGroupSession === 'function' ? getSavedGroupSession() : null;
+    if (saved && saved.code) {
+      groupApi({ action: 'get', code: saved.code }).then(r => {
+        if (r && r.data && r.data.ended) {
+          stopGroupSession();
+          saveGroupSession(null);
+          removeGroupSessionCard(saved.code);
+          if (!saved.isLeader) {
+            showGroupEndedOverlay(saved.code);
+            try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+          }
+        }
+      }).catch(() => {});
+    }
+  } catch (e) {}
 });
 // Refresh once on initial load so a stale cache from yesterday is replaced fast.
 setTimeout(refreshLocationIfStale, 1500);
@@ -5098,24 +5118,12 @@ function showGroupSession(code, memberId, isLeader, name) {
       saveGroupSession(null);
       // Remove the stale session card so the map and member list disappear.
       removeGroupSessionCard(code);
-      // Prominent notification card so any non-leader clearly sees the group ended.
+      // Fullscreen overlay so a non-leader sees the change no matter which
+      // view they're on. The chat-card alone is easy to miss when the user
+      // has navigated to another section between polls.
       if (!wasLeader) {
-        const html = `<div class="card" style="border:2px solid #d62828;background:#fff5f5;">
-          <div class="card-title" style="color:#d62828;">🛑 Group ended</div>
-          <div class="card-desc">The group leader ended the location share. Your live pin is gone and nobody in the group can see your location anymore.</div>
-          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-            <button type="button" onclick="showFindGroup();return false;" style="background:#2563eb;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Start or join another group</button>
-          </div>
-        </div>`;
-        const card = addMessage(html, 'bot', true);
-        // Try to vibrate the phone briefly so the user notices the change.
-        try { if (navigator.vibrate) navigator.vibrate(200); } catch (e) {}
-        // Scroll the notification into view.
-        setTimeout(() => {
-          if (card && typeof card.scrollIntoView === 'function') {
-            card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          }
-        }, 100);
+        showGroupEndedOverlay(code);
+        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
       }
       // Show post-session upsell (recovery brunch, plan another trip)
       showAffiliateForElapsed(999, wasLeader);
@@ -5607,6 +5615,29 @@ async function nativeShareGroupCode(code) {
   } catch (e) { /* user cancelled */ }
 }
 
+// Fullscreen overlay shown to non-leader members when the leader ends the
+// group. Impossible to miss regardless of which view they're on. Replaces the
+// in-chat card which a user could easily scroll past.
+function showGroupEndedOverlay(code) {
+  if (document.getElementById('groupEndedOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'groupEndedOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+      <div style="font-size:48px;line-height:1;margin-bottom:8px;">🛑</div>
+      <div style="font-size:22px;font-weight:700;color:#d62828;margin-bottom:8px;">Group ${code} ended</div>
+      <div style="font-size:14px;color:#444;line-height:1.5;margin-bottom:20px;">The group leader ended the location share. Your live pin is gone and nobody in the group can see your location anymore.</div>
+      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare('Group ended. Your pin is gone.');" style="background:#d62828;color:#fff;border:none;padding:14px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;width:100%;margin-bottom:8px;">OK, got it</button>
+      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare();" style="background:#2563eb;color:#fff;border:none;padding:14px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;width:100%;">Start or join another group</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function dismissGroupEndedOverlay() {
+  const o = document.getElementById('groupEndedOverlay');
+  if (o) o.remove();
+}
+
 function removeGroupSessionCard(code) {
   // Remove the persistent session card so the user sees the leave/end took effect.
   const card = document.getElementById(`group-session-${code}`);
@@ -5625,15 +5656,7 @@ async function leaveGroup() {
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
   resetGroupFlowState();
-  // Wipe every prior group-flow message (name prompts, "Creating..." status,
-  // old session cards) so the user lands on a clean fresh start screen.
-  clearGroupFlowMessages();
-  const exitMsg = addMessage('You left the group. Your pin is gone.', 'bot');
-  scrollAnchor = exitMsg;
-  setTimeout(() => {
-    if (typeof showFindGroup === 'function') showFindGroup();
-    setTimeout(scrollToFindGroupCard, 200);
-  }, 80);
+  resetChatToFreshGroupShare('You left the group. Your pin is gone.');
 }
 
 async function endGroup() {
@@ -5645,13 +5668,23 @@ async function endGroup() {
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
   resetGroupFlowState();
+  resetChatToFreshGroupShare('Group ended. Everyone is off the live map.');
+}
+
+// Wipe the entire chat and land on a clean group-share start screen. Prevents
+// the user from scrolling up to see the previous group's messages, name
+// prompts, or session card. Menu stack is reset so Back/Home behave correctly.
+function resetChatToFreshGroupShare(banner) {
   clearGroupFlowMessages();
-  const exitMsg = addMessage('Group ended. Everyone is off the live map.', 'bot');
-  scrollAnchor = exitMsg;
-  setTimeout(() => {
-    if (typeof showFindGroup === 'function') showFindGroup();
-    setTimeout(scrollToFindGroupCard, 200);
-  }, 80);
+  if (messagesEl) messagesEl.innerHTML = '';
+  messageSnapshots = [];
+  scrollAnchor = null;
+  menuStack = ['main'];
+  saveMenuState();
+  updateBackBtn();
+  if (banner) addMessage(banner, 'bot');
+  if (typeof showFindGroup === 'function') showFindGroup();
+  if (messagesEl) messagesEl.scrollTop = 0;
 }
 
 // Clear any half-filled leader / join inputs so the new flow starts clean.
