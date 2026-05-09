@@ -5021,6 +5021,9 @@ function showGroupSession(code, memberId, isLeader, name) {
     groupMapInstance = null;
     groupMapMarkers = [];
   }
+  // Reset the join-detection counter so a stale value from a previous session
+  // doesn't trigger an unwanted scroll-into-view on this session's first render.
+  if (typeof renderGroupMembers !== 'undefined') renderGroupMembers._lastCount = 0;
   // Also remove any orphan session card with the same code so we don't end up
   // with duplicate #group-live-map IDs in the DOM.
   document.querySelectorAll(`#group-session-${code}`).forEach(el => {
@@ -5598,6 +5601,25 @@ function renderGroupMembers(members, expiresAt) {
   el.innerHTML = h;
   // Update map markers (map container is persistent and managed separately)
   renderGroupLiveMap(members);
+  // If a new member joined since the last render, scroll the live session
+  // card back into view so the leader sees the new pin on the map without
+  // having to scroll up. Also briefly highlights the map with a flash so it
+  // catches the eye.
+  const prev = renderGroupMembers._lastCount || 0;
+  if (members.length > prev && prev > 0) {
+    const card = document.querySelector('[id^="group-session-"]');
+    if (card && typeof card.scrollIntoView === 'function') {
+      setTimeout(() => card.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
+    }
+    const mapEl = document.getElementById('group-live-map');
+    if (mapEl) {
+      mapEl.style.transition = 'box-shadow 0.4s ease';
+      mapEl.style.boxShadow = '0 0 0 4px #d62828';
+      setTimeout(() => { mapEl.style.boxShadow = ''; }, 1200);
+    }
+    try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {}
+  }
+  renderGroupMembers._lastCount = members.length;
 }
 
 function promoteToLeader(newLeaderId, newLeaderName) {
