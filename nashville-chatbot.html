@@ -4980,6 +4980,10 @@ async function submitJoinGroup() {
     return;
   }
   saveGroupSession({ code, memberId, isLeader: false, name });
+  // Register this member with the server immediately, even before location is
+  // ready, so the leader's roster shows the new joiner right away. The
+  // location update fires moments later from showGroupSession.
+  groupApi({ action: 'update', code, memberId, name }).catch(() => {});
   showGroupSession(code, memberId, false, name);
 }
 
@@ -4987,8 +4991,23 @@ let groupPollTimer = null;
 let groupGeoWatchId = null;
 
 function showGroupSession(code, memberId, isLeader, name) {
+  // Tear down any previous Leaflet instance whose container DOM was wiped by
+  // goHome / messagesEl.innerHTML = ''. Without this, renderGroupLiveMap sees
+  // groupMapInstance != null and skips re-initialising on the new card,
+  // leaving the map blank.
+  if (groupMapInstance) {
+    try { groupMapInstance.remove(); } catch (e) {}
+    groupMapInstance = null;
+    groupMapMarkers = [];
+  }
+  // Also remove any orphan session card with the same code so we don't end up
+  // with duplicate #group-live-map IDs in the DOM.
+  document.querySelectorAll(`#group-session-${code}`).forEach(el => {
+    const wrap = el.closest('.message') || el;
+    wrap.remove();
+  });
   // Render the persistent session card with separate map and list containers
-  addMessage(`Group ${code} is live. Sharing your location now.`, 'bot');
+  addGroupFlowMessage(`Group ${code} is live. Sharing your location now.`, 'bot');
   const containerId = `group-session-${code}`;
   const html = `<div class="card" id="${containerId}">
     <div class="card-title">👯 Group ${code}</div>
@@ -5001,7 +5020,7 @@ function showGroupSession(code, memberId, isLeader, name) {
       ${isLeader ? `<button type="button" onclick="endGroup()" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">End group</button>` : ''}
     </div>
   </div>`;
-  addMessage(html, 'bot', true);
+  addGroupFlowMessage(html, 'bot', true);
 
   // Auto-scroll to the live session card so the user lands on the map instead of
   // the join code input. addMessage normally scrolls to the bottom of the chat,

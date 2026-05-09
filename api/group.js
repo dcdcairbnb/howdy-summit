@@ -107,8 +107,12 @@ export default async function handler(req, res) {
     if (action === 'update') {
       const { memberId, name, lat, lng } = req.body || {};
       if (!code) return bad(res, 400, 'Missing code');
-      if (typeof lat !== 'number' || typeof lng !== 'number') return bad(res, 400, 'lat and lng required');
       if (!memberId) return bad(res, 400, 'memberId required');
+      // lat/lng are optional. A new member registering without a position yet
+      // (just tapped Join, hasn't accepted the OS location prompt) still gets
+      // added to the roster so the leader sees them waiting. Once their device
+      // shares location, a follow-up update fills in the coords.
+      const hasCoords = typeof lat === 'number' && typeof lng === 'number';
       const group = await kv.get(`group:${code}`);
       if (!group) return bad(res, 404, 'Group not found or expired');
       if (group.ended) return bad(res, 410, 'Group ended');
@@ -117,10 +121,25 @@ export default async function handler(req, res) {
       const cleanName = (name || 'Friend').slice(0, 40);
       const idx = group.members.findIndex(m => m.id === memberId);
       if (idx >= 0) {
-        group.members[idx] = { ...group.members[idx], name: cleanName, lat, lng, updatedAt: now };
+        const existing = group.members[idx];
+        group.members[idx] = {
+          ...existing,
+          name: cleanName,
+          // Preserve existing coords if this update has none, otherwise overwrite
+          lat: hasCoords ? lat : existing.lat,
+          lng: hasCoords ? lng : existing.lng,
+          updatedAt: now
+        };
       } else {
         // New member joining via this update
-        group.members.push({ id: memberId, name: cleanName, lat, lng, updatedAt: now, isLeader: false });
+        group.members.push({
+          id: memberId,
+          name: cleanName,
+          lat: hasCoords ? lat : null,
+          lng: hasCoords ? lng : null,
+          updatedAt: now,
+          isLeader: false
+        });
       }
       // Prune stale members on write
       group.members = pruneStale(group.members);
