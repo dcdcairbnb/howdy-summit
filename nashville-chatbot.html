@@ -1272,7 +1272,8 @@ document.addEventListener('visibilitychange', () => {
           removeGroupSessionCard(saved.code);
           if (!saved.isLeader) {
             showGroupEndedOverlay(saved.code);
-            try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+            try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+            playGroupAlertSound();
           }
         }
       }).catch(() => {});
@@ -5109,23 +5110,22 @@ function showGroupSession(code, memberId, isLeader, name) {
     }
     if (r.data.ended) {
       stopGroupSession();
-      // Read fresh leader status at runtime, not from the captured closure.
-      // The original leader may have transferred leadership and is now a regular
-      // member, so they should also see the "group ended" notification when the
-      // new leader ends the group.
       const liveSaved = getSavedGroupSession();
       const wasLeader = !!(liveSaved && liveSaved.isLeader);
       saveGroupSession(null);
-      // Remove the stale session card so the map and member list disappear.
       removeGroupSessionCard(code);
-      // Fullscreen overlay so a non-leader sees the change no matter which
-      // view they're on. The chat-card alone is easy to miss when the user
-      // has navigated to another section between polls.
-      if (!wasLeader) {
+      // Tear down any pending end UI (banner / take-over overlay).
+      handlePendingEnd(null, code, memberId);
+      if (wasLeader) {
+        // Leader's grace period expired without anyone claiming. Reset the
+        // chat to a clean group-share start screen.
+        resetChatToFreshGroupShare('Group ended.');
+      } else {
+        // Members get the fullscreen overlay so they notice regardless of view.
         showGroupEndedOverlay(code);
-        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+        try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+        playGroupAlertSound();
       }
-      // Show post-session upsell (recovery brunch, plan another trip)
       showAffiliateForElapsed(999, wasLeader);
       return;
     }
@@ -5158,6 +5158,8 @@ function showGroupSession(code, memberId, isLeader, name) {
       }
     }
     renderGroupMembers(r.data.members, r.data.expiresAt);
+    // Pending end (grace period). Surface different UI to leader vs members.
+    handlePendingEnd(r.data.endingAt, code, memberId);
     // Time-based affiliate prompts
     const dur = r.data.durationHours || 6;
     const createdAt = r.data.expiresAt - dur * 60 * 60 * 1000;
@@ -5166,6 +5168,110 @@ function showGroupSession(code, memberId, isLeader, name) {
   };
   refresh();
   groupPollTimer = setInterval(refresh, 10000);
+}
+
+// Drives both the leader's countdown banner with Cancel button and the
+// members' "Take over" overlay during the 30s grace period after a leader
+// taps End. Cleared when endingAt is null (cancel or claim) or expired.
+let _pendingEndTicker = null;
+function handlePendingEnd(endingAt, code, memberId) {
+  if (!endingAt || endingAt <= Date.now()) {
+    if (_pendingEndTicker) { clearInterval(_pendingEndTicker); _pendingEndTicker = null; }
+    document.getElementById('group-end-banner')?.remove();
+    dismissTakeOverOverlay();
+    return;
+  }
+  const saved = getSavedGroupSession();
+  const iAmLeader = !!(saved && saved.isLeader);
+  if (iAmLeader) {
+    showLeaderEndingBanner(code, endingAt);
+  } else {
+    showTakeOverOverlay(code, endingAt);
+  }
+  if (_pendingEndTicker) clearInterval(_pendingEndTicker);
+  _pendingEndTicker = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((endingAt - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const formatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+    const leaderTimer = document.getElementById('group-end-banner-timer');
+    const memberTimer = document.getElementById('takeOverTimer');
+    if (leaderTimer) leaderTimer.textContent = formatted;
+    if (memberTimer) memberTimer.textContent = formatted;
+    if (remaining <= 0) {
+      clearInterval(_pendingEndTicker);
+      _pendingEndTicker = null;
+    }
+  }, 500);
+}
+
+function showLeaderEndingBanner(code, endingAt) {
+  let banner = document.getElementById('group-end-banner');
+  if (!banner) {
+    const card = document.getElementById(`group-session-${code}`);
+    if (!card) return;
+    banner = document.createElement('div');
+    banner.id = 'group-end-banner';
+    banner.style.cssText = 'background:#fff5f5;border:2px solid #d62828;border-radius:8px;padding:12px;margin:10px 0;text-align:center;';
+    banner.innerHTML = `
+      <div style="font-weight:700;color:#d62828;margin-bottom:4px;">Ending in <span id="group-end-banner-timer">5:00</span></div>
+      <div style="font-size:13px;color:#444;margin-bottom:10px;">Members can take over to keep the group going.</div>
+      <button type="button" onclick="cancelEndGroup()" style="background:#444;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Cancel end</button>`;
+    const status = card.querySelector('#group-status');
+    if (status && status.parentNode) {
+      status.parentNode.insertBefore(banner, status.nextSibling);
+    } else {
+      card.appendChild(banner);
+    }
+  }
+}
+
+function showTakeOverOverlay(code, endingAt) {
+  if (document.getElementById('takeOverOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'takeOverOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+      <div style="font-size:48px;line-height:1;margin-bottom:8px;">⚠️</div>
+      <div style="font-size:20px;font-weight:700;color:#d62828;margin-bottom:6px;">Leader is ending group ${code}</div>
+      <div style="font-size:14px;color:#444;line-height:1.5;margin-bottom:8px;">Take over as leader to keep the group going. <strong><span id="takeOverTimer">5:00</span></strong> left.</div>
+      <button type="button" onclick="claimLeader()" style="background:#d62828;color:#fff;border:none;padding:14px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;width:100%;margin-bottom:8px;">Take over as leader</button>
+      <button type="button" onclick="dismissTakeOverOverlay()" style="background:#999;color:#fff;border:none;padding:12px 22px;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;width:100%;">Let it end</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+  playGroupAlertSound();
+}
+function dismissTakeOverOverlay() {
+  document.getElementById('takeOverOverlay')?.remove();
+}
+
+// Three short ascending beeps via Web Audio API. No external file needed.
+// iOS may block playback if no user gesture exists in the session; we try
+// anyway and fail silently. Vibration always fires regardless.
+function playGroupAlertSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const tones = [660, 880, 990];
+    tones.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.18;
+      const stop = start + 0.16;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, stop);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(stop + 0.05);
+    });
+    setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1500);
+  } catch (e) { /* audio unavailable, vibrate alone */ }
 }
 
 // Tracks which time-based affiliate prompts have been shown this session.
@@ -5662,13 +5768,46 @@ async function leaveGroup() {
 async function endGroup() {
   const saved = getSavedGroupSession();
   if (!saved) return;
-  if (!confirm('End the group for everyone? This kicks all members off the live map.')) return;
+  if (!confirm('End the group? Members get 5 minutes to take over as leader and keep it going.')) return;
+  // Soft end: server sets endingAt, members get a Take Over prompt for 30s.
+  // The leader's regular poll will pick up endingAt and show the leader's
+  // own countdown UI with a Cancel button.
   await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
-  stopGroupSession();
-  saveGroupSession(null);
-  removeGroupSessionCard(saved.code);
-  resetGroupFlowState();
-  resetChatToFreshGroupShare('Group ended. Everyone is off the live map.');
+  // Don't tear down the leader's session yet; they may want to cancel.
+  // The polling refresh handles the UI transition.
+}
+
+async function cancelEndGroup() {
+  const saved = getSavedGroupSession();
+  if (!saved) return;
+  await groupApi({ action: 'cancelEnd', code: saved.code, memberId: saved.memberId });
+}
+
+async function claimLeader() {
+  const saved = getSavedGroupSession();
+  if (!saved) return;
+  const r = await groupApi({ action: 'claimLeader', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    alert(r.data && r.data.error ? r.data.error : 'Could not take over the group.');
+    return;
+  }
+  // We are now the leader. Update local session and dismiss the overlay.
+  saveGroupSession({ ...saved, isLeader: true });
+  dismissTakeOverOverlay();
+  // Patch the End group button into the existing session card without rebuilding.
+  const card = document.getElementById(`group-session-${saved.code}`);
+  const actions = card && card.querySelector('#group-actions');
+  if (actions) {
+    const hasEnd = Array.from(actions.querySelectorAll('button')).some(b => /End group/i.test(b.textContent));
+    if (!hasEnd) {
+      const endBtn = document.createElement('button');
+      endBtn.type = 'button';
+      endBtn.onclick = endGroup;
+      endBtn.style.cssText = 'background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;';
+      endBtn.textContent = 'End group';
+      actions.appendChild(endBtn);
+    }
+  }
 }
 
 // Wipe the entire chat and land on a clean group-share start screen. Prevents
