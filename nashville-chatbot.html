@@ -5150,6 +5150,22 @@ function showGroupSession(code, memberId, isLeader, name) {
       showAffiliateForElapsed(999, wasLeader);
       return;
     }
+    // Detect a leader change so we can announce it. Track the previous leader
+    // ID across polls so we can name who took over when leadership flips.
+    const prevLeaderId = refresh._lastLeaderId;
+    const currentLeader = r.data.members.find(m => m.isLeader);
+    const currentLeaderId = currentLeader ? currentLeader.id : null;
+    if (prevLeaderId && currentLeaderId && prevLeaderId !== currentLeaderId) {
+      const newLeaderName = (currentLeader.name || 'A member').replace(/</g, '');
+      const saved2 = getSavedGroupSession();
+      if (!saved2 || currentLeaderId !== saved2.memberId) {
+        // Only announce to others. The new leader gets their own confirmation
+        // from claimLeader directly.
+        addMessage(`👑 ${newLeaderName} took over as the group leader. Group is back to normal.`, 'bot');
+      }
+    }
+    refresh._lastLeaderId = currentLeaderId;
+
     // Sync leader status: if the leader transferred leadership to me, update my
     // local session and patch the session card in place so I see the End group
     // button. Patching in place avoids the scroll jump from rebuilding the card.
@@ -5915,12 +5931,28 @@ async function claimLeader() {
   if (!saved) return;
   const r = await groupApi({ action: 'claimLeader', code: saved.code, memberId: saved.memberId });
   if (!r.ok) {
+    // 409 = someone else beat us to it. Friendlier copy than the raw error.
+    if (r.status === 409) {
+      dismissTakeOverOverlay();
+      addMessage('Someone else already took over the group. You are still in the group as a regular member.', 'bot');
+      return;
+    }
     alert(r.data && r.data.error ? r.data.error : 'Could not take over the group.');
     return;
   }
-  // We are now the leader. Update local session and dismiss the overlay.
+  // We are now the leader. Update local session, dismiss the overlay, and
+  // re-render the member roster with the response data so the star moves
+  // onto our row immediately instead of waiting up to 10 seconds for the
+  // next poll.
   saveGroupSession({ ...saved, isLeader: true });
   dismissTakeOverOverlay();
+  if (r.data && Array.isArray(r.data.members)) {
+    const expiresAt = Date.now() + 60 * 1000;
+    renderGroupMembers(r.data.members, expiresAt);
+  }
+  // Tear down the pending-end UI for everyone (banner + ticker).
+  handlePendingEnd(null, saved.code, saved.memberId);
+  addMessage('You are now the group leader. Group is back to normal.', 'bot');
   // Patch the End group button into the existing session card so the new
   // leader sees it without rebuilding the whole card.
   const card = document.getElementById(`group-session-${saved.code}`);
