@@ -1205,10 +1205,12 @@ let messageSnapshots = [];
 })();
 
 // Restore cached location from localStorage so it survives app kills on iOS.
-// Cache for 24 hours, then re-fetch. We also silently re-fetch on every launch
-// when permission is already granted, so the cached value is a fallback.
+// Cache for 15 minutes - long enough that a quick app switch reuses the cached
+// position (no GPS wake, no battery), short enough that a real move (drove
+// home from dinner) gets caught on next foreground.
 const LOCATION_CACHE_KEY = 'howdy-nash-location';
-const LOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const LOCATION_CACHE_TTL_MS = 15 * 60 * 1000;
+const LOCATION_STALE_MS = 15 * 60 * 1000; // re-fetch only when cache truly expired
 let userLocation = (function loadCachedLocation() {
   try {
     const raw = localStorage.getItem(LOCATION_CACHE_KEY);
@@ -1221,6 +1223,43 @@ let userLocation = (function loadCachedLocation() {
     return null;
   }
 })();
+
+// Silently refresh GPS if the cached location is stale. Called on app launch
+// and on visibilitychange (foreground). No prompts, no UI changes - if the
+// permission was already granted iOS returns position fast; otherwise it
+// silently fails and we keep the cached value.
+function refreshLocationIfStale() {
+  if (!navigator.geolocation) return;
+  let savedAt = 0;
+  try {
+    const raw = localStorage.getItem(LOCATION_CACHE_KEY);
+    if (raw) savedAt = JSON.parse(raw).savedAt || 0;
+  } catch (e) {}
+  if (Date.now() - savedAt < LOCATION_STALE_MS) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      try {
+        localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          savedAt: Date.now()
+        }));
+      } catch (e) {}
+      if (typeof updateRideLinks === 'function') updateRideLinks();
+    },
+    () => { /* permission denied or unavailable; keep cached value */ },
+    // Low-accuracy mode: Wi-Fi + cell towers, no GPS chip wake. ~50m accuracy
+    // is plenty for "X miles away" labels and barely touches the battery.
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+  );
+}
+// Refresh on app foreground (returning from another app or unlocking phone).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshLocationIfStale();
+});
+// Refresh once on initial load so a stale cache from yesterday is replaced fast.
+setTimeout(refreshLocationIfStale, 1500);
 
 // API config. When deployed to Vercel, leave as relative path.
 // For local dev pointing at a hosted backend, change to your Vercel URL.
@@ -1367,7 +1406,7 @@ function requestLocation() {
       btn.textContent = 'Try again';
       btn.disabled = false;
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
