@@ -5036,6 +5036,7 @@ function showGroupSession(code, memberId, isLeader, name) {
   const html = `<div class="card" id="${containerId}">
     <div class="card-title">👯 Group ${code}</div>
     <div class="card-desc" id="group-status">Connecting...</div>
+    <div id="group-last-poll" style="font-size:11px;color:#888;margin-top:2px;">Connecting…</div>
     <div id="group-live-map" style="width:100%;height:300px;border-radius:8px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#888;margin:8px 0;">Loading live map...</div>
     <div id="group-members" style="margin:12px 0;"></div>
     <div id="group-actions">
@@ -5102,15 +5103,32 @@ function showGroupSession(code, memberId, isLeader, name) {
 
   // Poll every 10 seconds
   if (groupPollTimer) clearInterval(groupPollTimer);
+  const updateLastPollLabel = (label) => {
+    const el = document.getElementById('group-last-poll');
+    if (el) {
+      const now = new Date();
+      const t = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.textContent = `${label} · ${t}`;
+    }
+  };
   const refresh = async () => {
-    const r = await groupApi({ action: 'get', code });
+    let r;
+    try {
+      r = await groupApi({ action: 'get', code });
+    } catch (e) {
+      updateLastPollLabel('Network error');
+      console.error('[group poll] network error', e);
+      return;
+    }
     if (!r.ok) {
+      updateLastPollLabel(`Server ${r.status || '?'}`);
       const status = document.getElementById('group-status');
       if (status) status.textContent = `Group ended or expired.`;
       stopGroupSession();
       saveGroupSession(null);
       return;
     }
+    updateLastPollLabel(r.data && r.data.endingAt ? 'Ending detected' : 'Updated');
     if (r.data.ended) {
       stopGroupSession();
       const liveSaved = getSavedGroupSession();
@@ -5577,8 +5595,11 @@ function renderGroupMembers(members, expiresAt) {
     const ageStr = ageMin < 1 ? 'now' : `${ageMin}m ago`;
     const dot = m.lat != null ? '🟢' : '⚪';
     const star = m.isLeader ? ' ⭐' : '';
+    const isMe = !!(saved && m.id === saved.memberId);
+    const youTag = isMe ? ' <span style="color:#888;font-size:12px;">(you)</span>' : '';
     let actions = '';
-    if (m.lat != null && m.lng != null) {
+    // Skip walk/drive buttons on your own row. Nobody navigates to themselves.
+    if (m.lat != null && m.lng != null && !isMe) {
       const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=walking`;
       const driveUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=driving`;
       actions = `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -5586,16 +5607,16 @@ function renderGroupMembers(members, expiresAt) {
         <a href="${driveUrl}" target="_blank" rel="noopener" style="background:#2563eb;color:#fff;padding:6px 10px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">🚗 Drive (Google Maps)</a>
       </div>`;
     }
-    // Leader-only: button to promote this member to leader.
+    // Leader-only: button to promote another member to leader. Never on self.
     let promote = '';
-    if (iAmLeader && !m.isLeader && m.id && saved && m.id !== saved.memberId) {
+    if (iAmLeader && !m.isLeader && m.id && !isMe) {
       const safeId = String(m.id).replace(/'/g, "\\'");
       const safeMemberName = (m.name || 'Friend').replace(/'/g, "\\'");
       promote = `<div style="margin-top:6px;">
         <button type="button" onclick="promoteToLeader('${safeId}','${safeMemberName}')" style="background:#d62828;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">👑 Make leader</button>
       </div>`;
     }
-    h += `<li style="padding:8px 0;border-bottom:1px solid #eee;">${dot} <strong>${(m.name || 'Friend').replace(/</g,'')}</strong>${star} <span style="color:#888;font-size:12px;">· ${ageStr}</span>${actions}${promote}</li>`;
+    h += `<li style="padding:8px 0;border-bottom:1px solid #eee;">${dot} <strong>${(m.name || 'Friend').replace(/</g,'')}</strong>${star}${youTag} <span style="color:#888;font-size:12px;">· ${ageStr}</span>${actions}${promote}</li>`;
   });
   h += '</ul>';
   el.innerHTML = h;
