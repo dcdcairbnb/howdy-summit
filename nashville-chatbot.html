@@ -5617,7 +5617,16 @@ function promoteToLeader(newLeaderId, newLeaderName) {
       <button type="button" onclick="cancelPromoteToLeader(this)" style="background:#666;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Cancel</button>
     </div>
   </div>`;
-  addMessage(html, 'bot', true);
+  const card = addMessage(html, 'bot', true);
+  // Anchor the scroll to this new confirmation card so addMessage's auto-scroll
+  // doesn't jump back to a stale earlier message (which was making the page
+  // jump up to the user's own name in the member list).
+  scrollAnchor = card;
+  setTimeout(() => {
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, 80);
 }
 
 function dismissTransferLeaderCards(originBtn) {
