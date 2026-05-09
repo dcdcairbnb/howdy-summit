@@ -5038,7 +5038,10 @@ function showGroupSession(code, memberId, isLeader, name) {
     <div id="group-actions">
       <button type="button" onclick="shareGroupCode('${code}')" style="background:#34a853;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">📤 Share code with friends</button>
       <button type="button" onclick="leaveGroup()" style="background:#666;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">Leave group</button>
-      ${isLeader ? `<button type="button" onclick="endGroup()" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">End group</button>` : ''}
+      ${isLeader ? `
+        <button type="button" onclick="stepDownLeader()" style="background:#f59e0b;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">Step down (5 min)</button>
+        <button type="button" onclick="endGroup()" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">End group</button>
+      ` : ''}
     </div>
   </div>`;
   addGroupFlowMessage(html, 'bot', true);
@@ -5142,18 +5145,33 @@ function showGroupSession(code, memberId, isLeader, name) {
       const actions = card && card.querySelector('#group-actions');
       if (actions) {
         const hasEnd = Array.from(actions.querySelectorAll('button')).some(b => /End group/i.test(b.textContent));
-        if (nowLeader && !hasEnd) {
-          // Add End group button for the new leader.
-          const endBtn = document.createElement('button');
-          endBtn.type = 'button';
-          endBtn.onclick = endGroup;
-          endBtn.style.cssText = 'background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;';
-          endBtn.textContent = 'End group';
-          actions.appendChild(endBtn);
-        } else if (!nowLeader && hasEnd) {
-          // Remove End group button when demoted.
-          const endBtn = Array.from(actions.querySelectorAll('button')).find(b => /End group/i.test(b.textContent));
-          if (endBtn) endBtn.remove();
+        const hasStep = Array.from(actions.querySelectorAll('button')).some(b => /Step down/i.test(b.textContent));
+        if (nowLeader) {
+          if (!hasStep) {
+            const stepBtn = document.createElement('button');
+            stepBtn.type = 'button';
+            stepBtn.onclick = stepDownLeader;
+            stepBtn.style.cssText = 'background:#f59e0b;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;';
+            stepBtn.textContent = 'Step down (5 min)';
+            actions.appendChild(stepBtn);
+          }
+          if (!hasEnd) {
+            const endBtn = document.createElement('button');
+            endBtn.type = 'button';
+            endBtn.onclick = endGroup;
+            endBtn.style.cssText = 'background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;';
+            endBtn.textContent = 'End group';
+            actions.appendChild(endBtn);
+          }
+        } else {
+          if (hasEnd) {
+            const endBtn = Array.from(actions.querySelectorAll('button')).find(b => /End group/i.test(b.textContent));
+            if (endBtn) endBtn.remove();
+          }
+          if (hasStep) {
+            const stepBtn = Array.from(actions.querySelectorAll('button')).find(b => /Step down/i.test(b.textContent));
+            if (stepBtn) stepBtn.remove();
+          }
         }
       }
     }
@@ -5826,23 +5844,38 @@ async function leaveGroup() {
 async function endGroup() {
   const saved = getSavedGroupSession();
   if (!saved) return;
-  if (!confirm('End the group? Members get 5 minutes to take over as leader and keep it going.')) return;
-  // Soft end: server sets endingAt, members get a Take Over prompt during
-  // the grace period. The leader's regular poll will pick up endingAt and
-  // show the leader's own countdown banner with a Cancel button.
-  const r = await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
+  if (!confirm('End the group for everyone right now? Tap "Step down" instead if you want to give members a chance to take over.')) return;
+  // Hard end: skip the grace period and finalize immediately. Members get
+  // the fullscreen "Group ended" alert on their next poll.
+  const r = await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId, immediate: true });
   if (!r.ok) {
     alert(`Could not end the group: ${r.data && r.data.error ? r.data.error : 'unknown error'}. Try again.`);
     return;
   }
-  // Render the leader's countdown banner immediately rather than waiting up
-  // to 10 seconds for the next poll tick. Without this the user taps End,
-  // sees nothing happen, and assumes the button is broken.
+  stopGroupSession();
+  saveGroupSession(null);
+  removeGroupSessionCard(saved.code);
+  resetGroupFlowState();
+  resetChatToFreshGroupShare('Group ended. Everyone is off the live map.');
+}
+
+// Soft end: leader steps down with a 5-minute grace window. Members get a
+// fullscreen Take Over prompt and can claim leadership to keep the group
+// going. If nobody claims, the group ends after 5 minutes.
+async function stepDownLeader() {
+  const saved = getSavedGroupSession();
+  if (!saved) return;
+  if (!confirm('Step down as leader? Members get 5 minutes to take over and keep the group going. If nobody takes over, the group ends.')) return;
+  const r = await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    alert(`Could not start the handoff: ${r.data && r.data.error ? r.data.error : 'unknown error'}. Try again.`);
+    return;
+  }
+  // Render the leader's countdown banner immediately so they see something
+  // happen rather than waiting up to 10 seconds for the next poll.
   if (r.data && r.data.endingAt) {
     handlePendingEnd(r.data.endingAt, saved.code, saved.memberId);
   } else {
-    // Fallback: server didn't return endingAt for some reason. Compute a
-    // local 5-minute deadline so the banner still appears.
     handlePendingEnd(Date.now() + 5 * 60 * 1000, saved.code, saved.memberId);
   }
 }
@@ -5870,10 +5903,19 @@ async function claimLeader() {
   // We are now the leader. Update local session and dismiss the overlay.
   saveGroupSession({ ...saved, isLeader: true });
   dismissTakeOverOverlay();
-  // Patch the End group button into the existing session card without rebuilding.
+  // Patch the leader buttons into the existing session card without rebuilding.
   const card = document.getElementById(`group-session-${saved.code}`);
   const actions = card && card.querySelector('#group-actions');
   if (actions) {
+    const hasStep = Array.from(actions.querySelectorAll('button')).some(b => /Step down/i.test(b.textContent));
+    if (!hasStep) {
+      const stepBtn = document.createElement('button');
+      stepBtn.type = 'button';
+      stepBtn.onclick = stepDownLeader;
+      stepBtn.style.cssText = 'background:#f59e0b;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;';
+      stepBtn.textContent = 'Step down (5 min)';
+      actions.appendChild(stepBtn);
+    }
     const hasEnd = Array.from(actions.querySelectorAll('button')).some(b => /End group/i.test(b.textContent));
     if (!hasEnd) {
       const endBtn = document.createElement('button');
