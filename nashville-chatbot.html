@@ -5246,11 +5246,8 @@ async function renderGroupLiveMap(members) {
   try {
     await ensureLeafletLoaded();
   } catch (err) {
-    console.error('[group map] Leaflet failed to load:', err);
-    mapDiv.innerHTML = `<div style="padding:14px;color:#d62828;text-align:center;font-size:13px;">
-      Map library could not load. Pull-to-refresh the app to retry.
-      <br><span style="font-size:11px;color:#888;">(${(err && err.message) || 'unknown error'})</span>
-    </div>`;
+    console.warn('[group map] Leaflet unavailable, using SVG fallback:', err);
+    renderGroupSvgFallbackMap(mapDiv, members);
     return;
   }
   const withCoords = members.filter(m => m.lat != null && m.lng != null);
@@ -5316,6 +5313,72 @@ async function renderGroupLiveMap(members) {
   } else if (bounds.length > 1) {
     groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
   }
+}
+
+// Self-contained SVG fallback when Leaflet can't load. Plots each member as a
+// labelled dot inside a bounding box of the group. Not a real street map, but
+// works offline, no CSP issues, no external library. Tap a pin to open that
+// member's location in Google Maps for real navigation.
+function renderGroupSvgFallbackMap(mapDiv, members) {
+  const withCoords = (members || []).filter(m => m.lat != null && m.lng != null);
+  if (!withCoords.length) {
+    mapDiv.innerHTML = '<div style="padding:14px;color:#888;text-align:center;">No members have shared location yet.</div>';
+    return;
+  }
+  // Compute bounding box with a little padding so pins aren't on the edges
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  withCoords.forEach(m => {
+    minLat = Math.min(minLat, m.lat); maxLat = Math.max(maxLat, m.lat);
+    minLng = Math.min(minLng, m.lng); maxLng = Math.max(maxLng, m.lng);
+  });
+  // If everyone is at the same spot, give the box a small radius so the dot is centered
+  if (minLat === maxLat) { minLat -= 0.005; maxLat += 0.005; }
+  if (minLng === maxLng) { minLng -= 0.005; maxLng += 0.005; }
+  const padLat = (maxLat - minLat) * 0.18;
+  const padLng = (maxLng - minLng) * 0.18;
+  minLat -= padLat; maxLat += padLat; minLng -= padLng; maxLng += padLng;
+
+  const W = 600, H = 300;
+  const project = (lat, lng) => {
+    const x = ((lng - minLng) / (maxLng - minLng)) * W;
+    // Latitude flips because SVG y grows downward
+    const y = (1 - (lat - minLat) / (maxLat - minLat)) * H;
+    return { x, y };
+  };
+
+  // Background grid + compass cue. Three vertical and three horizontal lines.
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;background:#eef3f7;border-radius:8px;">
+    <rect width="${W}" height="${H}" fill="#eef3f7"/>`;
+  for (let i = 1; i < 4; i++) {
+    svg += `<line x1="${W * i / 4}" y1="0" x2="${W * i / 4}" y2="${H}" stroke="#d6dde3" stroke-width="1"/>`;
+    svg += `<line x1="0" y1="${H * i / 4}" x2="${W}" y2="${H * i / 4}" stroke="#d6dde3" stroke-width="1"/>`;
+  }
+  svg += `<text x="8" y="18" fill="#888" font-size="11" font-family="system-ui">N ↑</text>`;
+  svg += `<text x="${W - 90}" y="${H - 8}" fill="#888" font-size="10" font-family="system-ui">Live group map</text>`;
+
+  // Pins. Leader gets a red dot, others get blue. Name label sits above the dot.
+  withCoords.forEach(m => {
+    const { x, y } = project(m.lat, m.lng);
+    const color = m.isLeader ? '#d62828' : '#2563eb';
+    const safeName = (m.name || 'Friend').replace(/</g, '').replace(/>/g, '').slice(0, 24);
+    const star = m.isLeader ? '⭐ ' : '';
+    svg += `<g>
+      <circle cx="${x}" cy="${y}" r="9" fill="${color}" stroke="#fff" stroke-width="2.5"/>
+      <rect x="${x - 50}" y="${y - 32}" width="100" height="20" rx="10" fill="${color}"/>
+      <text x="${x}" y="${y - 18}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="system-ui">${star}${safeName}</text>
+    </g>`;
+  });
+  svg += `</svg>`;
+
+  mapDiv.style.height = '300px';
+  mapDiv.style.display = 'block';
+  mapDiv.style.background = '';
+  mapDiv.style.color = '';
+  mapDiv.style.padding = '0';
+  mapDiv.innerHTML = svg + `
+    <div style="font-size:11px;color:#888;text-align:center;padding:6px 8px;">
+      Simplified map. Tap any member below for turn-by-turn directions in Google Maps.
+    </div>`;
 }
 
 function renderGroupMembers(members, expiresAt) {
