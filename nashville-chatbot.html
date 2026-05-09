@@ -5230,21 +5230,40 @@ function showTakeOverOverlay(code, endingAt) {
   if (document.getElementById('takeOverOverlay')) return;
   const overlay = document.createElement('div');
   overlay.id = 'takeOverOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  overlay.className = 'group-alert-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:14px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
-      <div style="font-size:48px;line-height:1;margin-bottom:8px;">⚠️</div>
-      <div style="font-size:20px;font-weight:700;color:#d62828;margin-bottom:6px;">Leader is ending group ${code}</div>
-      <div style="font-size:14px;color:#444;line-height:1.5;margin-bottom:8px;">Take over as leader to keep the group going. <strong><span id="takeOverTimer">5:00</span></strong> left.</div>
-      <button type="button" onclick="claimLeader()" style="background:#d62828;color:#fff;border:none;padding:14px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;width:100%;margin-bottom:8px;">Take over as leader</button>
-      <button type="button" onclick="dismissTakeOverOverlay()" style="background:#999;color:#fff;border:none;padding:12px 22px;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;width:100%;">Let it end</button>
+    <div class="group-alert-card" style="background:#fff;border-radius:18px;padding:32px 24px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="font-size:80px;line-height:1;margin-bottom:12px;">⚠️</div>
+      <div style="font-size:24px;font-weight:800;color:#d62828;margin-bottom:8px;letter-spacing:-0.3px;">Leader is ending group ${code}</div>
+      <div style="font-size:15px;color:#444;line-height:1.5;margin-bottom:14px;">Take over as leader to keep the group going.</div>
+      <div style="font-size:14px;color:#666;margin-bottom:20px;">Time left: <strong style="color:#d62828;font-size:18px;"><span id="takeOverTimer">5:00</span></strong></div>
+      <button type="button" onclick="claimLeader()" style="background:#d62828;color:#fff;border:none;padding:16px 22px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;width:100%;margin-bottom:10px;">Take over as leader</button>
+      <button type="button" onclick="dismissTakeOverOverlay()" style="background:#999;color:#fff;border:none;padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;font-size:14px;width:100%;">Let it end</button>
     </div>`;
   document.body.appendChild(overlay);
   try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
   playGroupAlertSound();
+  // Repeat the alert twice in 5 seconds in case the user is moving the phone
+  // around or has it stuffed in a pocket.
+  let pulses = 0;
+  const pulseId = setInterval(() => {
+    if (!document.getElementById('takeOverOverlay') || pulses >= 2) {
+      clearInterval(pulseId);
+      return;
+    }
+    try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+    playGroupAlertSound();
+    pulses++;
+  }, 2400);
+  overlay._pulseId = pulseId;
 }
 function dismissTakeOverOverlay() {
-  document.getElementById('takeOverOverlay')?.remove();
+  const o = document.getElementById('takeOverOverlay');
+  if (o) {
+    if (o._pulseId) clearInterval(o._pulseId);
+    o.remove();
+  }
 }
 
 // Three short ascending beeps via Web Audio API. No external file needed.
@@ -5721,27 +5740,66 @@ async function nativeShareGroupCode(code) {
   } catch (e) { /* user cancelled */ }
 }
 
-// Fullscreen overlay shown to non-leader members when the leader ends the
-// group. Impossible to miss regardless of which view they're on. Replaces the
-// in-chat card which a user could easily scroll past.
+// Fullscreen alert shown to non-leader members when the leader ends the
+// group. Pulsing red background, large icon, repeating vibration and sound
+// until the user dismisses. Impossible to miss even if the phone is sitting
+// face-down on a table.
 function showGroupEndedOverlay(code) {
   if (document.getElementById('groupEndedOverlay')) return;
+  // Inject the pulse animation keyframes once.
+  if (!document.getElementById('groupAlertStyles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'groupAlertStyles';
+    styleEl.textContent = `
+      @keyframes groupAlertPulse {
+        0%, 100% { background: rgba(214, 40, 40, 0.85); }
+        50% { background: rgba(120, 20, 20, 0.95); }
+      }
+      @keyframes groupAlertShake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-6px); }
+        40% { transform: translateX(6px); }
+        60% { transform: translateX(-4px); }
+        80% { transform: translateX(4px); }
+      }
+      .group-alert-overlay { animation: groupAlertPulse 1.4s ease-in-out infinite; }
+      .group-alert-card { animation: groupAlertShake 0.6s ease-in-out; }
+    `;
+    document.head.appendChild(styleEl);
+  }
   const overlay = document.createElement('div');
   overlay.id = 'groupEndedOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  overlay.className = 'group-alert-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:14px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
-      <div style="font-size:48px;line-height:1;margin-bottom:8px;">🛑</div>
-      <div style="font-size:22px;font-weight:700;color:#d62828;margin-bottom:8px;">Group ${code} ended</div>
-      <div style="font-size:14px;color:#444;line-height:1.5;margin-bottom:20px;">The group leader ended the location share. Your live pin is gone and nobody in the group can see your location anymore.</div>
-      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare('Group ended. Your pin is gone.');" style="background:#d62828;color:#fff;border:none;padding:14px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;width:100%;margin-bottom:8px;">OK, got it</button>
-      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare();" style="background:#2563eb;color:#fff;border:none;padding:14px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;width:100%;">Start or join another group</button>
+    <div class="group-alert-card" style="background:#fff;border-radius:18px;padding:32px 24px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="font-size:80px;line-height:1;margin-bottom:12px;">🛑</div>
+      <div style="font-size:28px;font-weight:800;color:#d62828;margin-bottom:10px;letter-spacing:-0.5px;">Group ${code} ended</div>
+      <div style="font-size:15px;color:#444;line-height:1.5;margin-bottom:24px;">The group leader ended the location share. Your live pin is gone and nobody in the group can see your location anymore.</div>
+      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare('Group ended. Your pin is gone.');" style="background:#d62828;color:#fff;border:none;padding:16px 22px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;width:100%;margin-bottom:10px;">OK, got it</button>
+      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare();" style="background:#2563eb;color:#fff;border:none;padding:16px 22px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;width:100%;">Start or join another group</button>
     </div>`;
   document.body.appendChild(overlay);
+  // Repeat the vibration + sound 3 times over 6 seconds until the user
+  // notices. Stops automatically on dismiss.
+  let pulses = 0;
+  const pulseId = setInterval(() => {
+    if (!document.getElementById('groupEndedOverlay') || pulses >= 3) {
+      clearInterval(pulseId);
+      return;
+    }
+    try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+    playGroupAlertSound();
+    pulses++;
+  }, 2200);
+  overlay._pulseId = pulseId;
 }
 function dismissGroupEndedOverlay() {
   const o = document.getElementById('groupEndedOverlay');
-  if (o) o.remove();
+  if (o) {
+    if (o._pulseId) clearInterval(o._pulseId);
+    o.remove();
+  }
 }
 
 function removeGroupSessionCard(code) {
