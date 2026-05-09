@@ -5181,17 +5181,37 @@ function stopGroupSession() {
 function ensureLeafletLoaded() {
   if (window.L) return Promise.resolve();
   if (window._leafletLoading) return window._leafletLoading;
-  window._leafletLoading = new Promise((resolve, reject) => {
-    const css = document.createElement('link');
-    css.rel = 'stylesheet';
-    css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(css);
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+  // Try unpkg first; fall back to cdnjs if it fails (CSP, outage, blocked).
+  // Each CDN gets its own pair of CSS+JS so the map still loads when one
+  // provider is unavailable on the user's network.
+  const SOURCES = [
+    { js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' },
+    { js: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js', css: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css' },
+    { js: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', css: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css' }
+  ];
+  function tryLoad(idx) {
+    return new Promise((resolve, reject) => {
+      if (idx >= SOURCES.length) {
+        reject(new Error('All Leaflet CDNs failed. Check Content-Security-Policy and network.'));
+        return;
+      }
+      const src = SOURCES[idx];
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = src.css;
+      document.head.appendChild(css);
+      const s = document.createElement('script');
+      s.src = src.js;
+      s.onload = () => resolve();
+      s.onerror = () => {
+        console.warn(`[group map] Leaflet load failed from ${src.js}, trying next CDN...`);
+        try { document.head.removeChild(s); document.head.removeChild(css); } catch (e) {}
+        tryLoad(idx + 1).then(resolve).catch(reject);
+      };
+      document.head.appendChild(s);
+    });
+  }
+  window._leafletLoading = tryLoad(0);
   return window._leafletLoading;
 }
 
@@ -5201,7 +5221,16 @@ let groupMapMarkers = [];
 async function renderGroupLiveMap(members) {
   const mapDiv = document.getElementById('group-live-map');
   if (!mapDiv) return;
-  await ensureLeafletLoaded();
+  try {
+    await ensureLeafletLoaded();
+  } catch (err) {
+    console.error('[group map] Leaflet failed to load:', err);
+    mapDiv.innerHTML = `<div style="padding:14px;color:#d62828;text-align:center;font-size:13px;">
+      Map library could not load. Pull-to-refresh the app to retry.
+      <br><span style="font-size:11px;color:#888;">(${(err && err.message) || 'unknown error'})</span>
+    </div>`;
+    return;
+  }
   const withCoords = members.filter(m => m.lat != null && m.lng != null);
   if (!withCoords.length) {
     mapDiv.innerHTML = '<div style="padding:14px;color:#888;text-align:center;">No members have shared location yet.</div>';
