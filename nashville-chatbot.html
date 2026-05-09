@@ -6706,6 +6706,10 @@ function renderRestaurantCard(r) {
   if (b.yelp) html += `<a class="yelp-btn" href="${b.yelp}" target="_blank">Yelp</a>`;
   if (r.website) html += `<a href="${r.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
   if (r.phone) html += `<a class="call-btn" href="tel:${r.phone}">Call ${r.phone}</a>`;
+  // Google Maps link. Walking, transit, and driving directions in one tap.
+  const mapsQuery = r.address ? `${r.name}, ${r.address}` : `${r.name} Nashville TN${r.neighborhood ? ' ' + r.neighborhood : ''}`;
+  const mapsUrl = r.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+  html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
   html += `<a class="doordash-btn" href="#" onclick="return rideClick('doordash','${safeName}',event)">DoorDash</a>`;
   html += `<a class="ubereats-btn" href="#" onclick="return rideClick('ubereats','${safeName}',event)">Uber Eats</a>`;
   html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
