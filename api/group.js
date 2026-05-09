@@ -131,14 +131,18 @@ export default async function handler(req, res) {
           updatedAt: now
         };
       } else {
-        // New member joining via this update
+        // New member joining (or returning after being pruned for inactivity).
+        // If their memberId matches group.leaderId, restore their leader role
+        // - this happens when the leader killed their app for 5+ minutes and
+        // re-opened it, so they should keep leading the group they created.
+        const isReturningLeader = group.leaderId === memberId;
         group.members.push({
           id: memberId,
           name: cleanName,
           lat: hasCoords ? lat : null,
           lng: hasCoords ? lng : null,
           updatedAt: now,
-          isLeader: false
+          isLeader: isReturningLeader
         });
       }
       // Prune stale members on write

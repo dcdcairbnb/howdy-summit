@@ -4870,15 +4870,38 @@ async function groupApi(payload) {
 async function showFindGroup() {
   const saved = getSavedGroupSession();
   if (saved && saved.code && saved.memberId) {
-    // Verify the saved group is still active before auto-resuming
-    const check = await groupApi({ action: 'get', code: saved.code });
-    if (check.ok && !check.data.ended) {
+    // Verify the saved group is still active before auto-resuming. We only
+    // wipe the saved session for definitive "gone" responses (404, ended).
+    // Network errors, 5xx, or temporary blips keep the session so the user
+    // doesn't get kicked out of an active group just because the API hiccuped.
+    let check = null;
+    try {
+      check = await groupApi({ action: 'get', code: saved.code });
+    } catch (e) {
+      console.warn('[showFindGroup] network error checking group, resuming optimistically', e);
+    }
+    if (!check || (check.ok && !check.data.ended)) {
+      // Either the API check succeeded and group is live, OR the API call
+      // failed entirely (network). Resume the session either way; if the
+      // group is truly gone, the first poll inside showGroupSession will
+      // detect it and clean up.
       addGroupFlowMessage(`You're already in group ${saved.code}. Resuming the live map.`, 'bot');
       setTimeout(() => showGroupSession(saved.code, saved.memberId, saved.isLeader, saved.name), 200);
       return;
     }
-    // Saved group expired or ended. Clear it and fall through to fresh menu.
-    saveGroupSession(null);
+    if (check.ok && check.data.ended) {
+      // Group was explicitly ended by the leader. Clear and show fresh menu.
+      saveGroupSession(null);
+    } else if (check.status === 404) {
+      // Group expired off the server (TTL elapsed). Clear and show fresh menu.
+      saveGroupSession(null);
+    } else {
+      // Server returned 5xx or some other error. Don't wipe the session;
+      // resume optimistically and let the poll loop figure it out.
+      addGroupFlowMessage(`Reconnecting to group ${saved.code}...`, 'bot');
+      setTimeout(() => showGroupSession(saved.code, saved.memberId, saved.isLeader, saved.name), 200);
+      return;
+    }
   }
   addGroupFlowMessage("Stay connected with your group. Two options:", 'bot');
   const html = `<div class="card">
@@ -5086,7 +5109,7 @@ function showGroupSession(code, memberId, isLeader, name) {
           status.textContent = `Location not shared. Allow location to appear on the group map.`;
         }
       }
-    }, { enableHighAccuracy: true, timeout: 15000 });
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     // Then watch for movement
     groupGeoWatchId = navigator.geolocation.watchPosition(async (pos) => {
       await groupApi({
@@ -5095,7 +5118,7 @@ function showGroupSession(code, memberId, isLeader, name) {
         lat: pos.coords.latitude, lng: pos.coords.longitude
       });
     }, (err) => { /* watch errors handled by getCurrentPosition above */ },
-    { enableHighAccuracy: true, maximumAge: 15000 });
+    { enableHighAccuracy: true, maximumAge: 5000 });
   } else {
     const status = document.getElementById('group-status');
     if (status) status.textContent = `This browser does not support live location.`;
@@ -5492,36 +5515,67 @@ async function renderGroupLiveMap(members) {
   // Clear old markers
   groupMapMarkers.forEach(m => groupMapInstance.removeLayer(m));
   groupMapMarkers = [];
-  // Add new markers with labels
-  const bounds = [];
+  // Group together pins whose coordinates are within ~15 meters. GPS error
+  // alone can drift readings 10-50m even for two phones in the same room, so
+  // collapsing very-close pins into one stops two friends from looking like
+  // they're on opposite sides of a city block.
+  const NEAR_DEG = 0.00015; // roughly 16-17 meters at Nashville latitude
+  const clusters = [];
   withCoords.forEach(m => {
-    const safeName = (m.name || 'Friend').replace(/</g, '');
-    const star = m.isLeader ? '⭐ ' : '';
+    const cluster = clusters.find(c =>
+      Math.abs(c.lat - m.lat) < NEAR_DEG && Math.abs(c.lng - m.lng) < NEAR_DEG
+    );
+    if (cluster) {
+      cluster.members.push(m);
+    } else {
+      clusters.push({ lat: m.lat, lng: m.lng, members: [m] });
+    }
+  });
+  // Add markers, one per cluster. If multiple members share a cluster, the
+  // pin label shows their combined names and the popup lists each separately.
+  const bounds = [];
+  clusters.forEach(cluster => {
+    const isLeaderCluster = cluster.members.some(m => m.isLeader);
+    const labelMembers = cluster.members.map(m => (m.isLeader ? '⭐ ' : '') + (m.name || 'Friend').replace(/</g, ''));
+    const labelText = cluster.members.length === 1
+      ? labelMembers[0]
+      : `${cluster.members.length} together: ${labelMembers.join(' + ')}`;
     const icon = L.divIcon({
       className: 'group-pin',
-      html: `<div style="background:${m.isLeader ? '#d62828' : '#2563eb'};color:#fff;padding:4px 10px;border-radius:14px;font-size:13px;font-weight:600;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${star}${safeName}</div>`,
+      html: `<div style="background:${isLeaderCluster ? '#d62828' : '#2563eb'};color:#fff;padding:4px 10px;border-radius:14px;font-size:13px;font-weight:600;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${labelText}</div>`,
       iconSize: null,
       iconAnchor: [0, 0]
     });
-    const marker = L.marker([m.lat, m.lng], { icon }).addTo(groupMapInstance);
-    // Popup with one-tap open in Google Maps for directions to this member
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=walking`;
-    const driveUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=driving`;
-    marker.bindPopup(`
-      <div style="text-align:center;font-size:14px;min-width:160px;">
-        <div style="font-weight:600;margin-bottom:8px;">${star}${safeName}</div>
-        <a href="${mapsUrl}" target="_blank" rel="noopener" style="display:block;background:#34a853;color:#fff;padding:8px;border-radius:6px;text-decoration:none;margin-bottom:6px;font-weight:600;">🚶 Walk in Google Maps</a>
-        <a href="${driveUrl}" target="_blank" rel="noopener" style="display:block;background:#2563eb;color:#fff;padding:8px;border-radius:6px;text-decoration:none;font-weight:600;">🚗 Drive in Google Maps</a>
-      </div>
-    `);
+    const marker = L.marker([cluster.lat, cluster.lng], { icon }).addTo(groupMapInstance);
+    // Popup: per-member nav links. If the cluster includes the current user,
+    // skip them since you don't navigate to yourself.
+    const saved = getSavedGroupSession();
+    const myId = saved && saved.memberId;
+    let popupHtml = '<div style="text-align:center;font-size:14px;min-width:200px;">';
+    cluster.members.forEach(m => {
+      const star = m.isLeader ? '⭐ ' : '';
+      const safe = (m.name || 'Friend').replace(/</g, '');
+      const isMe = m.id === myId;
+      popupHtml += `<div style="font-weight:600;margin:6px 0 6px;">${star}${safe}${isMe ? ' (you)' : ''}</div>`;
+      if (!isMe) {
+        const walk = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=walking`;
+        const drive = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=driving`;
+        popupHtml += `<a href="${walk}" target="_blank" rel="noopener" style="display:block;background:#34a853;color:#fff;padding:6px;border-radius:6px;text-decoration:none;margin-bottom:4px;font-weight:600;font-size:13px;">🚶 Walk in Google Maps</a>`;
+        popupHtml += `<a href="${drive}" target="_blank" rel="noopener" style="display:block;background:#2563eb;color:#fff;padding:6px;border-radius:6px;text-decoration:none;margin-bottom:8px;font-weight:600;font-size:13px;">🚗 Drive in Google Maps</a>`;
+      }
+    });
+    popupHtml += '</div>';
+    marker.bindPopup(popupHtml);
     groupMapMarkers.push(marker);
-    bounds.push([m.lat, m.lng]);
+    bounds.push([cluster.lat, cluster.lng]);
   });
-  // Fit map to all markers
+  // Fit map to all markers. maxZoom:14 keeps close pins from looking far
+  // apart due to GPS error - at zoom 16 a 50m drift looks like opposite
+  // sides of a block, at zoom 14 it looks like the same neighborhood.
   if (bounds.length === 1) {
-    groupMapInstance.setView(bounds[0], 15);
+    groupMapInstance.setView(bounds[0], 14);
   } else if (bounds.length > 1) {
-    groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
   }
 }
 
