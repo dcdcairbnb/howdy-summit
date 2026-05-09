@@ -5827,18 +5827,36 @@ async function endGroup() {
   const saved = getSavedGroupSession();
   if (!saved) return;
   if (!confirm('End the group? Members get 5 minutes to take over as leader and keep it going.')) return;
-  // Soft end: server sets endingAt, members get a Take Over prompt for 30s.
-  // The leader's regular poll will pick up endingAt and show the leader's
-  // own countdown UI with a Cancel button.
-  await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
-  // Don't tear down the leader's session yet; they may want to cancel.
-  // The polling refresh handles the UI transition.
+  // Soft end: server sets endingAt, members get a Take Over prompt during
+  // the grace period. The leader's regular poll will pick up endingAt and
+  // show the leader's own countdown banner with a Cancel button.
+  const r = await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    alert(`Could not end the group: ${r.data && r.data.error ? r.data.error : 'unknown error'}. Try again.`);
+    return;
+  }
+  // Render the leader's countdown banner immediately rather than waiting up
+  // to 10 seconds for the next poll tick. Without this the user taps End,
+  // sees nothing happen, and assumes the button is broken.
+  if (r.data && r.data.endingAt) {
+    handlePendingEnd(r.data.endingAt, saved.code, saved.memberId);
+  } else {
+    // Fallback: server didn't return endingAt for some reason. Compute a
+    // local 5-minute deadline so the banner still appears.
+    handlePendingEnd(Date.now() + 5 * 60 * 1000, saved.code, saved.memberId);
+  }
 }
 
 async function cancelEndGroup() {
   const saved = getSavedGroupSession();
   if (!saved) return;
-  await groupApi({ action: 'cancelEnd', code: saved.code, memberId: saved.memberId });
+  const r = await groupApi({ action: 'cancelEnd', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    alert(`Could not cancel: ${r.data && r.data.error ? r.data.error : 'unknown error'}.`);
+    return;
+  }
+  // Tear down the local pending-end UI immediately.
+  handlePendingEnd(null, saved.code, saved.memberId);
 }
 
 async function claimLeader() {
