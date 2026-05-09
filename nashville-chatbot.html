@@ -4787,6 +4787,19 @@ function showLineDancing(skipPush) {
 
 const GROUP_KEY = 'howdy-nash-group-session';
 
+// Tags any chat message rendered as part of the group flow so endGroup /
+// leaveGroup can clear the whole sequence in one shot. Without this, the
+// stale "What's your name?" prompt and "Creating a group..." status text
+// stay in the chat after the user ends the session and confuse them.
+function addGroupFlowMessage(text, sender, html) {
+  const msg = addMessage(text, sender, html);
+  if (msg && msg.classList) msg.classList.add('group-flow-msg');
+  return msg;
+}
+function clearGroupFlowMessages() {
+  document.querySelectorAll('.group-flow-msg').forEach(el => el.remove());
+}
+
 function getSavedGroupSession() {
   try {
     const raw = localStorage.getItem(GROUP_KEY);
@@ -4816,14 +4829,14 @@ async function showFindGroup() {
     // Verify the saved group is still active before auto-resuming
     const check = await groupApi({ action: 'get', code: saved.code });
     if (check.ok && !check.data.ended) {
-      addMessage(`You're already in group ${saved.code}. Resuming the live map.`, 'bot');
+      addGroupFlowMessage(`You're already in group ${saved.code}. Resuming the live map.`, 'bot');
       setTimeout(() => showGroupSession(saved.code, saved.memberId, saved.isLeader, saved.name), 200);
       return;
     }
     // Saved group expired or ended. Clear it and fall through to fresh menu.
     saveGroupSession(null);
   }
-  addMessage("Stay connected with your group. Two options:", 'bot');
+  addGroupFlowMessage("Stay connected with your group. Two options:", 'bot');
   const html = `<div class="card">
     <div class="card-title">👯 Group Location Sharing</div>
     <div class="card-desc">Each person gets a live pin on a Nashville map. Auto-expires after the duration you pick.</div>
@@ -4831,23 +4844,32 @@ async function showFindGroup() {
     <a href="#" onclick="startGroupFlow();return false;" style="background:#d62828;color:#fff;">Start a new group</a>
     <a href="#" onclick="joinGroupFlow();return false;" style="background:#2563eb;color:#fff;">Join a group with code</a>
   </div>`;
-  addMessage(html, 'bot', true);
+  const card = addGroupFlowMessage(html, 'bot', true);
+  setTimeout(() => {
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, 100);
 }
 
 // Holds the duration chosen by the leader, applied after they enter their name.
 let pendingGroupDuration = null;
 
 function startGroupFlow() {
-  const prompt = addMessage("How long should the group last?", 'bot');
+  const prompt = addGroupFlowMessage("How long should the group last?", 'bot');
   // Anchor scroll to the new prompt so subsequent messages don't jump the
   // user back up to the old "Group share" bubble.
   scrollAnchor = prompt;
-  addQuickReplies([
-    '🍹 6 hours · Tonight',
-    '🌞 12 hours · All day',
-    '🎉 24 hours · Full weekend',
-    '← Cancel'
-  ]);
+  const wrap = document.createElement('div');
+  wrap.className = 'quick-replies group-flow-msg';
+  ['🍹 6 hours · Tonight', '🌞 12 hours · All day', '🎉 24 hours · Full weekend', '← Cancel'].forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-reply';
+    btn.textContent = opt;
+    btn.onclick = () => { handleUserMessage(opt); wrap.remove(); };
+    wrap.appendChild(btn);
+  });
+  messagesEl.appendChild(wrap);
   setTimeout(() => {
     if (prompt && typeof prompt.scrollIntoView === 'function') {
       prompt.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -4857,14 +4879,14 @@ function startGroupFlow() {
 
 function promptLeaderName(durationHours) {
   pendingGroupDuration = durationHours;
-  const prompt = addMessage(`Got it, ${durationHours}-hour group. What's your name? (visible to the group)`, 'bot');
+  const prompt = addGroupFlowMessage(`Got it, ${durationHours}-hour group. What's your name? (visible to the group)`, 'bot');
   scrollAnchor = prompt;
   const html = `<div class="card">
     <div class="card-title">Your name</div>
     <input id="leaderNameInput" type="text" maxlength="40" placeholder="e.g., Megan" style="width:100%;padding:12px;font-size:16px;border:2px solid #d62828;border-radius:8px;margin:8px 0;">
     <a href="#" onclick="confirmCreateGroup();return false;" style="background:#d62828;color:#fff;">Create group</a>
   </div>`;
-  const card = addMessage(html, 'bot', true);
+  const card = addGroupFlowMessage(html, 'bot', true);
   setTimeout(() => {
     if (card && typeof card.scrollIntoView === 'function') {
       card.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -4884,14 +4906,14 @@ function confirmCreateGroup() {
 }
 
 function joinGroupFlow() {
-  addMessage("Enter the 4-letter group code (e.g., PARTY).", 'bot');
+  addGroupFlowMessage("Enter the 4-letter group code (e.g., PARTY).", 'bot');
   const html = `<div class="card">
     <div class="card-title">Join a group</div>
     <input id="groupCodeInput" type="text" maxlength="4" placeholder="ABCD" style="text-transform:uppercase;width:100%;padding:12px;font-size:24px;text-align:center;letter-spacing:8px;border:2px solid #d62828;border-radius:8px;margin:8px 0;">
     <input id="groupNameInput" type="text" maxlength="40" placeholder="Your name (e.g., Megan)" style="width:100%;padding:10px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin:6px 0;">
     <a href="#" onclick="submitJoinGroup();return false;" style="background:#2563eb;color:#fff;">Join group</a>
   </div>`;
-  const card = addMessage(html, 'bot', true);
+  const card = addGroupFlowMessage(html, 'bot', true);
   setTimeout(() => {
     if (card && typeof card.scrollIntoView === 'function') {
       card.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -4903,11 +4925,11 @@ function joinGroupFlow() {
 
 async function createGroupWithDuration(durationHours, leaderName) {
   const name = (leaderName || 'Group leader').slice(0, 40);
-  addMessage(`Creating a ${durationHours}-hour group...`, 'bot');
+  addGroupFlowMessage(`Creating a ${durationHours}-hour group...`, 'bot');
   const memberId = `m_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
   const r = await groupApi({ action: 'create', durationHours, leaderName: name, memberId });
   if (!r.ok) {
-    addMessage(`Could not create group: ${r.data.error || 'unknown error'}`, 'bot');
+    addGroupFlowMessage(`Could not create group: ${r.data.error || 'unknown error'}`, 'bot');
     return;
   }
   saveGroupSession({ code: r.data.code, memberId, isLeader: true, name });
@@ -5498,9 +5520,10 @@ async function leaveGroup() {
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
   resetGroupFlowState();
+  // Wipe every prior group-flow message (name prompts, "Creating..." status,
+  // old session cards) so the user lands on a clean fresh start screen.
+  clearGroupFlowMessages();
   const exitMsg = addMessage('You left the group. Your pin is gone.', 'bot');
-  // Anchor the chat to this fresh message so the new create/join card below
-  // it lands in view rather than the user's old position above.
   scrollAnchor = exitMsg;
   setTimeout(() => {
     if (typeof showFindGroup === 'function') showFindGroup();
@@ -5517,6 +5540,7 @@ async function endGroup() {
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
   resetGroupFlowState();
+  clearGroupFlowMessages();
   const exitMsg = addMessage('Group ended. Everyone is off the live map.', 'bot');
   scrollAnchor = exitMsg;
   setTimeout(() => {
