@@ -5468,9 +5468,15 @@ async function leaveGroup() {
   stopGroupSession();
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
-  addMessage('You left the group. Your pin is gone.', 'bot');
-  // Show the create / join menu again so the user can rejoin or start a new group.
-  setTimeout(() => { if (typeof showFindGroup === 'function') showFindGroup(); }, 80);
+  resetGroupFlowState();
+  const exitMsg = addMessage('You left the group. Your pin is gone.', 'bot');
+  // Anchor the chat to this fresh message so the new create/join card below
+  // it lands in view rather than the user's old position above.
+  scrollAnchor = exitMsg;
+  setTimeout(() => {
+    if (typeof showFindGroup === 'function') showFindGroup();
+    setTimeout(scrollToFindGroupCard, 200);
+  }, 80);
 }
 
 async function endGroup() {
@@ -5481,8 +5487,38 @@ async function endGroup() {
   stopGroupSession();
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
-  addMessage('Group ended. Everyone is off the live map.', 'bot');
-  setTimeout(() => { if (typeof showFindGroup === 'function') showFindGroup(); }, 80);
+  resetGroupFlowState();
+  const exitMsg = addMessage('Group ended. Everyone is off the live map.', 'bot');
+  scrollAnchor = exitMsg;
+  setTimeout(() => {
+    if (typeof showFindGroup === 'function') showFindGroup();
+    setTimeout(scrollToFindGroupCard, 200);
+  }, 80);
+}
+
+// Clear any half-filled leader / join inputs so the new flow starts clean.
+function resetGroupFlowState() {
+  if (typeof pendingGroupDuration !== 'undefined') pendingGroupDuration = null;
+  ['leaderNameInput', 'groupCodeInput', 'groupNameInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+// Scroll the chat to the freshly rendered "Stay connected" create/join card
+// so the user lands on it. Falls back to scrolling to the chat bottom.
+function scrollToFindGroupCard() {
+  const cards = messagesEl ? messagesEl.querySelectorAll('.card .card-title') : [];
+  for (let i = cards.length - 1; i >= 0; i--) {
+    if (cards[i].textContent.includes('Group Location Sharing')) {
+      const wrap = cards[i].closest('.message') || cards[i].closest('.card');
+      if (wrap && typeof wrap.scrollIntoView === 'function') {
+        wrap.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return;
+      }
+    }
+  }
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 function showBachelorette(skipPush) {
   if (!skipPush) pushMenu('bachelorette');
