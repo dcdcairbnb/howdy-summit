@@ -4799,25 +4799,37 @@ async function showFindGroup() {
 let pendingGroupDuration = null;
 
 function startGroupFlow() {
-  addMessage("How long should the group last?", 'bot');
+  const prompt = addMessage("How long should the group last?", 'bot');
+  // Anchor scroll to the new prompt so subsequent messages don't jump the
+  // user back up to the old "Group share" bubble.
+  scrollAnchor = prompt;
   addQuickReplies([
     '🍹 6 hours · Tonight',
     '🌞 12 hours · All day',
     '🎉 24 hours · Full weekend',
     '← Cancel'
   ]);
+  setTimeout(() => {
+    if (prompt && typeof prompt.scrollIntoView === 'function') {
+      prompt.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, 100);
 }
 
 function promptLeaderName(durationHours) {
   pendingGroupDuration = durationHours;
-  addMessage(`Got it, ${durationHours}-hour group. What's your name? (visible to the group)`, 'bot');
+  const prompt = addMessage(`Got it, ${durationHours}-hour group. What's your name? (visible to the group)`, 'bot');
+  scrollAnchor = prompt;
   const html = `<div class="card">
     <div class="card-title">Your name</div>
     <input id="leaderNameInput" type="text" maxlength="40" placeholder="e.g., Megan" style="width:100%;padding:12px;font-size:16px;border:2px solid #d62828;border-radius:8px;margin:8px 0;">
     <a href="#" onclick="confirmCreateGroup();return false;" style="background:#d62828;color:#fff;">Create group</a>
   </div>`;
-  addMessage(html, 'bot', true);
+  const card = addMessage(html, 'bot', true);
   setTimeout(() => {
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
     const el = document.getElementById('leaderNameInput');
     if (el) el.focus();
     if (el) el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmCreateGroup(); });
