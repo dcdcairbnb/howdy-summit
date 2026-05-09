@@ -254,7 +254,7 @@ export default async function handler(req, res) {
 
     return bad(res, 400, 'Unknown action');
   } catch (e) {
-    console.error('group api error', e);
-    return console.error("[group] error", e); res.status(500).json({ error: "internal server error" });
+    console.error('[group] error', e);
+    return res.status(500).json({ error: 'internal server error', detail: (e && e.message) || 'unknown' });
   }
 }

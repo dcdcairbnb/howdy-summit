@@ -5677,14 +5677,23 @@ async function confirmPromoteToLeader(newLeaderId, newLeaderName, originBtn) {
   }
   // Hide the confirmation card right away so the user sees a clean state.
   dismissTransferLeaderCards(originBtn);
-  const r = await groupApi({
-    action: 'transferLeader',
-    code: saved.code,
-    memberId: saved.memberId,
-    newLeaderId
-  });
-  if (!r.ok) {
-    addMessage(`Could not transfer leadership: ${r.data?.error || 'unknown error'}`, 'bot');
+  let r;
+  try {
+    r = await groupApi({
+      action: 'transferLeader',
+      code: saved.code,
+      memberId: saved.memberId,
+      newLeaderId
+    });
+  } catch (err) {
+    console.error('[transferLeader] network error', err);
+    addMessage(`Could not transfer leadership: network error. Check your connection and try again.`, 'bot');
+    return;
+  }
+  if (!r || !r.ok) {
+    const msg = (r && r.data && (r.data.error || r.data.detail)) || 'unknown error';
+    console.error('[transferLeader] server error', r && r.status, r && r.data);
+    addMessage(`Could not transfer leadership: ${msg}`, 'bot');
     return;
   }
   // Update local saved session so this user is no longer the leader.
