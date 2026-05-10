@@ -107,8 +107,12 @@ export default async function handler(req, res) {
     if (action === 'update') {
       const { memberId, name, lat, lng } = req.body || {};
       if (!code) return bad(res, 400, 'Missing code');
-      if (typeof lat !== 'number' || typeof lng !== 'number') return bad(res, 400, 'lat and lng required');
       if (!memberId) return bad(res, 400, 'memberId required');
+      // lat/lng are optional. A new member registering without a position yet
+      // (just tapped Join, hasn't accepted the OS location prompt) still gets
+      // added to the roster so the leader sees them waiting. Once their device
+      // shares location, a follow-up update fills in the coords.
+      const hasCoords = typeof lat === 'number' && typeof lng === 'number';
       const group = await kv.get(`group:${code}`);
       if (!group) return bad(res, 404, 'Group not found or expired');
       if (group.ended) return bad(res, 410, 'Group ended');
@@ -117,10 +121,29 @@ export default async function handler(req, res) {
       const cleanName = (name || 'Friend').slice(0, 40);
       const idx = group.members.findIndex(m => m.id === memberId);
       if (idx >= 0) {
-        group.members[idx] = { ...group.members[idx], name: cleanName, lat, lng, updatedAt: now };
+        const existing = group.members[idx];
+        group.members[idx] = {
+          ...existing,
+          name: cleanName,
+          // Preserve existing coords if this update has none, otherwise overwrite
+          lat: hasCoords ? lat : existing.lat,
+          lng: hasCoords ? lng : existing.lng,
+          updatedAt: now
+        };
       } else {
-        // New member joining via this update
-        group.members.push({ id: memberId, name: cleanName, lat, lng, updatedAt: now, isLeader: false });
+        // New member joining (or returning after being pruned for inactivity).
+        // If their memberId matches group.leaderId, restore their leader role
+        // - this happens when the leader killed their app for 5+ minutes and
+        // re-opened it, so they should keep leading the group they created.
+        const isReturningLeader = group.leaderId === memberId;
+        group.members.push({
+          id: memberId,
+          name: cleanName,
+          lat: hasCoords ? lat : null,
+          lng: hasCoords ? lng : null,
+          updatedAt: now,
+          isLeader: isReturningLeader
+        });
       }
       // Prune stale members on write
       group.members = pruneStale(group.members);
@@ -133,10 +156,19 @@ export default async function handler(req, res) {
       if (!code) return bad(res, 400, 'Missing code');
       const group = await kv.get(`group:${code}`);
       if (!group) return res.status(404).json({ error: 'Group not found or expired', expired: true });
+      // If the leader requested an end and the grace period has elapsed with
+      // nobody claiming leadership, finalize the end now so the next poll
+      // notifies everyone.
+      if (group.endingAt && group.endingAt <= Date.now() && !group.ended) {
+        group.ended = true;
+        group.endingAt = null;
+        await kv.set(`group:${code}`, group, { ex: 60 });
+      }
       return res.status(200).json({
         members: publicMembers(group.members),
         expiresAt: group.expiresAt,
         ended: !!group.ended,
+        endingAt: group.endingAt || null,
         durationHours: group.durationHours
       });
     }
@@ -153,15 +185,59 @@ export default async function handler(req, res) {
     }
 
     if (action === 'end') {
-      const { memberId } = req.body || {};
+      const { memberId, immediate } = req.body || {};
       if (!code || !memberId) return bad(res, 400, 'code and memberId required');
       const group = await kv.get(`group:${code}`);
       if (!group) return res.status(200).json({ ok: true });
       if (group.leaderId !== memberId) return bad(res, 403, 'Only the group leader can end the party');
-      group.ended = true;
-      // Keep around for 60 seconds so members see "ended" message
-      await kv.set(`group:${code}`, group, { ex: 60 });
+      if (immediate) {
+        // Hard end: skip grace period (used when leader is the only member).
+        group.ended = true;
+        group.endingAt = null;
+        await kv.set(`group:${code}`, group, { ex: 60 });
+        return res.status(200).json({ ok: true, ended: true });
+      }
+      // Soft end: 5-minute grace period. Gives members enough time to notice
+      // even if their phone is in a pocket. Anyone can claim leadership in
+      // this window to keep the group going. After the window the next get
+      // call finalizes the end.
+      const graceMs = 5 * 60 * 1000;
+      group.endingAt = Date.now() + graceMs;
+      const ttlSec = Math.max(60, Math.round((group.expiresAt - Date.now()) / 1000));
+      await kv.set(`group:${code}`, group, { ex: ttlSec });
+      return res.status(200).json({ ok: true, endingAt: group.endingAt });
+    }
+
+    if (action === 'cancelEnd') {
+      const { memberId } = req.body || {};
+      if (!code || !memberId) return bad(res, 400, 'code and memberId required');
+      const group = await kv.get(`group:${code}`);
+      if (!group) return bad(res, 404, 'Group not found or expired');
+      if (group.leaderId !== memberId) return bad(res, 403, 'Only the leader can cancel');
+      group.endingAt = null;
+      const ttlSec = Math.max(60, Math.round((group.expiresAt - Date.now()) / 1000));
+      await kv.set(`group:${code}`, group, { ex: ttlSec });
       return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'claimLeader') {
+      const { memberId } = req.body || {};
+      if (!code || !memberId) return bad(res, 400, 'code and memberId required');
+      const group = await kv.get(`group:${code}`);
+      if (!group) return bad(res, 404, 'Group not found or expired');
+      if (group.ended) return bad(res, 410, 'Group already ended');
+      if (!group.endingAt || group.endingAt <= Date.now()) {
+        return bad(res, 409, 'No pending end to claim');
+      }
+      const claimer = group.members.find(m => m.id === memberId);
+      if (!claimer) return bad(res, 404, 'Not a member of this group');
+      // Transfer leadership and clear the pending end.
+      group.members = group.members.map(m => ({ ...m, isLeader: m.id === memberId }));
+      group.leaderId = memberId;
+      group.endingAt = null;
+      const ttlSec = Math.max(60, Math.round((group.expiresAt - Date.now()) / 1000));
+      await kv.set(`group:${code}`, group, { ex: ttlSec });
+      return res.status(200).json({ ok: true, members: publicMembers(group.members), newLeaderId: memberId });
     }
 
     if (action === 'transferLeader') {
@@ -182,7 +258,7 @@ export default async function handler(req, res) {
 
     return bad(res, 400, 'Unknown action');
   } catch (e) {
-    console.error('group api error', e);
-    return res.status(500).json({ error: e.message });
+    console.error('[group] error', e);
+    return res.status(500).json({ error: 'internal server error', detail: (e && e.message) || 'unknown' });
   }
 }

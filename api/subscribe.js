@@ -47,6 +47,24 @@ const rateLimitStore = new Map();
 const RATE_LIMIT_PER_HOUR = 10;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
+// Error reporter dedupe + rate limit. Stops a buggy page from spamming inbox.
+const errorRateLimitStore = new Map();
+const ERROR_RATE_LIMIT_PER_HOUR = 20;
+const recentErrorFingerprints = new Map();
+const ERROR_REPORTER_TO = 'howdynashhq@gmail.com';
+
+function checkErrorRateLimit(ip) {
+  const now = Date.now();
+  const record = errorRateLimitStore.get(ip);
+  if (!record || now - record.windowStart > RATE_LIMIT_WINDOW_MS) {
+    errorRateLimitStore.set(ip, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (record.count >= ERROR_RATE_LIMIT_PER_HOUR) return false;
+  record.count += 1;
+  return true;
+}
+
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) return String(forwarded).split(',')[0].trim();
@@ -87,41 +105,92 @@ function titleCase(s) {
 // personalized email showing what they owe (or that they're the payer) with
 // one-tap pay deeplinks for Venmo, Cash App, and PayPal. Generated from
 // tripData payload sent by the client.
+// Build pay-link buttons for one creditor with one debt amount. Returns a
+// span containing each available platform button. Used per-settlement.
+function buildPayButtonsForCreditor(creditor, amount, tripName) {
+  const note = encodeURIComponent(tripName || 'Nashville trip');
+  const safeAmount = Math.max(0, Number(amount || 0)).toFixed(2);
+  const buttons = [];
+  if (creditor.venmo) {
+    const handle = String(creditor.venmo).replace(/^@/, '').trim();
+    const url = `https://venmo.com/${encodeURIComponent(handle)}?txn=pay&amount=${safeAmount}&note=${note}`;
+    buttons.push(`<a href="${url}" style="color:#3D95CE;font-weight:700;text-decoration:none;">Venmo</a>`);
+  }
+  if (creditor.cashapp) {
+    const handle = String(creditor.cashapp).replace(/^\$/, '').trim();
+    const url = `https://cash.app/$${encodeURIComponent(handle)}/${safeAmount}`;
+    buttons.push(`<a href="${url}" style="color:#00D632;font-weight:700;text-decoration:none;">Cash App</a>`);
+  }
+  if (creditor.paypal) {
+    let handle = String(creditor.paypal).trim();
+    handle = handle.replace(/^https?:\/\/(www\.)?paypal\.me\//i, '').replace(/^@/, '');
+    const url = `https://paypal.me/${encodeURIComponent(handle)}/${safeAmount}`;
+    buttons.push(`<a href="${url}" style="color:#0070BA;font-weight:700;text-decoration:none;">PayPal</a>`);
+  }
+  return buttons.length ? buttons.join(' &middot; ') : '<span style="color:#888;">No payment handle on file. Pay outside the app.</span>';
+}
+
+// Trip summary email body for the Split Costs feature. Each member gets a
+// personalized email showing what they owe (or that they're the payer) with
+// one-tap pay deeplinks for Venmo, Cash App, and PayPal. Generated from
+// tripData payload sent by the client.
 function buildTripSummaryBlock(tripData) {
   if (!tripData) return '';
-  const { tripName, payerName, payerVenmo, payerCashapp, payerPaypal, memberOwes, isPayer, totalSpent, expenses } = tripData;
+  const {
+    tripName, payerName, payerVenmo, payerCashapp, payerPaypal,
+    memberOwes, memberOwed, isPayer, totalSpent, expenses,
+    settlements, incoming
+  } = tripData;
   const expList = (expenses || []).slice(0, 30).map(e => `<li style="margin:4px 0;"><strong>$${Number(e.amount).toFixed(2)}</strong> ${escapeHtml(e.description || '')} <span style="color:#888;">(paid by ${escapeHtml(e.paidByName || '')}, split ${e.splitCount} ways)</span></li>`).join('');
+  // PAYER (trip starter) view
   if (isPayer) {
+    let owedSection = '';
+    if (Array.isArray(incoming) && incoming.length) {
+      const lines = incoming.map(i => `<li style="margin:4px 0;"><strong>${escapeHtml(i.debtorName || 'Someone')}</strong> owes you $${Number(i.amount).toFixed(2)}</li>`).join('');
+      owedSection = `<p style="margin:14px 0 6px;font-weight:600;">Coming in to you:</p>
+<ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${lines}</ul>`;
+    }
+    let outgoingSection = '';
+    if (Array.isArray(settlements) && settlements.length) {
+      const lines = settlements.map(s => `<li style="margin:6px 0;"><strong>$${Number(s.amount).toFixed(2)}</strong> to ${escapeHtml(s.creditorName || 'a member')} &middot; ${buildPayButtonsForCreditor(s, s.amount, tripName)}</li>`).join('');
+      outgoingSection = `<p style="margin:14px 0 6px;font-weight:600;">You also owe (someone else fronted these):</p>
+<ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${lines}</ul>`;
+    }
     return `<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Your trip')} summary</strong></p>
-<p style="margin:8px 0;">You fronted the bill. Total spent: $${Number(totalSpent || 0).toFixed(2)}.</p>
-<p style="margin:8px 0;">Each person on the trip got their own email with what they owe and one-tap pay buttons.</p>
-<p style="margin:14px 0 6px;font-weight:600;">Expenses tracked:</p>
+<p style="margin:8px 0;">You started this trip. Total tracked: $${Number(totalSpent || 0).toFixed(2)}.</p>
+<p style="margin:8px 0;">Each person on the trip got their own email with what they owe and one-tap pay buttons to whoever fronted the bill.</p>
+${owedSection}
+${outgoingSection}
+<p style="margin:14px 0 6px;font-weight:600;">All expenses tracked:</p>
 <ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${expList || '<li>No expenses</li>'}</ul>`;
   }
-  // Build pay buttons (only show what the payer set up)
-  const amount = Math.max(0, Number(memberOwes || 0));
-  const note = encodeURIComponent(`${tripName || 'Nashville trip'}`);
-  const buttons = [];
-  if (payerVenmo) {
-    const handle = String(payerVenmo).replace(/^@/, '').trim();
-    const url = `https://venmo.com/${encodeURIComponent(handle)}?txn=pay&amount=${amount.toFixed(2)}&note=${note}`;
-    buttons.push(`<a href="${url}" style="color:#3D95CE;font-weight:700;">Pay with Venmo</a>`);
+  // MEMBER view: show per-creditor settlements with the right pay buttons
+  // for each. If they're net-positive (owed money), show who owes them.
+  let settlementsBlock = '';
+  if (Array.isArray(settlements) && settlements.length) {
+    const lines = settlements.map(s => `<li style="margin:8px 0;"><strong>$${Number(s.amount).toFixed(2)}</strong> to <strong>${escapeHtml(s.creditorName || 'a member')}</strong><br><span style="font-size:14px;">${buildPayButtonsForCreditor(s, s.amount, tripName)}</span></li>`).join('');
+    settlementsBlock = `<p style="margin:8px 0;">You owe a total of <strong>$${Number(memberOwes || 0).toFixed(2)}</strong>, broken down below:</p>
+<ul style="padding-left:18px;margin:0 0 14px;font-size:15px;list-style:none;">${lines}</ul>`;
+  } else if (Number(memberOwes || 0) > 0) {
+    // Backward compatibility path: old client sent only memberOwes without settlements.
+    const handle = { venmo: payerVenmo, cashapp: payerCashapp, paypal: payerPaypal };
+    settlementsBlock = `<p style="margin:8px 0;">You owe ${escapeHtml(payerName || 'the payer')}: <strong>$${Number(memberOwes).toFixed(2)}</strong></p>
+<p style="margin:14px 0;">${buildPayButtonsForCreditor(handle, memberOwes, tripName)}</p>`;
+  } else {
+    settlementsBlock = `<p style="margin:8px 0;">You're square. Nothing to pay.</p>`;
   }
-  if (payerCashapp) {
-    const handle = String(payerCashapp).replace(/^\$/, '').trim();
-    const url = `https://cash.app/$${encodeURIComponent(handle)}/${amount.toFixed(2)}`;
-    buttons.push(`<a href="${url}" style="color:#00D632;font-weight:700;">Pay with Cash App</a>`);
+  let incomingBlock = '';
+  if (Array.isArray(incoming) && incoming.length) {
+    const lines = incoming.map(i => `<li style="margin:4px 0;"><strong>${escapeHtml(i.debtorName || 'Someone')}</strong> owes you $${Number(i.amount).toFixed(2)}</li>`).join('');
+    incomingBlock = `<p style="margin:14px 0 6px;font-weight:600;">Money coming back to you:</p>
+<ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${lines}</ul>
+<p style="margin:8px 0;font-size:14px;color:#666;">They each got an email with your payment links.</p>`;
+  } else if (Number(memberOwed || 0) > 0.01) {
+    incomingBlock = `<p style="margin:14px 0 8px;">You're owed <strong>$${Number(memberOwed).toFixed(2)}</strong> from the group. They each got an email with your payment links.</p>`;
   }
-  if (payerPaypal) {
-    let handle = String(payerPaypal).trim();
-    handle = handle.replace(/^https?:\/\/(www\.)?paypal\.me\//i, '').replace(/^@/, '');
-    const url = `https://paypal.me/${encodeURIComponent(handle)}/${amount.toFixed(2)}`;
-    buttons.push(`<a href="${url}" style="color:#0070BA;font-weight:700;">Pay with PayPal</a>`);
-  }
-  const buttonsHtml = buttons.length ? `<p style="margin:14px 0;">${buttons.join(' &middot; ')}</p>` : '';
   return `<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Nashville trip')} summary</strong></p>
-<p style="margin:8px 0;">You owe ${escapeHtml(payerName || 'the payer')}: <strong>$${amount.toFixed(2)}</strong></p>
-${buttonsHtml}
+${settlementsBlock}
+${incomingBlock}
 <p style="margin:14px 0 6px;font-weight:600;">Trip expenses:</p>
 <ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${expList || '<li>No expenses</li>'}</ul>
 <p style="margin:8px 0;font-size:14px;color:#666;">Split evenly across the people in each line item. Total trip: $${Number(totalSpent || 0).toFixed(2)}.</p>`;
@@ -356,7 +425,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, ...result });
     } catch (e) {
       console.error('cron newsletter error', e);
-      return res.status(500).json({ error: e.message });
+      return console.error("[subscribe] error", e); res.status(500).json({ error: "internal server error" });
     }
   }
 
@@ -372,7 +441,15 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') {
+    // Cap body size at 100KB. Trip-summary payloads with expense lists are
+    // the largest legitimate use case and they fit easily under this cap.
+    if (body.length > 100000) {
+      return res.status(413).json({ error: 'request body too large' });
+    }
     try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  if (!body || typeof body !== 'object') {
+    return res.status(400).json({ error: 'invalid body' });
   }
 
   // Newsletter actions (admin only)
@@ -417,8 +494,59 @@ export default async function handler(req, res) {
       const result = await sendWeeklyNewsletter(resend);
       return res.status(200).json(result);
     } catch (e) {
-      return res.status(500).json({ error: e.message });
+      return console.error("[subscribe] error", e); res.status(500).json({ error: "internal server error" });
     }
+  }
+
+  // Client-side error reporter. Browser POSTs window.onerror events here.
+  // Dedupes by error fingerprint over a 1-hour window to avoid email floods.
+  // Quiet in production logs (no console.error spam) but emails on first hit.
+  if (body.action === 'log-error') {
+    const ipAddr = getClientIp(req);
+    if (!checkErrorRateLimit(ipAddr)) {
+      return res.status(429).json({ ok: false });
+    }
+    const errMsg = String(body.message || '').slice(0, 500);
+    const errStack = String(body.stack || '').slice(0, 2000);
+    const errUrl = String(body.url || '').slice(0, 500);
+    const errLine = Number(body.line) || 0;
+    const errCol = Number(body.col) || 0;
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 300);
+    if (!errMsg) return res.status(200).json({ ok: true });
+
+    // Dedupe key: same message + same line. Reduces email count for repeated errors.
+    const fingerprint = `${errMsg}::${errLine}`;
+    if (recentErrorFingerprints.has(fingerprint)) {
+      return res.status(200).json({ ok: true, dedup: true });
+    }
+    recentErrorFingerprints.set(fingerprint, Date.now());
+    // Trim the fingerprint cache periodically
+    if (recentErrorFingerprints.size > 200) {
+      const cutoff = Date.now() - 60 * 60 * 1000;
+      for (const [k, t] of recentErrorFingerprints) {
+        if (t < cutoff) recentErrorFingerprints.delete(k);
+      }
+    }
+
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: ERROR_REPORTER_TO,
+        subject: `Howdy Nash JS error: ${errMsg.slice(0, 80)}`,
+        text: `A new client-side error fired on howdynash.com.\n\n` +
+          `Message: ${errMsg}\n` +
+          `URL: ${errUrl}\n` +
+          `Line: ${errLine}, Column: ${errCol}\n` +
+          `User Agent: ${userAgent}\n` +
+          `IP: ${ipAddr}\n\n` +
+          `Stack trace:\n${errStack}\n\n` +
+          `This is the first occurrence in the last hour. Repeats are silenced.`
+      });
+    } catch (e) {
+      console.error('error-report email failed', e.message);
+    }
+    return res.status(200).json({ ok: true });
   }
 
   const ip = getClientIp(req);
@@ -426,12 +554,61 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'too many signups, try again later' });
   }
 
-  const email = String(body.email || '').trim().toLowerCase();
+  const email = String(body.email || '').trim().toLowerCase().slice(0, 254);
   const name = String(body.name || '').trim().slice(0, 100);
   const source = String(body.source || 'general').trim().slice(0, 50);
-  const savedSpots = Array.isArray(body.savedSpots) ? body.savedSpots.slice(0, 50) : null;
   const optIn = !!body.optIn;
-  const tripData = (source === 'trip-summary' && body.tripData && typeof body.tripData === 'object') ? body.tripData : null;
+  // Sanitize savedSpots: cap each field so an attacker can't store huge blobs.
+  const savedSpots = Array.isArray(body.savedSpots)
+    ? body.savedSpots.slice(0, 50).map(s => ({
+        name: String(s && s.name || '').slice(0, 200),
+        note: String(s && s.note || '').slice(0, 500),
+        address: String(s && s.address || '').slice(0, 300),
+        phone: String(s && s.phone || '').slice(0, 30)
+      }))
+    : null;
+  // Sanitize tripData: validate structure, cap each field, drop unexpected keys.
+  let tripData = null;
+  if (source === 'trip-summary' && body.tripData && typeof body.tripData === 'object') {
+    const t = body.tripData;
+    tripData = {
+      tripName: String(t.tripName || 'Nashville trip').slice(0, 100),
+      payerName: String(t.payerName || '').slice(0, 100),
+      payerVenmo: String(t.payerVenmo || '').slice(0, 50),
+      payerCashapp: String(t.payerCashapp || '').slice(0, 50),
+      payerPaypal: String(t.payerPaypal || '').slice(0, 200),
+      memberOwes: Math.max(0, Math.min(100000, Number(t.memberOwes) || 0)),
+      memberOwed: Math.max(0, Math.min(1000000, Number(t.memberOwed) || 0)),
+      isPayer: !!t.isPayer,
+      totalSpent: Math.max(0, Math.min(1000000, Number(t.totalSpent) || 0)),
+      expenses: Array.isArray(t.expenses)
+        ? t.expenses.slice(0, 100).map(e => ({
+            amount: Math.max(0, Math.min(100000, Number(e && e.amount) || 0)),
+            description: String(e && e.description || '').slice(0, 80),
+            paidByName: String(e && e.paidByName || '').slice(0, 100),
+            splitCount: Math.max(1, Math.min(50, Number(e && e.splitCount) || 1))
+          }))
+        : [],
+      // New per-pair settlements: who this member owes, with each creditor's
+      // payment handles so the email can render the correct pay buttons.
+      settlements: Array.isArray(t.settlements)
+        ? t.settlements.slice(0, 50).map(s => ({
+            creditorName: String(s && s.creditorName || '').slice(0, 100),
+            amount: Math.max(0, Math.min(100000, Number(s && s.amount) || 0)),
+            venmo: String(s && s.venmo || '').slice(0, 50),
+            cashapp: String(s && s.cashapp || '').slice(0, 50),
+            paypal: String(s && s.paypal || '').slice(0, 200)
+          }))
+        : [],
+      // Reverse direction: who owes this member, for net-positive members.
+      incoming: Array.isArray(t.incoming)
+        ? t.incoming.slice(0, 50).map(i => ({
+            debtorName: String(i && i.debtorName || '').slice(0, 100),
+            amount: Math.max(0, Math.min(100000, Number(i && i.amount) || 0))
+          }))
+        : []
+    };
+  }
 
   if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: 'valid email required' });

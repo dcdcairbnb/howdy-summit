@@ -282,6 +282,7 @@ Hard refresh browser if you see old content (Cmd+Shift+R on Mac).
 
 Defense in depth across accounts, infrastructure, and runtime. Walk this list during onboarding or annual audits.
 
+<<<<<<< HEAD
 ### Account-Level Two-Factor Authentication
 
 Every account that owns infrastructure or codebase has 2FA enabled with Google Authenticator. Backup codes saved offline.
@@ -291,6 +292,17 @@ Every account that owns infrastructure or codebase has 2FA enabled with Google A
 - Cloudflare (DNS, WAF, edge protection). Enabled at https://dash.cloudflare.com/profile/authentication
 - Gmail jayhawks01@gmail.com (recovery email for everything). Enabled at https://myaccount.google.com/security
 - Gmail howdynashhq@gmail.com (brand inbox). Enabled at https://myaccount.google.com/security
+=======
+### Two-Factor Authentication
+
+Every account that owns infrastructure or codebase has 2FA enabled with Google Authenticator. Backup codes saved offline.
+
+- Vercel: https://vercel.com/account/security
+- GitHub: https://github.com/settings/security
+- Cloudflare: https://dash.cloudflare.com/profile/authentication
+- Gmail jayhawks01@gmail.com: https://myaccount.google.com/security
+- Gmail howdynashhq@gmail.com: https://myaccount.google.com/security
+>>>>>>> main
 
 Recovery codes for each account are stored in a password manager. Losing the phone alone never locks anyone out.
 
@@ -303,6 +315,7 @@ Cloudflare sits in front of howdynash.com on the free plan.
 - WWW: CNAME www proxied to Vercel
 - SSL/TLS mode: Full (strict). Cloudflare verifies Vercel's certificate.
 - Always Use HTTPS: ON. Auto-redirects http to https.
+<<<<<<< HEAD
 - Bot Fight Mode: ON. Free bot detection and CAPTCHA challenges.
 - AI bot policy: ALLOW. ChatGPT, Gemini, Perplexity, etc. can crawl. Better visibility in AI search.
 - DDoS protection: unmetered, automatic on free plan.
@@ -312,16 +325,35 @@ Vercel itself adds another HTTPS layer and serves as the origin. Cloudflare-to-V
 ### Email Authentication
 
 DNS records at the domain protect deliverability and prevent spoofing.
+=======
+- HSTS: enabled at Cloudflare edge with 12-month max age, includeSubDomains, preload
+- HSTS preload: submitted to https://hstspreload.org for browser inclusion
+- DNSSEC: enabled at Cloudflare and Namecheap (DS record at registrar)
+- Bot Fight Mode: ON
+- AI bot policy: ALLOW (ChatGPT, Gemini, Perplexity can crawl for SEO)
+- DDoS protection: unmetered, automatic on free plan
+- Rate limiting rule on /api/: 15 requests per 10 seconds per IP, 10-second block
+
+### Email Authentication
+
+DNS records protect deliverability and prevent spoofing.
+>>>>>>> main
 
 - SPF: `v=spf1 include:spf.improvmx.com include:amazonses.com ~all` at @
 - DMARC: `v=DMARC1; p=none; rua=mailto:howdynashhq@gmail.com; pct=100` at _dmarc
 - DKIM: Resend's signing key at resend._domainkey
+<<<<<<< HEAD
 - Send subdomain SPF: `v=spf1 include:amazonses.com ~all` at send (Resend fallback)
 - MX: mx1.improvmx.com (priority 10) and mx2.improvmx.com (priority 20) for inbound forwarding to howdynashhq@gmail.com
+=======
+- Send subdomain SPF at send (Resend fallback)
+- MX: mx1.improvmx.com (priority 10), mx2.improvmx.com (priority 20)
+>>>>>>> main
 
 Inbound email to howdy@howdynash.com forwards to howdynashhq@gmail.com via ImprovMX.
 Outbound transactional and marketing email sends from howdy@howdynash.com via Resend.
 
+<<<<<<< HEAD
 ### API and Runtime Protections
 
 Server-side defenses inside the Vercel functions.
@@ -334,6 +366,33 @@ Server-side defenses inside the Vercel functions.
 - Reply cache for chat: 24-hour TTL, 500-entry max. Same question gets the same answer without burning tokens.
 - Cron auth for newsletter: /api/subscribe?cron=newsletter requires Bearer CRON_SECRET. Vercel attaches this automatically; nobody else can trigger sends.
 - Admin auth for manual newsletter: action=newsletter-send requires ADMIN_TOKEN body field.
+=======
+### HTTP Security Headers
+
+All set in vercel.json. Applied to every response.
+
+- Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+- X-Content-Type-Options: nosniff
+- X-Frame-Options: DENY
+- Referrer-Policy: strict-origin-when-cross-origin
+- Permissions-Policy: locks down camera, payment, USB, MIDI, sensors. Allows geolocation and microphone (used by app).
+- Content-Security-Policy: scripts from self + Skimlinks + Vercel only. Images from any HTTPS source. Frames blocked. Object/embed blocked.
+
+### API and Runtime Protections
+
+- API keys server-side only. Never exposed to browser.
+- Per-IP rate limit on /api/chat: 15 requests/day, 429 response after.
+- Per-IP rate limit on /api/subscribe: 10 signups/hour.
+- Per-IP rate limit on error reporting (action=log-error): 20/hour.
+- Daily Anthropic budget cap: $5 USD. Tracked in Upstash Redis.
+- Budget alert email at 80% of cap.
+- Reply cache for chat: 24-hour TTL, 500 entries max.
+- Body size caps: /api/chat 50KB, /api/subscribe 100KB.
+- Input validation: location lat/lng range checked, history shape validated, tripData fields capped, savedSpots field lengths capped.
+- Sanitized error responses. All 500 errors return generic "internal server error". Full error logs server-side via console.error visible in Vercel logs.
+- Cron auth for newsletter: requires Bearer CRON_SECRET (Vercel attaches automatically).
+- Admin auth for manual newsletter: requires ADMIN_TOKEN body field.
+>>>>>>> main
 
 ### Database Hygiene
 
@@ -346,18 +405,35 @@ Postgres on Vercel stores subscriber emails only. Minimum data principle.
 - Consent IP captured for CAN-SPAM compliance
 - Trip-summary recipients only added to subscribers table if they explicitly opt in
 
+<<<<<<< HEAD
 ### Monitoring
 
 - Google Alerts for "howdynash.com" and "Howdy Nash" Nashville. Catches new web mentions, press, clones, social posts.
 - Cloudflare Analytics. Real-time traffic, threat-blocked counts, top countries.
 - Vercel logs. Function invocations, errors, cron runs.
 - Resend dashboard. Email delivery, bounces, complaints.
+=======
+### Monitoring and Alerting
+
+- DIY error tracker: window.onerror handler POSTs to /api/subscribe?action=log-error. Server dedupes per fingerprint over 1 hour. Emails howdynashhq@gmail.com on first occurrence.
+- UptimeRobot: pings howdynash.com every 5 minutes. Email alert if site down for 60+ seconds.
+- Google Alerts: "howdynash.com" and "Howdy Nash" Nashville. Catches new web mentions, press, clones.
+- Cloudflare Analytics: real-time traffic and threat-blocked counts.
+- Vercel logs: function invocations, errors, cron runs.
+- Resend dashboard: email delivery, bounces, complaints.
+>>>>>>> main
 
 ### Code and Repo Security
 
 - All 9 dcdcairbnb GitHub repos are private.
+<<<<<<< HEAD
 - Branch protection on main: not enforced (single-developer org). Reconsider if collaborators added.
 - No secrets committed. Verified by grepping for API key patterns before each push.
+=======
+- Branch protection on main: not enforced (Team plan required for private repo enforcement). Solo dev discipline.
+- No secrets committed. Verified via git history audit.
+- npm audit run periodically. Dev dependency vulnerabilities (vercel CLI tree) are dev-only and don't reach production.
+>>>>>>> main
 - Vercel deployment protection (preview auth) is OFF intentionally so beta testers can access preview URLs without a Vercel login.
 
 ### iOS App Store
@@ -365,6 +441,7 @@ Postgres on Vercel stores subscriber emails only. Minimum data principle.
 - App is signed with the howdynash dev account.
 - Apple App Store Connect 2FA required by Apple (always on).
 - TestFlight invites limited to known testers.
+<<<<<<< HEAD
 - Capacitor server.url loads howdynash.com directly. App and web stay in sync, but means a bad web deploy affects iOS users immediately. Mitigation: cache version bump in sw.js + 5-minute Vercel rollback if needed.
 
 ### Things Still Open
@@ -378,17 +455,133 @@ Postgres on Vercel stores subscriber emails only. Minimum data principle.
 ### Quick Audit Commands
 
 Verify DNS records propagated correctly:
+=======
+- Capacitor server.url loads howdynash.com directly. Bad web deploys affect iOS users immediately. Mitigation: cache version bump in sw.js + 5-minute Vercel rollback.
+
+---
+
+## Key Rotation Playbook
+
+When a key leaks or you suspect compromise, rotate fast. This playbook lists every key, where to find it, where to update it, and how to verify.
+
+### General principles
+
+1. Generate the new key first. Do not invalidate the old key until the new one is deployed.
+2. Update Vercel env vars (Settings → Environment Variables → edit). Save.
+3. Trigger a redeploy: any push to main works, or use Vercel dashboard → Deployments → Redeploy on the latest deployment.
+4. Invalidate the old key only after the redeploy is live and verified.
+5. Document the rotation date in this file (or a separate ROTATIONS.md if you start doing this often).
+
+### Rotation Steps Per Service
+
+#### Anthropic API key
+
+- Where it's used: /api/chat (env var ANTHROPIC_API_KEY)
+- Where to rotate:
+  1. Open https://console.anthropic.com/settings/keys
+  2. Click "Create Key", name it "howdynash-2026-rotation" or similar
+  3. Copy the new key (starts with `sk-ant-...`)
+  4. Open Vercel → howdynash project → Settings → Environment Variables
+  5. Find ANTHROPIC_API_KEY, edit, paste new key, save
+  6. Trigger redeploy: `vercel --prod` or push any commit to main
+  7. Verify: ask the chatbot a question, confirm it works
+  8. Back at Anthropic console, delete the old key
+- Verify rotation: https://console.anthropic.com/usage shows the new key handling traffic
+
+#### Resend API key
+
+- Where it's used: /api/subscribe and /api/chat (env var RESEND_API_KEY)
+- Where to rotate:
+  1. Open https://resend.com/api-keys
+  2. Click "Create API Key", name it `howdynash-2026-rotation`
+  3. Pick "Sending access" only
+  4. Copy the key (starts with `re_...`)
+  5. Vercel → Environment Variables → RESEND_API_KEY → paste new
+  6. Save, redeploy
+  7. Verify: trigger an error from the browser console, check inbox for email
+  8. At Resend, delete the old key
+- Verify rotation: https://resend.com/emails shows recent sends from the new key
+
+#### Postgres connection string
+
+- Where it's used: /api/subscribe (env var POSTGRES_URL)
+- Where to rotate:
+  1. Vercel dashboard → Storage → your Postgres database
+  2. Settings tab → "Reset Database Password"
+  3. Vercel auto-updates the env var across all linked projects. Confirm the env var changed.
+  4. Redeploy
+  5. Verify: subscribe a test email at howdynash.com, confirm it lands in the database
+- Verify rotation: Vercel Postgres dashboard → Connections shows new active connections
+
+#### Upstash Redis (KV_REST_API_URL and KV_REST_API_TOKEN)
+
+- Where it's used: /api/chat budget tracking (env vars KV_REST_API_URL, KV_REST_API_TOKEN)
+- Where to rotate:
+  1. Open https://console.upstash.com
+  2. Click your Howdy Nash database
+  3. "Details" tab → scroll to REST API section
+  4. Click "Reset Token"
+  5. Copy the new token
+  6. Update KV_REST_API_TOKEN in Vercel env vars
+  7. (URL doesn't change unless you migrate the database, only the token)
+  8. Redeploy
+- Verify rotation: chat a few times, check Upstash → "Data Browser" → look for `chatspend:YYYY-MM-DD` keys updating
+
+#### Cloudflare API token (if you ever create one)
+
+- Where it's used: only if you build automation against Cloudflare
+- Currently not used by Howdy Nash
+- If created later: store in Vercel env var, rotate via https://dash.cloudflare.com/profile/api-tokens
+
+#### Vercel CRON_SECRET
+
+- Where it's used: /api/subscribe?cron=newsletter (env var CRON_SECRET)
+- Where to rotate:
+  1. Generate a new strong random string: `openssl rand -hex 32` in your terminal
+  2. Vercel → Environment Variables → CRON_SECRET → paste new value, save
+  3. Vercel auto-updates the cron Authorization header. No additional config.
+  4. Verify: wait for the next Friday 14:00 UTC cron run, confirm newsletter sends
+- Verify rotation: Vercel → Settings → Crons shows the next scheduled run
+
+#### ADMIN_TOKEN
+
+- Where it's used: manual newsletter trigger via /api/subscribe?action=newsletter-send
+- Where to rotate:
+  1. Generate new strong random: `openssl rand -hex 32`
+  2. Vercel → Environment Variables → ADMIN_TOKEN → paste new, save
+  3. Update any local notes/scripts that use this token
+- Verify rotation: try the manual newsletter trigger with the new token, confirm 200 response
+
+### After any rotation
+
+- Note the date and which key rotated in your password manager
+- If the rotation was due to a suspected leak, also check:
+  - Vercel logs for unusual API call patterns in the past 30 days
+  - Anthropic console usage spike
+  - Resend dashboard for unauthorized sends
+  - Upstash for unusual key activity
+- If a leak was confirmed, also rotate any account passwords associated (the Vercel/GitHub/Anthropic/Resend account passwords themselves)
+
+### Quick Audit Commands
+
+Verify DNS records:
+>>>>>>> main
 
 ```
 dig +short howdynash.com TXT @8.8.8.8
 dig +short _dmarc.howdynash.com TXT @8.8.8.8
 dig +short howdynash.com MX @8.8.8.8
 dig +short howdynash.com NS @8.8.8.8
+<<<<<<< HEAD
+=======
+dig +short howdynash.com DS @8.8.8.8
+>>>>>>> main
 ```
 
 Verify Cloudflare is fronting traffic:
 
 ```
+<<<<<<< HEAD
 curl -sI https://howdynash.com | grep -i cf-ray
 ```
 
@@ -402,6 +595,17 @@ for i in {1..20}; do curl -s -o /dev/null -w "%{http_code}\n" https://howdynash.
 
 Should return 200s up to the daily limit, then 429s.
 
+=======
+curl -sI https://www.howdynash.com | grep -i cf-ray
+```
+
+Verify HTTP security headers:
+
+```
+curl -sI https://www.howdynash.com | grep -iE "strict-transport|content-security|x-frame|x-content|referrer|permissions"
+```
+
+>>>>>>> main
 ---
 
 ## File Structure

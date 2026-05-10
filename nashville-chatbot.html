@@ -908,7 +908,7 @@ const NASHVILLE_DATA = {
     { name: "Jack's Bar-B-Que", cuisine: "BBQ", neighborhood: "Broadway", price: "$", vibe: "downtown classic, quick service", phone: "(615) 254-5715", booking: { walkin: true, yelp: "https://www.yelp.com/biz/jacks-bar-b-que-nashville" }, website: "https://jacksbarbque.com" },
     { name: "Two Ten Jack", cuisine: "Japanese izakaya", neighborhood: "East Nashville", price: "$$", vibe: "ramen and small plates", phone: "(615) 454-2731", booking: { resy: "https://resy.com/cities/nashville-tn/venues/two-ten-jack" }, website: "https://twotenjack.com" },
     { name: "Otaku Ramen", cuisine: "Ramen", neighborhood: "The Gulch", price: "$$", vibe: "Tonkotsu and tantanmen", phone: "(615) 942-8281", booking: { walkin: true, yelp: "https://www.yelp.com/biz/otaku-ramen-nashville" }, website: "https://otakuramen.com" },
-    { name: "Jinya Ramen Bar", cuisine: "Ramen", neighborhood: "Hillsboro Village", price: "$$", vibe: "Tonkotsu broth simmered 20 hours, izakaya menu", phone: "(615) 988-3811", booking: { walkin: true, yelp: "https://www.yelp.com/biz/jinya-ramen-bar-nashville" } },
+    { name: "Jinya Ramen Bar", cuisine: "Ramen", neighborhood: "Capitol View", price: "$$", vibe: "Tonkotsu broth simmered 20 hours, izakaya menu", phone: "(615) 988-3811", booking: { walkin: true, yelp: "https://www.yelp.com/biz/jinya-ramen-bar-nashville" } },
     { name: "International Market", cuisine: "Thai", neighborhood: "Belmont", price: "$", vibe: "longtime cafeteria-style Thai", phone: "(615) 297-4453", booking: { walkin: true, yelp: "https://www.yelp.com/biz/international-market-nashville" }, website: "https://internationalmarketnashville.com" },
     { name: "Mas Tacos Por Favor", cuisine: "Mexican", neighborhood: "East Nashville", price: "$", vibe: "started as a food truck, fresh tortillas", phone: "(615) 543-6271", booking: { walkin: true, yelp: "https://www.yelp.com/biz/mas-tacos-por-favor-nashville" } },
     { name: "Bakersfield", cuisine: "Mexican", neighborhood: "The Gulch", price: "$$", vibe: "tequila, tacos, mezcal", phone: "(615) 891-1500", booking: { opentable: "https://www.opentable.com/r/bakersfield-nashville" }, website: "https://bakersfieldtacos.com" },
@@ -1160,11 +1160,57 @@ const NASHVILLE_DATA = {
 
 let navHistory = [];
 let messageSnapshots = [];
+
+// Lightweight client-side error reporter. Reports uncaught errors and unhandled
+// promise rejections to /api/subscribe?action=log-error. Server dedupes per
+// hour and emails howdy@howdynash.com on first occurrence. Local rate limit
+// here prevents a buggy loop from drowning the inbox before the server sees it.
+(function setupErrorReporter() {
+  const recentLocalErrors = new Set();
+  const MAX_LOCAL_REPORTS = 5;
+  let localReportCount = 0;
+  function reportError(payload) {
+    if (localReportCount >= MAX_LOCAL_REPORTS) return;
+    const key = `${payload.message}::${payload.line}`;
+    if (recentLocalErrors.has(key)) return;
+    recentLocalErrors.add(key);
+    localReportCount++;
+    try {
+      fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'log-error', ...payload })
+      }).catch(() => {});
+    } catch (e) { /* swallow */ }
+  }
+  window.addEventListener('error', e => {
+    reportError({
+      message: String(e.message || 'unknown error').slice(0, 500),
+      stack: String(e.error && e.error.stack || '').slice(0, 2000),
+      url: String(window.location.href || '').slice(0, 500),
+      line: e.lineno || 0,
+      col: e.colno || 0
+    });
+  });
+  window.addEventListener('unhandledrejection', e => {
+    const reason = e.reason;
+    reportError({
+      message: 'Unhandled promise rejection: ' + String(reason && reason.message || reason || 'unknown').slice(0, 400),
+      stack: String(reason && reason.stack || '').slice(0, 2000),
+      url: String(window.location.href || '').slice(0, 500),
+      line: 0,
+      col: 0
+    });
+  });
+})();
+
 // Restore cached location from localStorage so it survives app kills on iOS.
-// Cache for 24 hours, then re-fetch. We also silently re-fetch on every launch
-// when permission is already granted, so the cached value is a fallback.
+// Cache for 15 minutes - long enough that a quick app switch reuses the cached
+// position (no GPS wake, no battery), short enough that a real move (drove
+// home from dinner) gets caught on next foreground.
 const LOCATION_CACHE_KEY = 'howdy-nash-location';
-const LOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const LOCATION_CACHE_TTL_MS = 15 * 60 * 1000;
+const LOCATION_STALE_MS = 15 * 60 * 1000; // re-fetch only when cache truly expired
 let userLocation = (function loadCachedLocation() {
   try {
     const raw = localStorage.getItem(LOCATION_CACHE_KEY);
@@ -1177,6 +1223,87 @@ let userLocation = (function loadCachedLocation() {
     return null;
   }
 })();
+
+// Silently refresh GPS if the cached location is stale. Called on app launch
+// and on visibilitychange (foreground). No prompts, no UI changes - if the
+// permission was already granted iOS returns position fast; otherwise it
+// silently fails and we keep the cached value.
+function refreshLocationIfStale() {
+  if (!navigator.geolocation) return;
+  let savedAt = 0;
+  try {
+    const raw = localStorage.getItem(LOCATION_CACHE_KEY);
+    if (raw) savedAt = JSON.parse(raw).savedAt || 0;
+  } catch (e) {}
+  if (Date.now() - savedAt < LOCATION_STALE_MS) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      try {
+        localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          savedAt: Date.now()
+        }));
+      } catch (e) {}
+      if (typeof updateRideLinks === 'function') updateRideLinks();
+      if (typeof syncLocationBarVisibility === 'function') syncLocationBarVisibility();
+    },
+    () => { /* permission denied or unavailable; keep cached value */ },
+    // Low-accuracy mode: Wi-Fi + cell towers, no GPS chip wake. ~50m accuracy
+    // is plenty for "X miles away" labels and barely touches the battery.
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+  );
+}
+// Refresh on app foreground (returning from another app or unlocking phone).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  refreshLocationIfStale();
+  // If the user is in an active group, poll immediately so an "ended" state
+  // shown by the leader while we were backgrounded surfaces right away
+  // instead of waiting up to 10 seconds for the next interval tick.
+  try {
+    const saved = typeof getSavedGroupSession === 'function' ? getSavedGroupSession() : null;
+    if (saved && saved.code) {
+      groupApi({ action: 'get', code: saved.code }).then(r => {
+        if (r && r.data && r.data.ended) {
+          stopGroupSession();
+          saveGroupSession(null);
+          removeGroupSessionCard(saved.code);
+          if (!saved.isLeader) {
+            showGroupEndedOverlay(saved.code);
+            try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+            playGroupAlertSound();
+          }
+        }
+      }).catch(() => {});
+    }
+  } catch (e) {}
+});
+// Refresh once on initial load so a stale cache from yesterday is replaced fast.
+setTimeout(refreshLocationIfStale, 1500);
+
+// Hide the "Share location" bar at the bottom of the screen on every launch
+// where we already have a location (cached or just refreshed). Otherwise the
+// bar shows up after the user kills and reopens the app, making it look like
+// they need to share location again even though permission was granted and
+// the cached fix is still valid.
+function syncLocationBarVisibility() {
+  const bar = document.getElementById('locationBar');
+  const btn = document.getElementById('locationBtn');
+  if (!bar) return;
+  if (userLocation) {
+    bar.style.display = 'none';
+    if (btn) btn.textContent = 'Refresh';
+  } else {
+    bar.style.display = '';
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', syncLocationBarVisibility);
+} else {
+  syncLocationBarVisibility();
+}
 
 // API config. When deployed to Vercel, leave as relative path.
 // For local dev pointing at a hosted backend, change to your Vercel URL.
@@ -1323,7 +1450,7 @@ function requestLocation() {
       btn.textContent = 'Try again';
       btn.disabled = false;
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
@@ -1515,8 +1642,9 @@ function showSavedSpots() {
     addMessage('You have no saved spots yet. Tap the star on any restaurant or attraction to save it.', 'bot');
     return;
   }
-  addMessage(`Your ${saved.length} saved spot${saved.length === 1 ? '' : 's'}:`, 'bot');
-  saved.forEach(spot => {
+  const showingNote = saved.length > 5 ? '. Showing 5 at a time' : '';
+  addMessage(`Your ${saved.length} saved spot${saved.length === 1 ? '' : 's'}${showingNote}:`, 'bot');
+  paginateMessages(saved, spot => {
     const safeName = (spot.name || '').replace(/'/g, "\\'");
     let html = `<div class="card">
       <div class="card-title">${spot.name || 'Saved spot'}</div>
@@ -1525,15 +1653,16 @@ function showSavedSpots() {
       <button onclick="removeSavedAndRefresh('${safeName}'); return false;" style="background:#999;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;margin-top:6px;font-size:12px;">Remove</button>`;
     if (spot.phone) html += `<a class="call-btn" href="tel:${spot.phone}">Call ${spot.phone}</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
+  }, 5, () => {
+    // Email-my-spots capture point. Highest engagement moment.
+    const emailCard = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
+      <div class="card-title">📧 Email me my list</div>
+      <div class="card-desc">Get your saved spots emailed to you. Forward to friends, open on any device.</div>
+      <button onclick="openSignupModal('saved-spots'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email my saved spots</button>
+    </div>`;
+    addMessage(emailCard, 'bot', true);
   });
-  // Email-my-spots capture point. Highest engagement moment.
-  const emailCard = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
-    <div class="card-title">📧 Email me my list</div>
-    <div class="card-desc">Get your saved spots emailed to you. Forward to friends, open on any device.</div>
-    <button onclick="openSignupModal('saved-spots'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email my saved spots</button>
-  </div>`;
-  addMessage(emailCard, 'bot', true);
 }
 
 // Email signup modal. Three sources: cheatsheet, saved-spots, bachelorette, general.
@@ -1927,6 +2056,9 @@ function snapshot(label) {
   // legacy hook, no longer drives back nav
 }
 function pushMenu(menuName) {
+  // New view: clear stale paginateMessages instances from the previous view so
+  // Back doesn't try to step back through DOM that's about to be cleared.
+  if (typeof clearPagedMessagesStack === 'function') clearPagedMessagesStack();
   if (menuStack[menuStack.length - 1] !== menuName) {
     menuStack.push(menuName);
   }
@@ -1946,6 +2078,24 @@ function updateBackBtn() {
 }
 
 function goBack() {
+  // Generic paginateMessages back: walk the stack of active paginated
+  // sections newest-to-oldest. The first instance that has more than its
+  // initial batch gets stepped back. If the top instance is at batch 1,
+  // unrender it and pop, then check the previous instance. This handles
+  // chained sections (e.g., curated list + "More nearby" extras) so Back
+  // works through both before falling through to menu navigation.
+  while (_pagedMessagesStack.length > 0) {
+    const top = _pagedMessagesStack[_pagedMessagesStack.length - 1];
+    if (top.stepBack && top.stepBack()) {
+      return;
+    }
+    if (top.unrender) top.unrender();
+    _pagedMessagesStack.pop();
+    // If popping this instance still leaves another paginated section on
+    // screen, try stepping that one back instead of falling through.
+    if (_pagedMessagesStack.length > 0) continue;
+    break;
+  }
   // If user is on a paged restaurants view past page 1, step back one page first
   // before popping the menu stack. Page 1 with no further history falls through
   // to normal menu navigation.
@@ -1966,10 +2116,11 @@ function goBack() {
     showEventsPaged(_pagedEventsState.events, newIdx, _pagedEventsState.container);
     return;
   }
-  // Leaving paged view, clear the tracking state.
+  // Leaving paged view, clear all tracking state.
   _pagedRestaurantsState = null;
   _pagedCuratedState = null;
   _pagedEventsState = null;
+  clearPagedMessagesStack();
 
   if (menuStack.length < 2) return;
   menuStack.pop();
@@ -1984,11 +2135,14 @@ function goBack() {
   else if (target === 'around') showGetAroundMenu(true);
   else if (target === 'essentials') showEssentialsMenu(true);
   else if (target === 'bachelorette') showBachelorette(true);
-  else if (target === 'family') showFamilyFriendly();
+  else if (target === 'family') showFamilyFriendly(true);
   else if (target === 'saved') showSavedSpots();
   else if (target === 'honkytonks') showHonkyTonks();
   else if (target === 'rehydration') showRehydration();
-  else if (target === 'photospots') showPhotoSpots();
+  else if (target === 'photospots') showPhotoSpots(true);
+  else if (target === 'freethings') showFreeThings(true);
+  else if (target === 'eastnashville') showEastNashville(true);
+  else if (target === 'linedancing') showLineDancing(true);
   else if (target === 'spas') showSpas();
   else if (target === 'shopping') showShopping();
   else if (target === 'mobileglam') showMobileGlam();
@@ -2028,7 +2182,7 @@ function navigateToSavedMenu(menuName) {
   else if (menuName === 'essentials') showEssentialsMenu(true);
   else if (menuName === 'saved') showSavedSpots();
   else if (menuName === 'bachelorette') showBachelorette(true);
-  else if (menuName === 'family') showFamilyFriendly();
+  else if (menuName === 'family') showFamilyFriendly(true);
   else showMainMenu();
 }
 
@@ -2335,10 +2489,20 @@ function routeIntent(text) {
     return;
   }
 
+<<<<<<< HEAD
   if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
     showSplitCosts();
     return;
   }
+=======
+  // Split Costs hidden in production until full testing is complete.
+  // Re-enable when ready to launch by uncommenting this block AND the
+  // '💰 Split Costs' pill in the main menu reply list.
+  // if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
+  //   showSplitCosts();
+  //   return;
+  // }
+>>>>>>> main
   if (matches(lower, ['+ add person', 'add person'])) { showAddMemberCard(); return; }
   if (matches(lower, ['+ add expense', 'add expense'])) { showAddExpenseCard(); return; }
   if (matches(lower, ['view balance'])) { showTripSummary(); return; }
@@ -3048,6 +3212,13 @@ function resetChecklistDirect() {
 
 const TRIP_STORAGE_KEY = 'howdy-nash-trip';
 
+// Basic email shape check. Server validates more strictly; this catches the
+// obvious typos at form-submit time so the user doesn't find out at the
+// "Send summary" step that an address is bad.
+function isValidEmail(s) {
+  return typeof s === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+}
+
 function getTrip() {
   try {
     const raw = localStorage.getItem(TRIP_STORAGE_KEY);
@@ -3109,6 +3280,10 @@ function createTrip() {
     addMessage('Trip name, your name, and your email are required.', 'bot');
     return;
   }
+  if (!isValidEmail(payerEmail)) {
+    addMessage('That email looks off. Use the format name@example.com.', 'bot');
+    return;
+  }
   if (!payerVenmo && !payerCashapp && !payerPaypal) {
     addMessage('Add at least one payment handle (Venmo, Cash App, or PayPal) so people can pay you back.', 'bot');
     return;
@@ -3161,19 +3336,31 @@ function showTripOverview() {
   // Members card
   html += `<div class="message bot"><div class="card"><div class="card-title">People on the trip</div>`;
   trip.members.forEach(m => {
-    html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;">
-      ${m.isPayer ? '⭐ ' : ''}${m.name}${m.email ? ` <span style="color:#888;font-size:12px;">${m.email}</span>` : ''}
+    const removeBtn = !m.isPayer
+      ? `<button onclick="removeTripMember('${m.id}');return false;" style="background:#999;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-left:6px;">Remove</button>`
+      : '';
+    html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+      <span>${m.isPayer ? '⭐ ' : ''}${m.name}${m.email ? ` <span style="color:#888;font-size:12px;">${m.email}</span>` : ''}</span>
+      <span>${removeBtn}</span>
     </div>`;
   });
   html += `</div></div>`;
   // Expenses card
   if (trip.expenses.length > 0) {
     html += `<div class="message bot"><div class="card"><div class="card-title">Expenses</div>`;
-    trip.expenses.slice(-10).reverse().forEach(e => {
+    trip.expenses.slice().reverse().forEach(e => {
       const paidBy = trip.members.find(m => m.id === e.paidBy);
-      html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;">
-        <strong>$${e.amount.toFixed(2)}</strong> ${e.description}
-        <div style="color:#888;font-size:12px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+      html += `<div style="padding:8px 0;border-top:1px solid #f0f0f0;font-size:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;">
+            <strong>$${e.amount.toFixed(2)}</strong> ${e.description}
+            <div style="color:#888;font-size:12px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <button onclick="editTripExpense('${e.id}');return false;" style="background:#444;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Edit</button>
+            <button onclick="deleteTripExpense('${e.id}');return false;" style="background:#d62828;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Delete</button>
+          </div>
+        </div>
       </div>`;
     });
     html += `</div></div>`;
@@ -3219,35 +3406,57 @@ function addMember() {
   const paypal = document.getElementById('newMemberPaypal').value.trim();
   const optIn = document.getElementById('newMemberOptIn').checked;
   if (!name || !email) { addMessage('Name and email required.', 'bot'); return; }
+  if (!isValidEmail(email)) { addMessage('That email looks off. Use the format name@example.com.', 'bot'); return; }
   trip.members.push({ id: uid(), name, email, venmo, cashapp, paypal, isPayer: false, optIn });
   saveTrip(trip);
   addMessage(`${name} added.`, 'bot');
   showTripOverview();
 }
 
-function showAddExpenseCard() {
+// Tracks which expense we're editing so addExpense can update in place
+// instead of creating a new one. Cleared after save or cancel.
+let _editingExpenseId = null;
+
+function showAddExpenseCard(prefillExpense) {
   const trip = getTrip();
   if (!trip) return;
   // Clear the chat so the form is the only thing on screen — no scroll buildup.
   if (messagesEl) messagesEl.innerHTML = '';
-  const memberOptions = trip.members.map(m => `<option value="${m.id}">${m.name}${m.isPayer ? ' (you)' : ''}</option>`).join('');
+  _editingExpenseId = prefillExpense ? prefillExpense.id : null;
+  const memberOptions = trip.members.map(m => {
+    const selected = prefillExpense && prefillExpense.paidBy === m.id ? ' selected' : '';
+    return `<option value="${m.id}"${selected}>${m.name}${m.isPayer ? ' (you)' : ''}</option>`;
+  }).join('');
+  const splitSet = prefillExpense ? new Set(prefillExpense.splitWith) : null;
+  const isEdit = !!prefillExpense;
   const wrap = document.createElement('div');
   wrap.className = 'message bot split-form-block';
   wrap.innerHTML = `<div class="card" style="border-left:4px solid #34a853;">
-    <div class="card-title">Add expense</div>
+    <div class="card-title">${isEdit ? 'Edit expense' : 'Add expense'}</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-      <input id="newExpAmount" type="number" step="0.01" min="0" placeholder="Amount (e.g., 87.50)" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
-      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newExpAmount" type="number" step="0.01" min="0" placeholder="Amount (e.g., 87.50)" value="${isEdit ? prefillExpense.amount : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" value="${isEdit ? (prefillExpense.description || '').replace(/"/g, '&quot;') : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <label style="font-size:13px;color:#555;">Paid by:</label>
       <select id="newExpPaidBy" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;">${memberOptions}</select>
       <div style="font-size:13px;color:#555;margin-top:4px;">Split between (uncheck to exclude):</div>
       <div id="splitMembers" style="display:flex;flex-direction:column;gap:6px;">
-        ${trip.members.map(m => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" checked style="width:16px;height:16px;cursor:pointer;"> ${m.name}${m.isPayer ? ' (you)' : ''}</label>`).join('')}
+        ${trip.members.map(m => {
+          const checked = !splitSet || splitSet.has(m.id) ? 'checked' : '';
+          return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" ${checked} style="width:16px;height:16px;cursor:pointer;"> ${m.name}${m.isPayer ? ' (you)' : ''}</label>`;
+        }).join('')}
       </div>
-      <button onclick="addExpense();return false;" style="background:#34a853;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin-top:8px;">Add expense</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="addExpense();return false;" style="flex:1;background:#34a853;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">${isEdit ? 'Save changes' : 'Add expense'}</button>
+        ${isEdit ? `<button onclick="cancelEditExpense();return false;" style="background:#666;color:#fff;border:none;padding:12px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Cancel</button>` : ''}
+      </div>
     </div>
   </div>`;
   messagesEl.appendChild(wrap);
+}
+
+function cancelEditExpense() {
+  _editingExpenseId = null;
+  showTripOverview();
 }
 
 function addExpense() {
@@ -3260,9 +3469,57 @@ function addExpense() {
   if (!amount || amount <= 0) { addMessage('Enter a valid amount.', 'bot'); return; }
   if (!description) { addMessage('Add a description.', 'bot'); return; }
   if (splitWith.length === 0) { addMessage('Select at least one person to split with.', 'bot'); return; }
-  trip.expenses.push({ id: uid(), amount, description, paidBy, splitWith, createdAt: Date.now() });
+  if (_editingExpenseId) {
+    const idx = trip.expenses.findIndex(e => e.id === _editingExpenseId);
+    if (idx >= 0) {
+      trip.expenses[idx] = { ...trip.expenses[idx], amount, description, paidBy, splitWith, updatedAt: Date.now() };
+    }
+    saveTrip(trip);
+    addMessage(`Updated: $${amount.toFixed(2)} ${description}`, 'bot');
+    _editingExpenseId = null;
+  } else {
+    trip.expenses.push({ id: uid(), amount, description, paidBy, splitWith, createdAt: Date.now() });
+    saveTrip(trip);
+    addMessage(`Added: $${amount.toFixed(2)} ${description}`, 'bot');
+  }
+  showTripOverview();
+}
+
+function editTripExpense(expenseId) {
+  const trip = getTrip();
+  if (!trip) return;
+  const expense = trip.expenses.find(e => e.id === expenseId);
+  if (!expense) { addMessage('Expense not found.', 'bot'); return; }
+  showAddExpenseCard(expense);
+}
+
+function deleteTripExpense(expenseId) {
+  const trip = getTrip();
+  if (!trip) return;
+  const expense = trip.expenses.find(e => e.id === expenseId);
+  if (!expense) return;
+  if (!confirm(`Delete this expense?\n\n$${expense.amount.toFixed(2)} ${expense.description}\n\nAll balances will recalculate.`)) return;
+  trip.expenses = trip.expenses.filter(e => e.id !== expenseId);
   saveTrip(trip);
-  addMessage(`Added: $${amount.toFixed(2)} ${description}`, 'bot');
+  showTripOverview();
+}
+
+function removeTripMember(memberId) {
+  const trip = getTrip();
+  if (!trip) return;
+  const member = trip.members.find(m => m.id === memberId);
+  if (!member) return;
+  if (member.isPayer) { addMessage('Cannot remove the trip starter.', 'bot'); return; }
+  // Block removal if the member is involved in any expense; user must clean
+  // those up first or it's unclear what to do with the orphan splits.
+  const involved = trip.expenses.some(e => e.paidBy === memberId || (e.splitWith || []).includes(memberId));
+  if (involved) {
+    addMessage(`${member.name} is on one or more expenses. Edit or delete those expenses first, then remove them.`, 'bot');
+    return;
+  }
+  if (!confirm(`Remove ${member.name} from the trip?`)) return;
+  trip.members = trip.members.filter(m => m.id !== memberId);
+  saveTrip(trip);
   showTripOverview();
 }
 
@@ -3279,6 +3536,49 @@ function calculateBalances(trip) {
     });
   });
   return balances;
+}
+
+// Compute per-pair debts: who each debtor owes and to whom. Walks the
+// expenses, accumulates raw obligations, then nets out mutual debts (if A
+// owes B $10 and B owes A $4, A owes B $6 net). The resulting structure is
+// per-debtor: each debtor gets the list of creditors they need to pay so
+// the email can render one pay button per creditor with the right handle.
+function calculatePairDebts(trip) {
+  const debts = {}; // debtorId -> { creditorId: amount }
+  trip.expenses.forEach(e => {
+    const sharePerPerson = e.amount / e.splitWith.length;
+    e.splitWith.forEach(memberId => {
+      if (memberId === e.paidBy) return; // never owe yourself
+      if (!debts[memberId]) debts[memberId] = {};
+      debts[memberId][e.paidBy] = (debts[memberId][e.paidBy] || 0) + sharePerPerson;
+    });
+  });
+  // Net out mutual debts symmetrically
+  Object.keys(debts).forEach(debtorId => {
+    Object.keys(debts[debtorId]).forEach(creditorId => {
+      if (!debts[creditorId] || !debts[creditorId][debtorId]) return;
+      const a = debts[debtorId][creditorId];
+      const b = debts[creditorId][debtorId];
+      if (a > b) {
+        debts[debtorId][creditorId] = a - b;
+        delete debts[creditorId][debtorId];
+      } else if (b > a) {
+        debts[creditorId][debtorId] = b - a;
+        delete debts[debtorId][creditorId];
+      } else {
+        delete debts[debtorId][creditorId];
+        delete debts[creditorId][debtorId];
+      }
+    });
+  });
+  // Drop sub-cent residue from rounding
+  Object.keys(debts).forEach(debtorId => {
+    Object.keys(debts[debtorId]).forEach(creditorId => {
+      if (debts[debtorId][creditorId] < 0.01) delete debts[debtorId][creditorId];
+    });
+    if (Object.keys(debts[debtorId]).length === 0) delete debts[debtorId];
+  });
+  return debts;
 }
 
 function showTripSummary() {
@@ -3319,11 +3619,42 @@ async function sendTripSummary() {
   if (!ok) return;
   addMessage('Sending the summary to everyone...', 'bot');
   const balances = calculateBalances(trip);
+  const pairDebts = calculatePairDebts(trip);
   const payer = trip.members.find(m => m.isPayer);
+  const memberById = id => trip.members.find(mm => mm.id === id) || null;
   let sentCount = 0, errCount = 0;
   for (const m of trip.members) {
     try {
       const memberOwes = balances[m.id] < -0.01 ? Math.abs(balances[m.id]) : 0;
+      // Per-pair settlement list. For each creditor this member needs to pay,
+      // include their name + payment handles so the email can render one
+      // pay button per creditor (Bob's Venmo, Alice's Cash App, etc.).
+      const settlements = [];
+      const myDebts = pairDebts[m.id] || {};
+      Object.keys(myDebts).forEach(creditorId => {
+        const creditor = memberById(creditorId);
+        if (!creditor) return;
+        settlements.push({
+          creditorName: creditor.name,
+          amount: Math.round(myDebts[creditorId] * 100) / 100,
+          venmo: creditor.venmo || '',
+          cashapp: creditor.cashapp || '',
+          paypal: creditor.paypal || ''
+        });
+      });
+      // For the people who are OWED money (positive net balance), also send
+      // them a list of who is paying them so they know what to expect.
+      const incoming = [];
+      Object.keys(pairDebts).forEach(debtorId => {
+        if (pairDebts[debtorId][m.id]) {
+          const debtor = memberById(debtorId);
+          if (!debtor) return;
+          incoming.push({
+            debtorName: debtor.name,
+            amount: Math.round(pairDebts[debtorId][m.id] * 100) / 100
+          });
+        }
+      });
       const r = await fetch(`${API_BASE}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3335,11 +3666,16 @@ async function sendTripSummary() {
           tripData: {
             tripName: trip.name,
             payerName: payer.name,
+            // Legacy fields kept for backward compatibility with the email
+            // template; the new settlements array drives the actual buttons.
             payerVenmo: payer.venmo,
             payerCashapp: payer.cashapp,
             payerPaypal: payer.paypal,
             memberOwes,
+            memberOwed: balances[m.id] > 0.01 ? Math.round(balances[m.id] * 100) / 100 : 0,
             isPayer: !!m.isPayer,
+            settlements, // [{ creditorName, amount, venmo, cashapp, paypal }]
+            incoming,    // [{ debtorName, amount }]
             totalSpent: trip.expenses.reduce((s, e) => s + e.amount, 0),
             expenses: trip.expenses.map(e => ({
               amount: e.amount,
@@ -3553,7 +3889,6 @@ function showThingsToDoMenu(skipPush) {
     'Family friendly',
     'Line dancing',
     'Free things to do',
-    'East Nashville gems',
     'Sports',
     'Book a tour',
     'Photo spots',
@@ -3610,8 +3945,9 @@ const CURATED_RESTROOMS = [
 ];
 
 function showRestrooms() {
+  let list = CURATED_RESTROOMS;
   if (userLocation) {
-    const list = [...CURATED_RESTROOMS].map(r => {
+    list = [...CURATED_RESTROOMS].map(r => {
       let dist = null;
       if (r.coords) dist = haversineMiles(userLocation, r.coords);
       if (dist == null && r.neighborhood) {
@@ -3620,12 +3956,11 @@ function showRestrooms() {
       }
       return { ...r, _dist: dist == null ? 9999 : dist };
     }).sort((a, b) => a._dist - b._dist);
-    addMessage(`Public restrooms (${list.length} total, closest first):`, 'bot');
-    list.forEach(r => addMessage(renderCuratedCard(r, 'public restroom', null), 'bot', true));
+    addMessage(`Public restrooms (${list.length} total, closest first). Showing 5 at a time:`, 'bot');
   } else {
-    addMessage(`Free public restrooms in Nashville (${CURATED_RESTROOMS.length} options). Tap Share location for closest first.`, 'bot');
-    CURATED_RESTROOMS.forEach(r => addMessage(renderCuratedCard(r, 'public restroom', null), 'bot', true));
+    addMessage(`Free public restrooms in Nashville (${CURATED_RESTROOMS.length} options). Tap Share location for closest first. Showing 5 at a time:`, 'bot');
   }
+  paginateMessages(list, r => renderCuratedCard(r, 'public restroom', null), 5);
 }
 
 
@@ -3810,35 +4145,38 @@ async function showCuratedThenLive(curatedList, query, type, label) {
     }
   }
 
-  addMessage(`Top Nashville ${label}:`, 'bot');
-  items.forEach(({ item, match }) => {
-    addMessage(renderCuratedCard(item, label, match), 'bot', true);
-  });
+  // Chain: render curated list first. Once user paginates through it,
+  // render the "More nearby" extras. Prevents two Show-next buttons from
+  // showing at the same time and confusing which list they belong to.
+  function renderExtras() {
+    if (!live || !live.length) return;
+    const curatedNames = new Set(curatedList.map(c => nameKey(c.name)));
+    const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 12);
+    if (extras.length === 0) return;
+    addMessage(`More ${label} nearby:`, 'bot');
+    paginateMessages(extras, s => {
+      const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
+      const ratingStr = s.rating ? `★ ${s.rating}` : '';
+      const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
+      const safeName = (s.name || '').replace(/'/g, "\\'");
+      const star = renderSaveStar({ name: s.name, note: label, address: s.address });
+      const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
+      let html = `<div class="card">
+        <div class="card-title">${star}${share}${s.name}</div>
+        <div class="card-meta">${ratingStr}${reviewStr}${distStr}</div>
+        <div class="card-desc">${s.address || ''}</div>`;
+      if (s.mapsUrl) html += `<a href="${s.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+      if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
+      html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
+      html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
+      html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
+      html += `</div>`;
+      return html;
+    });
+  }
 
-  if (!live || !live.length) return;
-  const curatedNames = new Set(curatedList.map(c => nameKey(c.name)));
-  const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 6);
-  if (extras.length === 0) return;
-  addMessage(`More ${label} nearby:`, 'bot');
-  extras.forEach(s => {
-    const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
-    const ratingStr = s.rating ? `★ ${s.rating}` : '';
-    const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
-    const safeName = (s.name || '').replace(/'/g, "\\'");
-    const star = renderSaveStar({ name: s.name, note: label, address: s.address });
-    const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
-    let html = `<div class="card">
-      <div class="card-title">${star}${share}${s.name}</div>
-      <div class="card-meta">${ratingStr}${reviewStr}${distStr}</div>
-      <div class="card-desc">${s.address || ''}</div>`;
-    if (s.mapsUrl) html += `<a href="${s.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-    if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
-    html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
-    html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-    html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
-    html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
+  addMessage(`Top Nashville ${label}. Showing 5 at a time:`, 'bot');
+  paginateMessages(items, ({ item, match }) => renderCuratedCard(item, label, match), 5, renderExtras);
 }
 
 const CURATED_HONKY_TONKS = [
@@ -4017,7 +4355,7 @@ function showHolidayBrunch(key) {
   const dateStr = holiday.getDate(new Date().getFullYear()).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   addMessage(`${holiday.emoji} ${holiday.label} is ${dateStr}.`, 'bot');
   addMessage(holiday.intro, 'bot');
-  holiday.spots.forEach(s => {
+  paginateMessages(holiday.spots, s => {
     let html = `<div class="card">
       <div class="card-title">${s.name}</div>
       <div class="card-meta">${s.neighborhood}</div>
@@ -4033,8 +4371,8 @@ function showHolidayBrunch(key) {
     }
     if (s.phone) html += `<a href="tel:${s.phone}" style="background:#34a853;color:#fff;">Call ${s.phone}</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
+    return html;
+  }, 5);
 }
 
 const CURATED_BAKERIES = [
@@ -4188,9 +4526,9 @@ const CURATED_BROADWAY_BARS = [
 ];
 
 function showBroadwayBars() {
-  addMessage("Lower Broadway is the heart of Nashville nightlife. Here are all the bars on the strip:", 'bot');
+  addMessage(`Lower Broadway is the heart of Nashville nightlife. ${CURATED_BROADWAY_BARS.length} bars on the strip. Showing 5 at a time:`, 'bot');
 
-  CURATED_BROADWAY_BARS.forEach(s => {
+  paginateMessages(CURATED_BROADWAY_BARS, s => {
     const star = renderSaveStar({ name: s.name, note: s.desc || s.neighborhood, address: s.neighborhood });
     const share = renderShareButton({ name: s.name, desc: s.desc, url: s.url || '' });
     let html = `<div class="card">
@@ -4205,10 +4543,10 @@ function showBroadwayBars() {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
+  }, 5, () => {
+    addMessage("Pro tips: Most Broadway bars have free music starting around 10am. No cover. Tip the bands. Head to upper floors for shorter waits and rooftop views. Walk the strip from 1st to 5th Ave to compare crowds.", 'bot');
   });
-
-  addMessage("Pro tips: Most Broadway bars have free music starting around 10am. No cover. Tip the bands. Head to upper floors for shorter waits and rooftop views. Walk the strip from 1st to 5th Ave to compare crowds.", 'bot');
 }
 
 const CURATED_COCKTAIL_BARS = [
@@ -4643,24 +4981,29 @@ function showMobileGlam() {
     addMessage('<div class="card"><div class="card-title">💡 Booking tip</div><div class="card-desc">Book glam 4-6 weeks ahead for weekend bachelorettes. Spray tans the day before, hair and makeup the morning of, lashes 2-3 days before for fluff time.</div></div>', 'bot', true);
   }, 600);
 }
-function showPhotoSpots() {
+function showPhotoSpots(skipPush) {
+  if (!skipPush) pushMenu('photospots');
   showCuratedThenLive(CURATED_PHOTO_SPOTS, 'instagram mural photo spot landmark', 'tourist_attraction', 'photo spots');
   setTimeout(() => addMessage(renderAmazonShopCard('creator'), 'bot', true), 600);
 }
-function showFreeThings() {
+function showFreeThings(skipPush) {
+  if (!skipPush) pushMenu('freethings');
   showCuratedThenLive(CURATED_FREE_THINGS, 'free park museum mural', 'tourist_attraction', 'free things to do');
 }
-function showEastNashville() {
+function showEastNashville(skipPush) {
+  if (!skipPush) pushMenu('eastnashville');
   showCuratedThenLive(CURATED_EAST_NASHVILLE_GEMS, 'East Nashville restaurant bar coffee', 'restaurant', 'East Nashville hidden gems');
 }
-function showFamilyFriendly() {
+function showFamilyFriendly(skipPush) {
+  if (!skipPush) pushMenu('family');
   addMessage("Nashville with kids. Music City does family well.", 'bot');
   showCuratedThenLive(CURATED_FAMILY_FRIENDLY, 'family kids attraction park zoo museum', 'tourist_attraction', 'family-friendly Nashville spots');
   setTimeout(() => {
     addMessage('<div class="card"><div class="card-title">🍗 Kids on Lower Broadway</div><div class="card-desc">Most Broadway honky tonks allow all ages until 6pm. After 6pm they switch to 21 and over. Best to do honky tonk hop before dinner with kids. Tootsie\'s, Robert\'s, and Acme Feed and Seed are the most kid-friendly during the day.</div></div>', 'bot', true);
   }, 600);
 }
-function showLineDancing() {
+function showLineDancing(skipPush) {
+  if (!skipPush) pushMenu('linedancing');
   addMessage("Where to line dance and two-step in Nashville. Wildhorse Saloon teaches free lessons every night at 7pm.", 'bot');
   showCuratedThenLive(CURATED_LINE_DANCING, 'line dancing two step country dance', 'restaurant', 'line dancing spots');
 }
@@ -4668,6 +5011,19 @@ function showLineDancing() {
 // ===== GROUP LOCATION SHARING =====
 
 const GROUP_KEY = 'howdy-nash-group-session';
+
+// Tags any chat message rendered as part of the group flow so endGroup /
+// leaveGroup can clear the whole sequence in one shot. Without this, the
+// stale "What's your name?" prompt and "Creating a group..." status text
+// stay in the chat after the user ends the session and confuse them.
+function addGroupFlowMessage(text, sender, html) {
+  const msg = addMessage(text, sender, html);
+  if (msg && msg.classList) msg.classList.add('group-flow-msg');
+  return msg;
+}
+function clearGroupFlowMessages() {
+  document.querySelectorAll('.group-flow-msg').forEach(el => el.remove());
+}
 
 function getSavedGroupSession() {
   try {
@@ -4695,17 +5051,40 @@ async function groupApi(payload) {
 async function showFindGroup() {
   const saved = getSavedGroupSession();
   if (saved && saved.code && saved.memberId) {
-    // Verify the saved group is still active before auto-resuming
-    const check = await groupApi({ action: 'get', code: saved.code });
-    if (check.ok && !check.data.ended) {
-      addMessage(`You're already in group ${saved.code}. Resuming the live map.`, 'bot');
+    // Verify the saved group is still active before auto-resuming. We only
+    // wipe the saved session for definitive "gone" responses (404, ended).
+    // Network errors, 5xx, or temporary blips keep the session so the user
+    // doesn't get kicked out of an active group just because the API hiccuped.
+    let check = null;
+    try {
+      check = await groupApi({ action: 'get', code: saved.code });
+    } catch (e) {
+      console.warn('[showFindGroup] network error checking group, resuming optimistically', e);
+    }
+    if (!check || (check.ok && !check.data.ended)) {
+      // Either the API check succeeded and group is live, OR the API call
+      // failed entirely (network). Resume the session either way; if the
+      // group is truly gone, the first poll inside showGroupSession will
+      // detect it and clean up.
+      addGroupFlowMessage(`You're already in group ${saved.code}. Resuming the live map.`, 'bot');
       setTimeout(() => showGroupSession(saved.code, saved.memberId, saved.isLeader, saved.name), 200);
       return;
     }
-    // Saved group expired or ended. Clear it and fall through to fresh menu.
-    saveGroupSession(null);
+    if (check.ok && check.data.ended) {
+      // Group was explicitly ended by the leader. Clear and show fresh menu.
+      saveGroupSession(null);
+    } else if (check.status === 404) {
+      // Group expired off the server (TTL elapsed). Clear and show fresh menu.
+      saveGroupSession(null);
+    } else {
+      // Server returned 5xx or some other error. Don't wipe the session;
+      // resume optimistically and let the poll loop figure it out.
+      addGroupFlowMessage(`Reconnecting to group ${saved.code}...`, 'bot');
+      setTimeout(() => showGroupSession(saved.code, saved.memberId, saved.isLeader, saved.name), 200);
+      return;
+    }
   }
-  addMessage("Stay connected with your group. Two options:", 'bot');
+  addGroupFlowMessage("Stay connected with your group. Two options:", 'bot');
   const html = `<div class="card">
     <div class="card-title">👯 Group Location Sharing</div>
     <div class="card-desc">Each person gets a live pin on a Nashville map. Auto-expires after the duration you pick.</div>
@@ -4713,32 +5092,53 @@ async function showFindGroup() {
     <a href="#" onclick="startGroupFlow();return false;" style="background:#d62828;color:#fff;">Start a new group</a>
     <a href="#" onclick="joinGroupFlow();return false;" style="background:#2563eb;color:#fff;">Join a group with code</a>
   </div>`;
-  addMessage(html, 'bot', true);
+  const card = addGroupFlowMessage(html, 'bot', true);
+  setTimeout(() => {
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, 100);
 }
 
 // Holds the duration chosen by the leader, applied after they enter their name.
 let pendingGroupDuration = null;
 
 function startGroupFlow() {
-  addMessage("How long should the group last?", 'bot');
-  addQuickReplies([
-    '🍹 6 hours · Tonight',
-    '🌞 12 hours · All day',
-    '🎉 24 hours · Full weekend',
-    '← Cancel'
-  ]);
+  const prompt = addGroupFlowMessage("How long should the group last?", 'bot');
+  // Anchor scroll to the new prompt so subsequent messages don't jump the
+  // user back up to the old "Group share" bubble.
+  scrollAnchor = prompt;
+  const wrap = document.createElement('div');
+  wrap.className = 'quick-replies group-flow-msg';
+  ['🍹 6 hours · Tonight', '🌞 12 hours · All day', '🎉 24 hours · Full weekend', '← Cancel'].forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-reply';
+    btn.textContent = opt;
+    btn.onclick = () => { handleUserMessage(opt); wrap.remove(); };
+    wrap.appendChild(btn);
+  });
+  messagesEl.appendChild(wrap);
+  setTimeout(() => {
+    if (prompt && typeof prompt.scrollIntoView === 'function') {
+      prompt.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, 100);
 }
 
 function promptLeaderName(durationHours) {
   pendingGroupDuration = durationHours;
-  addMessage(`Got it, ${durationHours}-hour group. What's your name? (visible to the group)`, 'bot');
+  const prompt = addGroupFlowMessage(`Got it, ${durationHours}-hour group. What's your name? (visible to the group)`, 'bot');
+  scrollAnchor = prompt;
   const html = `<div class="card">
     <div class="card-title">Your name</div>
     <input id="leaderNameInput" type="text" maxlength="40" placeholder="e.g., Megan" style="width:100%;padding:12px;font-size:16px;border:2px solid #d62828;border-radius:8px;margin:8px 0;">
     <a href="#" onclick="confirmCreateGroup();return false;" style="background:#d62828;color:#fff;">Create group</a>
   </div>`;
-  addMessage(html, 'bot', true);
+  const card = addGroupFlowMessage(html, 'bot', true);
   setTimeout(() => {
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
     const el = document.getElementById('leaderNameInput');
     if (el) el.focus();
     if (el) el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') confirmCreateGroup(); });
@@ -4754,14 +5154,14 @@ function confirmCreateGroup() {
 }
 
 function joinGroupFlow() {
-  addMessage("Enter the 4-letter group code (e.g., PARTY).", 'bot');
+  addGroupFlowMessage("Enter the 4-letter group code (e.g., PARTY).", 'bot');
   const html = `<div class="card">
     <div class="card-title">Join a group</div>
     <input id="groupCodeInput" type="text" maxlength="4" placeholder="ABCD" style="text-transform:uppercase;width:100%;padding:12px;font-size:24px;text-align:center;letter-spacing:8px;border:2px solid #d62828;border-radius:8px;margin:8px 0;">
     <input id="groupNameInput" type="text" maxlength="40" placeholder="Your name (e.g., Megan)" style="width:100%;padding:10px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin:6px 0;">
     <a href="#" onclick="submitJoinGroup();return false;" style="background:#2563eb;color:#fff;">Join group</a>
   </div>`;
-  const card = addMessage(html, 'bot', true);
+  const card = addGroupFlowMessage(html, 'bot', true);
   setTimeout(() => {
     if (card && typeof card.scrollIntoView === 'function') {
       card.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -4773,11 +5173,11 @@ function joinGroupFlow() {
 
 async function createGroupWithDuration(durationHours, leaderName) {
   const name = (leaderName || 'Group leader').slice(0, 40);
-  addMessage(`Creating a ${durationHours}-hour group...`, 'bot');
+  addGroupFlowMessage(`Creating a ${durationHours}-hour group...`, 'bot');
   const memberId = `m_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
   const r = await groupApi({ action: 'create', durationHours, leaderName: name, memberId });
   if (!r.ok) {
-    addMessage(`Could not create group: ${r.data.error || 'unknown error'}`, 'bot');
+    addGroupFlowMessage(`Could not create group: ${r.data.error || 'unknown error'}`, 'bot');
     return;
   }
   saveGroupSession({ code: r.data.code, memberId, isLeader: true, name });
@@ -4805,6 +5205,10 @@ async function submitJoinGroup() {
     return;
   }
   saveGroupSession({ code, memberId, isLeader: false, name });
+  // Register this member with the server immediately, even before location is
+  // ready, so the leader's roster shows the new joiner right away. The
+  // location update fires moments later from showGroupSession.
+  groupApi({ action: 'update', code, memberId, name }).catch(() => {});
   showGroupSession(code, memberId, false, name);
 }
 
@@ -4812,12 +5216,31 @@ let groupPollTimer = null;
 let groupGeoWatchId = null;
 
 function showGroupSession(code, memberId, isLeader, name) {
+  // Tear down any previous Leaflet instance whose container DOM was wiped by
+  // goHome / messagesEl.innerHTML = ''. Without this, renderGroupLiveMap sees
+  // groupMapInstance != null and skips re-initialising on the new card,
+  // leaving the map blank.
+  if (groupMapInstance) {
+    try { groupMapInstance.remove(); } catch (e) {}
+    groupMapInstance = null;
+    groupMapMarkers = [];
+  }
+  // Reset the join-detection counter so a stale value from a previous session
+  // doesn't trigger an unwanted scroll-into-view on this session's first render.
+  if (typeof renderGroupMembers !== 'undefined') renderGroupMembers._lastCount = 0;
+  // Also remove any orphan session card with the same code so we don't end up
+  // with duplicate #group-live-map IDs in the DOM.
+  document.querySelectorAll(`#group-session-${code}`).forEach(el => {
+    const wrap = el.closest('.message') || el;
+    wrap.remove();
+  });
   // Render the persistent session card with separate map and list containers
-  addMessage(`Group ${code} is live. Sharing your location now.`, 'bot');
+  addGroupFlowMessage(`Group ${code} is live. Sharing your location now.`, 'bot');
   const containerId = `group-session-${code}`;
   const html = `<div class="card" id="${containerId}">
     <div class="card-title">👯 Group ${code}</div>
     <div class="card-desc" id="group-status">Connecting...</div>
+    <div id="group-last-poll" style="font-size:11px;color:#888;margin-top:2px;">Connecting…</div>
     <div id="group-live-map" style="width:100%;height:300px;border-radius:8px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#888;margin:8px 0;">Loading live map...</div>
     <div id="group-members" style="margin:12px 0;"></div>
     <div id="group-actions">
@@ -4826,7 +5249,7 @@ function showGroupSession(code, memberId, isLeader, name) {
       ${isLeader ? `<button type="button" onclick="endGroup()" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;">End group</button>` : ''}
     </div>
   </div>`;
-  addMessage(html, 'bot', true);
+  addGroupFlowMessage(html, 'bot', true);
 
   // Auto-scroll to the live session card so the user lands on the map instead of
   // the join code input. addMessage normally scrolls to the bottom of the chat,
@@ -4867,7 +5290,7 @@ function showGroupSession(code, memberId, isLeader, name) {
           status.textContent = `Location not shared. Allow location to appear on the group map.`;
         }
       }
-    }, { enableHighAccuracy: true, timeout: 15000 });
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     // Then watch for movement
     groupGeoWatchId = navigator.geolocation.watchPosition(async (pos) => {
       await groupApi({
@@ -4876,7 +5299,7 @@ function showGroupSession(code, memberId, isLeader, name) {
         lat: pos.coords.latitude, lng: pos.coords.longitude
       });
     }, (err) => { /* watch errors handled by getCurrentPosition above */ },
-    { enableHighAccuracy: true, maximumAge: 15000 });
+    { enableHighAccuracy: true, maximumAge: 5000 });
   } else {
     const status = document.getElementById('group-status');
     if (status) status.textContent = `This browser does not support live location.`;
@@ -4884,49 +5307,69 @@ function showGroupSession(code, memberId, isLeader, name) {
 
   // Poll every 10 seconds
   if (groupPollTimer) clearInterval(groupPollTimer);
+  const updateLastPollLabel = (label) => {
+    const el = document.getElementById('group-last-poll');
+    if (el) {
+      const now = new Date();
+      const t = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.textContent = `${label} · ${t}`;
+    }
+  };
   const refresh = async () => {
-    const r = await groupApi({ action: 'get', code });
+    let r;
+    try {
+      r = await groupApi({ action: 'get', code });
+    } catch (e) {
+      updateLastPollLabel('Network error');
+      console.error('[group poll] network error', e);
+      return;
+    }
     if (!r.ok) {
+      updateLastPollLabel(`Server ${r.status || '?'}`);
       const status = document.getElementById('group-status');
       if (status) status.textContent = `Group ended or expired.`;
       stopGroupSession();
       saveGroupSession(null);
       return;
     }
+    updateLastPollLabel(r.data && r.data.endingAt ? 'Ending detected' : 'Updated');
     if (r.data.ended) {
       stopGroupSession();
-      // Read fresh leader status at runtime, not from the captured closure.
-      // The original leader may have transferred leadership and is now a regular
-      // member, so they should also see the "group ended" notification when the
-      // new leader ends the group.
       const liveSaved = getSavedGroupSession();
       const wasLeader = !!(liveSaved && liveSaved.isLeader);
       saveGroupSession(null);
-      // Remove the stale session card so the map and member list disappear.
       removeGroupSessionCard(code);
-      // Prominent notification card so any non-leader clearly sees the group ended.
-      if (!wasLeader) {
-        const html = `<div class="card" style="border:2px solid #d62828;background:#fff5f5;">
-          <div class="card-title" style="color:#d62828;">🛑 Group ended</div>
-          <div class="card-desc">The group leader ended the location share. Your live pin is gone and nobody in the group can see your location anymore.</div>
-          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-            <button type="button" onclick="showFindGroup();return false;" style="background:#2563eb;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Start or join another group</button>
-          </div>
-        </div>`;
-        const card = addMessage(html, 'bot', true);
-        // Try to vibrate the phone briefly so the user notices the change.
-        try { if (navigator.vibrate) navigator.vibrate(200); } catch (e) {}
-        // Scroll the notification into view.
-        setTimeout(() => {
-          if (card && typeof card.scrollIntoView === 'function') {
-            card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          }
-        }, 100);
+      // Tear down any pending end UI (banner / take-over overlay).
+      handlePendingEnd(null, code, memberId);
+      if (wasLeader) {
+        // Leader's grace period expired without anyone claiming. Reset the
+        // chat to a clean group-share start screen.
+        resetChatToFreshGroupShare('Group ended.');
+      } else {
+        // Members get the fullscreen overlay so they notice regardless of view.
+        showGroupEndedOverlay(code);
+        try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+        playGroupAlertSound();
       }
-      // Show post-session upsell (recovery brunch, plan another trip)
       showAffiliateForElapsed(999, wasLeader);
       return;
     }
+    // Detect a leader change so we can announce it. Track the previous leader
+    // ID across polls so we can name who took over when leadership flips.
+    const prevLeaderId = refresh._lastLeaderId;
+    const currentLeader = r.data.members.find(m => m.isLeader);
+    const currentLeaderId = currentLeader ? currentLeader.id : null;
+    if (prevLeaderId && currentLeaderId && prevLeaderId !== currentLeaderId) {
+      const newLeaderName = (currentLeader.name || 'A member').replace(/</g, '');
+      const saved2 = getSavedGroupSession();
+      if (!saved2 || currentLeaderId !== saved2.memberId) {
+        // Only announce to others. The new leader gets their own confirmation
+        // from claimLeader directly.
+        addMessage(`👑 ${newLeaderName} took over as the group leader. Group is back to normal.`, 'bot');
+      }
+    }
+    refresh._lastLeaderId = currentLeaderId;
+
     // Sync leader status: if the leader transferred leadership to me, update my
     // local session and patch the session card in place so I see the End group
     // button. Patching in place avoids the scroll jump from rebuilding the card.
@@ -4941,7 +5384,6 @@ function showGroupSession(code, memberId, isLeader, name) {
       if (actions) {
         const hasEnd = Array.from(actions.querySelectorAll('button')).some(b => /End group/i.test(b.textContent));
         if (nowLeader && !hasEnd) {
-          // Add End group button for the new leader.
           const endBtn = document.createElement('button');
           endBtn.type = 'button';
           endBtn.onclick = endGroup;
@@ -4949,13 +5391,14 @@ function showGroupSession(code, memberId, isLeader, name) {
           endBtn.textContent = 'End group';
           actions.appendChild(endBtn);
         } else if (!nowLeader && hasEnd) {
-          // Remove End group button when demoted.
           const endBtn = Array.from(actions.querySelectorAll('button')).find(b => /End group/i.test(b.textContent));
           if (endBtn) endBtn.remove();
         }
       }
     }
     renderGroupMembers(r.data.members, r.data.expiresAt);
+    // Pending end (grace period). Surface different UI to leader vs members.
+    handlePendingEnd(r.data.endingAt, code, memberId);
     // Time-based affiliate prompts
     const dur = r.data.durationHours || 6;
     const createdAt = r.data.expiresAt - dur * 60 * 60 * 1000;
@@ -4964,6 +5407,129 @@ function showGroupSession(code, memberId, isLeader, name) {
   };
   refresh();
   groupPollTimer = setInterval(refresh, 10000);
+}
+
+// Drives both the leader's countdown banner with Cancel button and the
+// members' "Take over" overlay during the 30s grace period after a leader
+// taps End. Cleared when endingAt is null (cancel or claim) or expired.
+let _pendingEndTicker = null;
+function handlePendingEnd(endingAt, code, memberId) {
+  if (!endingAt || endingAt <= Date.now()) {
+    if (_pendingEndTicker) { clearInterval(_pendingEndTicker); _pendingEndTicker = null; }
+    document.getElementById('group-end-banner')?.remove();
+    dismissTakeOverOverlay();
+    return;
+  }
+  const saved = getSavedGroupSession();
+  const iAmLeader = !!(saved && saved.isLeader);
+  if (iAmLeader) {
+    showLeaderEndingBanner(code, endingAt);
+  } else {
+    showTakeOverOverlay(code, endingAt);
+  }
+  if (_pendingEndTicker) clearInterval(_pendingEndTicker);
+  _pendingEndTicker = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((endingAt - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const formatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+    const leaderTimer = document.getElementById('group-end-banner-timer');
+    const memberTimer = document.getElementById('takeOverTimer');
+    if (leaderTimer) leaderTimer.textContent = formatted;
+    if (memberTimer) memberTimer.textContent = formatted;
+    if (remaining <= 0) {
+      clearInterval(_pendingEndTicker);
+      _pendingEndTicker = null;
+    }
+  }, 500);
+}
+
+function showLeaderEndingBanner(code, endingAt) {
+  let banner = document.getElementById('group-end-banner');
+  if (!banner) {
+    const card = document.getElementById(`group-session-${code}`);
+    if (!card) return;
+    banner = document.createElement('div');
+    banner.id = 'group-end-banner';
+    banner.style.cssText = 'background:#fff5f5;border:2px solid #d62828;border-radius:8px;padding:12px;margin:10px 0;text-align:center;';
+    banner.innerHTML = `
+      <div style="font-weight:700;color:#d62828;margin-bottom:4px;">Ending in <span id="group-end-banner-timer">5:00</span></div>
+      <div style="font-size:13px;color:#444;margin-bottom:10px;">Members can take over to keep the group going.</div>
+      <button type="button" onclick="cancelEndGroup()" style="background:#444;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Cancel end</button>`;
+    const status = card.querySelector('#group-status');
+    if (status && status.parentNode) {
+      status.parentNode.insertBefore(banner, status.nextSibling);
+    } else {
+      card.appendChild(banner);
+    }
+  }
+}
+
+function showTakeOverOverlay(code, endingAt) {
+  if (document.getElementById('takeOverOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'takeOverOverlay';
+  overlay.className = 'group-alert-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div class="group-alert-card" style="background:#fff;border-radius:18px;padding:32px 24px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="font-size:80px;line-height:1;margin-bottom:12px;">🛑</div>
+      <div style="font-size:26px;font-weight:800;color:#d62828;margin-bottom:8px;letter-spacing:-0.3px;">Group ${code} ended</div>
+      <div style="font-size:15px;color:#444;line-height:1.5;margin-bottom:14px;">The leader ended the group. Take over within 5 minutes to keep it going for everyone.</div>
+      <div style="font-size:14px;color:#666;margin-bottom:20px;">Time left: <strong style="color:#d62828;font-size:18px;"><span id="takeOverTimer">5:00</span></strong></div>
+      <button type="button" onclick="claimLeader()" style="background:#d62828;color:#fff;border:none;padding:16px 22px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;width:100%;margin-bottom:10px;">Take over as leader</button>
+      <button type="button" onclick="dismissTakeOverOverlay()" style="background:#999;color:#fff;border:none;padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;font-size:14px;width:100%;">Let it end</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+  playGroupAlertSound();
+  // Repeat the alert twice in 5 seconds in case the user is moving the phone
+  // around or has it stuffed in a pocket.
+  let pulses = 0;
+  const pulseId = setInterval(() => {
+    if (!document.getElementById('takeOverOverlay') || pulses >= 2) {
+      clearInterval(pulseId);
+      return;
+    }
+    try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+    playGroupAlertSound();
+    pulses++;
+  }, 2400);
+  overlay._pulseId = pulseId;
+}
+function dismissTakeOverOverlay() {
+  const o = document.getElementById('takeOverOverlay');
+  if (o) {
+    if (o._pulseId) clearInterval(o._pulseId);
+    o.remove();
+  }
+}
+
+// Three short ascending beeps via Web Audio API. No external file needed.
+// iOS may block playback if no user gesture exists in the session; we try
+// anyway and fail silently. Vibration always fires regardless.
+function playGroupAlertSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const tones = [660, 880, 990];
+    tones.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.18;
+      const stop = start + 0.16;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, stop);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(stop + 0.05);
+    });
+    setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1500);
+  } catch (e) { /* audio unavailable, vibrate alone */ }
 }
 
 // Tracks which time-based affiliate prompts have been shown this session.
@@ -5051,17 +5617,37 @@ function stopGroupSession() {
 function ensureLeafletLoaded() {
   if (window.L) return Promise.resolve();
   if (window._leafletLoading) return window._leafletLoading;
-  window._leafletLoading = new Promise((resolve, reject) => {
-    const css = document.createElement('link');
-    css.rel = 'stylesheet';
-    css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(css);
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+  // Try unpkg first; fall back to cdnjs if it fails (CSP, outage, blocked).
+  // Each CDN gets its own pair of CSS+JS so the map still loads when one
+  // provider is unavailable on the user's network.
+  const SOURCES = [
+    { js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' },
+    { js: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js', css: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css' },
+    { js: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', css: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css' }
+  ];
+  function tryLoad(idx) {
+    return new Promise((resolve, reject) => {
+      if (idx >= SOURCES.length) {
+        reject(new Error('All Leaflet CDNs failed. Check Content-Security-Policy and network.'));
+        return;
+      }
+      const src = SOURCES[idx];
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = src.css;
+      document.head.appendChild(css);
+      const s = document.createElement('script');
+      s.src = src.js;
+      s.onload = () => resolve();
+      s.onerror = () => {
+        console.warn(`[group map] Leaflet load failed from ${src.js}, trying next CDN...`);
+        try { document.head.removeChild(s); document.head.removeChild(css); } catch (e) {}
+        tryLoad(idx + 1).then(resolve).catch(reject);
+      };
+      document.head.appendChild(s);
+    });
+  }
+  window._leafletLoading = tryLoad(0);
   return window._leafletLoading;
 }
 
@@ -5071,7 +5657,13 @@ let groupMapMarkers = [];
 async function renderGroupLiveMap(members) {
   const mapDiv = document.getElementById('group-live-map');
   if (!mapDiv) return;
-  await ensureLeafletLoaded();
+  try {
+    await ensureLeafletLoaded();
+  } catch (err) {
+    console.warn('[group map] Leaflet unavailable, using SVG fallback:', err);
+    renderGroupSvgFallbackMap(mapDiv, members);
+    return;
+  }
   const withCoords = members.filter(m => m.lat != null && m.lng != null);
   if (!withCoords.length) {
     mapDiv.innerHTML = '<div style="padding:14px;color:#888;text-align:center;">No members have shared location yet.</div>';
@@ -5104,37 +5696,134 @@ async function renderGroupLiveMap(members) {
   // Clear old markers
   groupMapMarkers.forEach(m => groupMapInstance.removeLayer(m));
   groupMapMarkers = [];
-  // Add new markers with labels
-  const bounds = [];
+  // Group together pins whose coordinates are within ~15 meters. GPS error
+  // alone can drift readings 10-50m even for two phones in the same room, so
+  // collapsing very-close pins into one stops two friends from looking like
+  // they're on opposite sides of a city block.
+  const NEAR_DEG = 0.00015; // roughly 16-17 meters at Nashville latitude
+  const clusters = [];
   withCoords.forEach(m => {
-    const safeName = (m.name || 'Friend').replace(/</g, '');
-    const star = m.isLeader ? '⭐ ' : '';
+    const cluster = clusters.find(c =>
+      Math.abs(c.lat - m.lat) < NEAR_DEG && Math.abs(c.lng - m.lng) < NEAR_DEG
+    );
+    if (cluster) {
+      cluster.members.push(m);
+    } else {
+      clusters.push({ lat: m.lat, lng: m.lng, members: [m] });
+    }
+  });
+  // Add markers, one per cluster. If multiple members share a cluster, the
+  // pin label shows their combined names and the popup lists each separately.
+  const bounds = [];
+  clusters.forEach(cluster => {
+    const isLeaderCluster = cluster.members.some(m => m.isLeader);
+    const labelMembers = cluster.members.map(m => (m.isLeader ? '⭐ ' : '') + (m.name || 'Friend').replace(/</g, ''));
+    const labelText = cluster.members.length === 1
+      ? labelMembers[0]
+      : `${cluster.members.length} together: ${labelMembers.join(' + ')}`;
     const icon = L.divIcon({
       className: 'group-pin',
-      html: `<div style="background:${m.isLeader ? '#d62828' : '#2563eb'};color:#fff;padding:4px 10px;border-radius:14px;font-size:13px;font-weight:600;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${star}${safeName}</div>`,
+      html: `<div style="background:${isLeaderCluster ? '#d62828' : '#2563eb'};color:#fff;padding:4px 10px;border-radius:14px;font-size:13px;font-weight:600;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${labelText}</div>`,
       iconSize: null,
       iconAnchor: [0, 0]
     });
-    const marker = L.marker([m.lat, m.lng], { icon }).addTo(groupMapInstance);
-    // Popup with one-tap open in Google Maps for directions to this member
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=walking`;
-    const driveUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=driving`;
-    marker.bindPopup(`
-      <div style="text-align:center;font-size:14px;min-width:160px;">
-        <div style="font-weight:600;margin-bottom:8px;">${star}${safeName}</div>
-        <a href="${mapsUrl}" target="_blank" rel="noopener" style="display:block;background:#34a853;color:#fff;padding:8px;border-radius:6px;text-decoration:none;margin-bottom:6px;font-weight:600;">🚶 Walk in Google Maps</a>
-        <a href="${driveUrl}" target="_blank" rel="noopener" style="display:block;background:#2563eb;color:#fff;padding:8px;border-radius:6px;text-decoration:none;font-weight:600;">🚗 Drive in Google Maps</a>
-      </div>
-    `);
+    const marker = L.marker([cluster.lat, cluster.lng], { icon }).addTo(groupMapInstance);
+    // Popup: per-member nav links. If the cluster includes the current user,
+    // skip them since you don't navigate to yourself.
+    const saved = getSavedGroupSession();
+    const myId = saved && saved.memberId;
+    let popupHtml = '<div style="text-align:center;font-size:14px;min-width:200px;">';
+    cluster.members.forEach(m => {
+      const star = m.isLeader ? '⭐ ' : '';
+      const safe = (m.name || 'Friend').replace(/</g, '');
+      const isMe = m.id === myId;
+      popupHtml += `<div style="font-weight:600;margin:6px 0 6px;">${star}${safe}${isMe ? ' (you)' : ''}</div>`;
+      if (!isMe) {
+        const walk = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=walking`;
+        const drive = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=driving`;
+        popupHtml += `<a href="${walk}" target="_blank" rel="noopener" style="display:block;background:#34a853;color:#fff;padding:6px;border-radius:6px;text-decoration:none;margin-bottom:4px;font-weight:600;font-size:13px;">🚶 Walk in Google Maps</a>`;
+        popupHtml += `<a href="${drive}" target="_blank" rel="noopener" style="display:block;background:#2563eb;color:#fff;padding:6px;border-radius:6px;text-decoration:none;margin-bottom:8px;font-weight:600;font-size:13px;">🚗 Drive in Google Maps</a>`;
+      }
+    });
+    popupHtml += '</div>';
+    marker.bindPopup(popupHtml);
     groupMapMarkers.push(marker);
-    bounds.push([m.lat, m.lng]);
+    bounds.push([cluster.lat, cluster.lng]);
   });
-  // Fit map to all markers
+  // Fit map to all markers. maxZoom:14 keeps close pins from looking far
+  // apart due to GPS error - at zoom 16 a 50m drift looks like opposite
+  // sides of a block, at zoom 14 it looks like the same neighborhood.
   if (bounds.length === 1) {
-    groupMapInstance.setView(bounds[0], 15);
+    groupMapInstance.setView(bounds[0], 14);
   } else if (bounds.length > 1) {
-    groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
   }
+}
+
+// Self-contained SVG fallback when Leaflet can't load. Plots each member as a
+// labelled dot inside a bounding box of the group. Not a real street map, but
+// works offline, no CSP issues, no external library. Tap a pin to open that
+// member's location in Google Maps for real navigation.
+function renderGroupSvgFallbackMap(mapDiv, members) {
+  const withCoords = (members || []).filter(m => m.lat != null && m.lng != null);
+  if (!withCoords.length) {
+    mapDiv.innerHTML = '<div style="padding:14px;color:#888;text-align:center;">No members have shared location yet.</div>';
+    return;
+  }
+  // Compute bounding box with a little padding so pins aren't on the edges
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  withCoords.forEach(m => {
+    minLat = Math.min(minLat, m.lat); maxLat = Math.max(maxLat, m.lat);
+    minLng = Math.min(minLng, m.lng); maxLng = Math.max(maxLng, m.lng);
+  });
+  // If everyone is at the same spot, give the box a small radius so the dot is centered
+  if (minLat === maxLat) { minLat -= 0.005; maxLat += 0.005; }
+  if (minLng === maxLng) { minLng -= 0.005; maxLng += 0.005; }
+  const padLat = (maxLat - minLat) * 0.18;
+  const padLng = (maxLng - minLng) * 0.18;
+  minLat -= padLat; maxLat += padLat; minLng -= padLng; maxLng += padLng;
+
+  const W = 600, H = 300;
+  const project = (lat, lng) => {
+    const x = ((lng - minLng) / (maxLng - minLng)) * W;
+    // Latitude flips because SVG y grows downward
+    const y = (1 - (lat - minLat) / (maxLat - minLat)) * H;
+    return { x, y };
+  };
+
+  // Background grid + compass cue. Three vertical and three horizontal lines.
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;background:#eef3f7;border-radius:8px;">
+    <rect width="${W}" height="${H}" fill="#eef3f7"/>`;
+  for (let i = 1; i < 4; i++) {
+    svg += `<line x1="${W * i / 4}" y1="0" x2="${W * i / 4}" y2="${H}" stroke="#d6dde3" stroke-width="1"/>`;
+    svg += `<line x1="0" y1="${H * i / 4}" x2="${W}" y2="${H * i / 4}" stroke="#d6dde3" stroke-width="1"/>`;
+  }
+  svg += `<text x="8" y="18" fill="#888" font-size="11" font-family="system-ui">N ↑</text>`;
+  svg += `<text x="${W - 90}" y="${H - 8}" fill="#888" font-size="10" font-family="system-ui">Live group map</text>`;
+
+  // Pins. Leader gets a red dot, others get blue. Name label sits above the dot.
+  withCoords.forEach(m => {
+    const { x, y } = project(m.lat, m.lng);
+    const color = m.isLeader ? '#d62828' : '#2563eb';
+    const safeName = (m.name || 'Friend').replace(/</g, '').replace(/>/g, '').slice(0, 24);
+    const star = m.isLeader ? '⭐ ' : '';
+    svg += `<g>
+      <circle cx="${x}" cy="${y}" r="9" fill="${color}" stroke="#fff" stroke-width="2.5"/>
+      <rect x="${x - 50}" y="${y - 32}" width="100" height="20" rx="10" fill="${color}"/>
+      <text x="${x}" y="${y - 18}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="system-ui">${star}${safeName}</text>
+    </g>`;
+  });
+  svg += `</svg>`;
+
+  mapDiv.style.height = '300px';
+  mapDiv.style.display = 'block';
+  mapDiv.style.background = '';
+  mapDiv.style.color = '';
+  mapDiv.style.padding = '0';
+  mapDiv.innerHTML = svg + `
+    <div style="font-size:11px;color:#888;text-align:center;padding:6px 8px;">
+      Simplified map. Tap any member below for turn-by-turn directions in Google Maps.
+    </div>`;
 }
 
 function renderGroupMembers(members, expiresAt) {
@@ -5157,8 +5846,11 @@ function renderGroupMembers(members, expiresAt) {
     const ageStr = ageMin < 1 ? 'now' : `${ageMin}m ago`;
     const dot = m.lat != null ? '🟢' : '⚪';
     const star = m.isLeader ? ' ⭐' : '';
+    const isMe = !!(saved && m.id === saved.memberId);
+    const youTag = isMe ? ' <span style="color:#888;font-size:12px;">(you)</span>' : '';
     let actions = '';
-    if (m.lat != null && m.lng != null) {
+    // Skip walk/drive buttons on your own row. Nobody navigates to themselves.
+    if (m.lat != null && m.lng != null && !isMe) {
       const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=walking`;
       const driveUrl = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}&travelmode=driving`;
       actions = `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -5166,21 +5858,40 @@ function renderGroupMembers(members, expiresAt) {
         <a href="${driveUrl}" target="_blank" rel="noopener" style="background:#2563eb;color:#fff;padding:6px 10px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">🚗 Drive (Google Maps)</a>
       </div>`;
     }
-    // Leader-only: button to promote this member to leader.
+    // Leader-only: button to promote another member to leader. Never on self.
     let promote = '';
-    if (iAmLeader && !m.isLeader && m.id && saved && m.id !== saved.memberId) {
+    if (iAmLeader && !m.isLeader && m.id && !isMe) {
       const safeId = String(m.id).replace(/'/g, "\\'");
       const safeMemberName = (m.name || 'Friend').replace(/'/g, "\\'");
       promote = `<div style="margin-top:6px;">
         <button type="button" onclick="promoteToLeader('${safeId}','${safeMemberName}')" style="background:#d62828;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">👑 Make leader</button>
       </div>`;
     }
-    h += `<li style="padding:8px 0;border-bottom:1px solid #eee;">${dot} <strong>${(m.name || 'Friend').replace(/</g,'')}</strong>${star} <span style="color:#888;font-size:12px;">· ${ageStr}</span>${actions}${promote}</li>`;
+    h += `<li style="padding:8px 0;border-bottom:1px solid #eee;">${dot} <strong>${(m.name || 'Friend').replace(/</g,'')}</strong>${star}${youTag} <span style="color:#888;font-size:12px;">· ${ageStr}</span>${actions}${promote}</li>`;
   });
   h += '</ul>';
   el.innerHTML = h;
   // Update map markers (map container is persistent and managed separately)
   renderGroupLiveMap(members);
+  // If a new member joined since the last render, scroll the live session
+  // card back into view so the leader sees the new pin on the map without
+  // having to scroll up. Also briefly highlights the map with a flash so it
+  // catches the eye.
+  const prev = renderGroupMembers._lastCount || 0;
+  if (members.length > prev && prev > 0) {
+    const card = document.querySelector('[id^="group-session-"]');
+    if (card && typeof card.scrollIntoView === 'function') {
+      setTimeout(() => card.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
+    }
+    const mapEl = document.getElementById('group-live-map');
+    if (mapEl) {
+      mapEl.style.transition = 'box-shadow 0.4s ease';
+      mapEl.style.boxShadow = '0 0 0 4px #d62828';
+      setTimeout(() => { mapEl.style.boxShadow = ''; }, 1200);
+    }
+    try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {}
+  }
+  renderGroupMembers._lastCount = members.length;
 }
 
 function promoteToLeader(newLeaderId, newLeaderName) {
@@ -5200,7 +5911,16 @@ function promoteToLeader(newLeaderId, newLeaderName) {
       <button type="button" onclick="cancelPromoteToLeader(this)" style="background:#666;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Cancel</button>
     </div>
   </div>`;
-  addMessage(html, 'bot', true);
+  const card = addMessage(html, 'bot', true);
+  // Anchor the scroll to this new confirmation card so addMessage's auto-scroll
+  // doesn't jump back to a stale earlier message (which was making the page
+  // jump up to the user's own name in the member list).
+  scrollAnchor = card;
+  setTimeout(() => {
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, 80);
 }
 
 function dismissTransferLeaderCards(originBtn) {
@@ -5229,14 +5949,23 @@ async function confirmPromoteToLeader(newLeaderId, newLeaderName, originBtn) {
   }
   // Hide the confirmation card right away so the user sees a clean state.
   dismissTransferLeaderCards(originBtn);
-  const r = await groupApi({
-    action: 'transferLeader',
-    code: saved.code,
-    memberId: saved.memberId,
-    newLeaderId
-  });
-  if (!r.ok) {
-    addMessage(`Could not transfer leadership: ${r.data?.error || 'unknown error'}`, 'bot');
+  let r;
+  try {
+    r = await groupApi({
+      action: 'transferLeader',
+      code: saved.code,
+      memberId: saved.memberId,
+      newLeaderId
+    });
+  } catch (err) {
+    console.error('[transferLeader] network error', err);
+    addMessage(`Could not transfer leadership: network error. Check your connection and try again.`, 'bot');
+    return;
+  }
+  if (!r || !r.ok) {
+    const msg = (r && r.data && (r.data.error || r.data.detail)) || 'unknown error';
+    console.error('[transferLeader] server error', r && r.status, r && r.data);
+    addMessage(`Could not transfer leadership: ${msg}`, 'bot');
     return;
   }
   // Update local saved session so this user is no longer the leader.
@@ -5321,6 +6050,68 @@ async function nativeShareGroupCode(code) {
   } catch (e) { /* user cancelled */ }
 }
 
+// Fullscreen alert shown to non-leader members when the leader ends the
+// group. Pulsing red background, large icon, repeating vibration and sound
+// until the user dismisses. Impossible to miss even if the phone is sitting
+// face-down on a table.
+function showGroupEndedOverlay(code) {
+  if (document.getElementById('groupEndedOverlay')) return;
+  // Inject the pulse animation keyframes once.
+  if (!document.getElementById('groupAlertStyles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'groupAlertStyles';
+    styleEl.textContent = `
+      @keyframes groupAlertPulse {
+        0%, 100% { background: rgba(214, 40, 40, 0.85); }
+        50% { background: rgba(120, 20, 20, 0.95); }
+      }
+      @keyframes groupAlertShake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-6px); }
+        40% { transform: translateX(6px); }
+        60% { transform: translateX(-4px); }
+        80% { transform: translateX(4px); }
+      }
+      .group-alert-overlay { animation: groupAlertPulse 1.4s ease-in-out infinite; }
+      .group-alert-card { animation: groupAlertShake 0.6s ease-in-out; }
+    `;
+    document.head.appendChild(styleEl);
+  }
+  const overlay = document.createElement('div');
+  overlay.id = 'groupEndedOverlay';
+  overlay.className = 'group-alert-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div class="group-alert-card" style="background:#fff;border-radius:18px;padding:32px 24px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="font-size:80px;line-height:1;margin-bottom:12px;">🛑</div>
+      <div style="font-size:28px;font-weight:800;color:#d62828;margin-bottom:10px;letter-spacing:-0.5px;">Group ${code} ended</div>
+      <div style="font-size:15px;color:#444;line-height:1.5;margin-bottom:24px;">The group leader ended the location share. Your live pin is gone and nobody in the group can see your location anymore.</div>
+      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare('Group ended. Your pin is gone.');" style="background:#d62828;color:#fff;border:none;padding:16px 22px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;width:100%;margin-bottom:10px;">OK, got it</button>
+      <button type="button" onclick="dismissGroupEndedOverlay(); resetChatToFreshGroupShare();" style="background:#2563eb;color:#fff;border:none;padding:16px 22px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;width:100%;">Start or join another group</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Repeat the vibration + sound 3 times over 6 seconds until the user
+  // notices. Stops automatically on dismiss.
+  let pulses = 0;
+  const pulseId = setInterval(() => {
+    if (!document.getElementById('groupEndedOverlay') || pulses >= 3) {
+      clearInterval(pulseId);
+      return;
+    }
+    try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+    playGroupAlertSound();
+    pulses++;
+  }, 2200);
+  overlay._pulseId = pulseId;
+}
+function dismissGroupEndedOverlay() {
+  const o = document.getElementById('groupEndedOverlay');
+  if (o) {
+    if (o._pulseId) clearInterval(o._pulseId);
+    o.remove();
+  }
+}
+
 function removeGroupSessionCard(code) {
   // Remove the persistent session card so the user sees the leave/end took effect.
   const card = document.getElementById(`group-session-${code}`);
@@ -5338,21 +6129,121 @@ async function leaveGroup() {
   stopGroupSession();
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
-  addMessage('You left the group. Your pin is gone.', 'bot');
-  // Show the create / join menu again so the user can rejoin or start a new group.
-  setTimeout(() => { if (typeof showFindGroup === 'function') showFindGroup(); }, 80);
+  resetGroupFlowState();
+  resetChatToFreshGroupShare('You left the group. Your pin is gone.');
 }
 
 async function endGroup() {
   const saved = getSavedGroupSession();
   if (!saved) return;
-  if (!confirm('End the group for everyone? This kicks all members off the live map.')) return;
-  await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
+  if (!confirm('End the group? You will leave right now. Members get an alert with 5 minutes to take over and keep the group going. If nobody takes over, the group ends for everyone.')) return;
+  const r = await groupApi({ action: 'end', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    alert(`Could not end the group: ${r.data && r.data.error ? r.data.error : 'unknown error'}. Try again.`);
+    return;
+  }
   stopGroupSession();
   saveGroupSession(null);
   removeGroupSessionCard(saved.code);
-  addMessage('Group ended. Everyone is off the live map.', 'bot');
-  setTimeout(() => { if (typeof showFindGroup === 'function') showFindGroup(); }, 80);
+  resetGroupFlowState();
+  resetChatToFreshGroupShare('You ended the group. Members have 5 minutes to take over. If nobody does, the group ends for everyone.');
+}
+
+async function cancelEndGroup() {
+  const saved = getSavedGroupSession();
+  if (!saved) return;
+  const r = await groupApi({ action: 'cancelEnd', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    alert(`Could not cancel: ${r.data && r.data.error ? r.data.error : 'unknown error'}.`);
+    return;
+  }
+  // Tear down the local pending-end UI immediately.
+  handlePendingEnd(null, saved.code, saved.memberId);
+}
+
+async function claimLeader() {
+  const saved = getSavedGroupSession();
+  if (!saved) return;
+  const r = await groupApi({ action: 'claimLeader', code: saved.code, memberId: saved.memberId });
+  if (!r.ok) {
+    // 409 = someone else beat us to it. Friendlier copy than the raw error.
+    if (r.status === 409) {
+      dismissTakeOverOverlay();
+      addMessage('Someone else already took over the group. You are still in the group as a regular member.', 'bot');
+      return;
+    }
+    alert(r.data && r.data.error ? r.data.error : 'Could not take over the group.');
+    return;
+  }
+  // We are now the leader. Update local session, dismiss the overlay, and
+  // re-render the member roster with the response data so the star moves
+  // onto our row immediately instead of waiting up to 10 seconds for the
+  // next poll.
+  saveGroupSession({ ...saved, isLeader: true });
+  dismissTakeOverOverlay();
+  if (r.data && Array.isArray(r.data.members)) {
+    const expiresAt = Date.now() + 60 * 1000;
+    renderGroupMembers(r.data.members, expiresAt);
+  }
+  // Tear down the pending-end UI for everyone (banner + ticker).
+  handlePendingEnd(null, saved.code, saved.memberId);
+  addMessage('You are now the group leader. Group is back to normal.', 'bot');
+  // Patch the End group button into the existing session card so the new
+  // leader sees it without rebuilding the whole card.
+  const card = document.getElementById(`group-session-${saved.code}`);
+  const actions = card && card.querySelector('#group-actions');
+  if (actions) {
+    const hasEnd = Array.from(actions.querySelectorAll('button')).some(b => /End group/i.test(b.textContent));
+    if (!hasEnd) {
+      const endBtn = document.createElement('button');
+      endBtn.type = 'button';
+      endBtn.onclick = endGroup;
+      endBtn.style.cssText = 'background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin:4px;';
+      endBtn.textContent = 'End group';
+      actions.appendChild(endBtn);
+    }
+  }
+}
+
+// Wipe the entire chat and land on a clean group-share start screen. Prevents
+// the user from scrolling up to see the previous group's messages, name
+// prompts, or session card. Menu stack is reset so Back/Home behave correctly.
+function resetChatToFreshGroupShare(banner) {
+  clearGroupFlowMessages();
+  if (messagesEl) messagesEl.innerHTML = '';
+  messageSnapshots = [];
+  scrollAnchor = null;
+  menuStack = ['main'];
+  saveMenuState();
+  updateBackBtn();
+  if (banner) addMessage(banner, 'bot');
+  if (typeof showFindGroup === 'function') showFindGroup();
+  if (messagesEl) messagesEl.scrollTop = 0;
+}
+
+// Clear any half-filled leader / join inputs so the new flow starts clean.
+function resetGroupFlowState() {
+  if (typeof pendingGroupDuration !== 'undefined') pendingGroupDuration = null;
+  ['leaderNameInput', 'groupCodeInput', 'groupNameInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+// Scroll the chat to the freshly rendered "Stay connected" create/join card
+// so the user lands on it. Falls back to scrolling to the chat bottom.
+function scrollToFindGroupCard() {
+  const cards = messagesEl ? messagesEl.querySelectorAll('.card .card-title') : [];
+  for (let i = cards.length - 1; i >= 0; i--) {
+    if (cards[i].textContent.includes('Group Location Sharing')) {
+      const wrap = cards[i].closest('.message') || cards[i].closest('.card');
+      if (wrap && typeof wrap.scrollIntoView === 'function') {
+        wrap.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return;
+      }
+    }
+  }
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 function showBachelorette(skipPush) {
   if (!skipPush) pushMenu('bachelorette');
@@ -5586,7 +6477,7 @@ function showBachelorette(skipPush) {
     }
   ];
 
-  cards.forEach(c => {
+  paginateMessages(cards, c => {
     // Compute distance from user to the card's neighborhood center, if any
     let metaLine = '';
     if (c.mobile) {
@@ -5615,17 +6506,18 @@ function showBachelorette(skipPush) {
       }
     });
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
+  }, 5, () => {
+    // After all bachelorette cards have been paginated, show the closing
+    // pro tip and the email signup card.
+    addMessage("Pro tip: book Bluebird and party buses 4 to 6 weeks ahead for weekend bachelorettes. They sell out.", 'bot');
+    const card = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
+      <div class="card-title">📧 Email me the full bachelorette planner</div>
+      <div class="card-desc">All of this in one PDF, plus packing list, group photo spots, and Sunday recovery brunch picks. Forward to your group.</div>
+      <button onclick="openSignupModal('bachelorette'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email me the planner</button>
+    </div>`;
+    addMessage(card, 'bot', true);
   });
-
-  addMessage("Pro tip: book Bluebird and party buses 4 to 6 weeks ahead for weekend bachelorettes. They sell out.", 'bot');
-  // Bachelorette email capture. Highest-LTV segment.
-  const card = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
-    <div class="card-title">📧 Email me the full bachelorette planner</div>
-    <div class="card-desc">All of this in one PDF, plus packing list, group photo spots, and Sunday recovery brunch picks. Forward to your group.</div>
-    <button onclick="openSignupModal('bachelorette'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email me the planner</button>
-  </div>`;
-  addMessage(card, 'bot', true);
 }
 
 function getTimeContext() {
@@ -5990,15 +6882,14 @@ function showTours() {
     }
   ];
 
-  categories.forEach(c => {
-    const html = `<div class="card">
+  paginateMessages(categories, c => {
+    return `<div class="card">
       <div class="card-title">${c.title}</div>
       <div class="card-desc">${c.desc}</div>
       <a href="${c.viator}" target="_blank" rel="noopener" style="background:#328e3a;">Browse on Viator</a>
       <a href="${c.gyg}" target="_blank" rel="noopener" style="background:#ff5533;">Browse on GetYourGuide</a>
       <a href="${c.expedia}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;">Browse on Expedia</a>
     </div>`;
-    addMessage(html, 'bot', true);
   });
 }
 
@@ -6362,8 +7253,8 @@ async function showStoreType(query, type, label) {
     addMessage(`No ${label} found nearby. Try sharing your location or check Google Maps.`, 'bot');
     return;
   }
-  addMessage(`Found ${list.length} ${label} ${userLocation ? 'sorted by distance' : 'in Nashville'}:`, 'bot');
-  list.slice(0, 8).forEach(s => {
+  addMessage(`Found ${list.length} ${label} ${userLocation ? 'sorted by distance' : 'in Nashville'}. Showing 5 at a time:`, 'bot');
+  paginateMessages(list, s => {
     const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
     const ratingStr = s.rating ? `★ ${s.rating}` : '';
     const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
@@ -6380,7 +7271,7 @@ async function showStoreType(query, type, label) {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 }
 
@@ -6465,11 +7356,76 @@ function daysUntilFestival(festival) {
 }
 
 async function showFestivals() {
-  addMessage("Nashville festivals coming up next:", 'bot');
+  addMessage("Nashville festivals coming up next. Showing 5 at a time:", 'bot');
 
-  // Sort by next occurrence so the soonest festival appears first.
+  // Fetch live festivals first so we can chain after the curated pagination.
+  let fresh = [];
+  try {
+    const [scraperRes, apiRes] = await Promise.all([
+      fetch(`${API_BASE}/api/festivals?source=visitmusiccity`, { signal: AbortSignal.timeout(10000) }).catch(() => null),
+      fetch(`${API_BASE}/api/festivals${userLocation ? '?lat=' + userLocation.lat + '&lng=' + userLocation.lng : ''}`, { signal: AbortSignal.timeout(10000) }).catch(() => null)
+    ]);
+    let liveEvents = [];
+    if (scraperRes && scraperRes.ok) {
+      const data = await scraperRes.json();
+      (data.events || []).forEach(e => liveEvents.push({
+        name: e.name, date: e.date, venue: e.venue, url: e.url, source: 'Visit Music City'
+      }));
+    }
+    if (apiRes && apiRes.ok) {
+      const data = await apiRes.json();
+      (data.festivals || []).slice(0, 10).forEach(e => liveEvents.push({
+        name: e.name, date: e.date, venue: e.venue, url: e.url, source: 'Ticketmaster'
+      }));
+    }
+    const curatedNames = new Set(CURATED_NASHVILLE_FESTIVALS.map(f => f.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)));
+    const seen = new Set(curatedNames);
+    for (const e of liveEvents) {
+      const key = (e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      fresh.push(e);
+      if (fresh.length >= 15) break;
+    }
+  } catch (e) {
+    console.warn('live festivals fetch failed', e);
+  }
+
+  // Render local sources card at the very end of the chain
+  function renderLocalSources() {
+    const localSources = `<div class="card">
+      <div class="card-title">More Nashville events</div>
+      <div class="card-desc">For the complete local calendar:</div>
+      <a href="https://www.visitmusiccity.com/nashville-events/upcoming-events" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Visit Music City</a>
+      <a href="https://nashvilleguru.com/nashville-events" target="_blank" rel="noopener" style="background:#444;color:#fff;">Nashville Guru</a>
+      <a href="https://www.nashvillescene.com/calendar" target="_blank" rel="noopener" style="background:#777;color:#fff;">Nashville Scene</a>
+    </div>`;
+    addMessage(localSources, 'bot', true);
+  }
+
+  // After curated pagination completes, render the live events block, then
+  // local sources card.
+  function renderLiveFestivalsThenSources() {
+    if (fresh.length === 0) {
+      renderLocalSources();
+      return;
+    }
+    addMessage(`Plus ${fresh.length} live events from Visit Music City and Ticketmaster. Showing 5 at a time:`, 'bot');
+    paginateMessages(fresh, f => {
+      const star = renderSaveStar({ name: f.name, note: f.date, address: f.venue });
+      const share = renderShareButton({ name: f.name, desc: `${f.date || ''} at ${f.venue || 'Nashville'}`, url: f.url || '' });
+      let html = `<div class="card">
+        <div class="card-title">${star}${share}${f.name}</div>
+        <div class="card-meta">${f.date || 'TBA'}${f.venue ? ' · ' + f.venue : ''} · via ${f.source}</div>`;
+      if (f.url) html += `<a href="${f.url}" target="_blank" rel="noopener">Event details</a>`;
+      html += `</div>`;
+      return html;
+    }, 5, renderLocalSources);
+  }
+
+  // Sort curated by next occurrence and paginate. Chain via onComplete.
   const sorted = [...CURATED_NASHVILLE_FESTIVALS].sort((a, b) => daysUntilFestival(a) - daysUntilFestival(b));
-  sorted.forEach(f => {
+  paginateMessages(sorted, f => {
     const dateLabel = f.dates || f.month;
     const star = renderSaveStar({ name: f.name, note: dateLabel, address: f.venue });
     const share = renderShareButton({ name: f.name, desc: `${dateLabel} - ${f.venue}`, url: f.url || '' });
@@ -6481,78 +7437,8 @@ async function showFestivals() {
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(f.venue + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
-
-  // Live data: pull from Visit Music City scraper plus our combined feeds.
-  try {
-    // Both feeds now come from /api/festivals (the visitmusiccity scraper was merged
-    // into festivals.js to stay under Vercel Hobby's 12-function limit).
-    const [scraperRes, apiRes] = await Promise.all([
-      fetch(`${API_BASE}/api/festivals?source=visitmusiccity`, { signal: AbortSignal.timeout(10000) }).catch(() => null),
-      fetch(`${API_BASE}/api/festivals${userLocation ? '?lat=' + userLocation.lat + '&lng=' + userLocation.lng : ''}`, { signal: AbortSignal.timeout(10000) }).catch(() => null)
-    ]);
-
-    let liveEvents = [];
-    if (scraperRes && scraperRes.ok) {
-      const data = await scraperRes.json();
-      (data.events || []).forEach(e => liveEvents.push({
-        name: e.name,
-        date: e.date,
-        venue: e.venue,
-        url: e.url,
-        source: 'Visit Music City'
-      }));
-    }
-    if (apiRes && apiRes.ok) {
-      const data = await apiRes.json();
-      (data.festivals || []).slice(0, 10).forEach(e => liveEvents.push({
-        name: e.name,
-        date: e.date,
-        venue: e.venue,
-        url: e.url,
-        source: 'Ticketmaster'
-      }));
-    }
-
-    // Dedupe against curated list and self.
-    const curatedNames = new Set(CURATED_NASHVILLE_FESTIVALS.map(f => f.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)));
-    const seen = new Set(curatedNames);
-    const fresh = [];
-    for (const e of liveEvents) {
-      const key = (e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      fresh.push(e);
-      if (fresh.length >= 15) break;
-    }
-
-    if (fresh.length > 0) {
-      addMessage(`Plus ${fresh.length} live events from Visit Music City and Ticketmaster:`, 'bot');
-      fresh.forEach(f => {
-        const star = renderSaveStar({ name: f.name, note: f.date, address: f.venue });
-        const share = renderShareButton({ name: f.name, desc: `${f.date || ''} at ${f.venue || 'Nashville'}`, url: f.url || '' });
-        let html = `<div class="card">
-          <div class="card-title">${star}${share}${f.name}</div>
-          <div class="card-meta">${f.date || 'TBA'}${f.venue ? ' · ' + f.venue : ''} · via ${f.source}</div>`;
-        if (f.url) html += `<a href="${f.url}" target="_blank" rel="noopener">Event details</a>`;
-        html += `</div>`;
-        addMessage(html, 'bot', true);
-      });
-    }
-  } catch (e) {
-    console.warn('live festivals fetch failed', e);
-  }
-
-  // Always show local source links so users can dig deeper
-  const localSources = `<div class="card">
-    <div class="card-title">More Nashville events</div>
-    <div class="card-desc">For the complete local calendar:</div>
-    <a href="https://www.visitmusiccity.com/nashville-events/upcoming-events" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Visit Music City</a>
-    <a href="https://nashvilleguru.com/nashville-events" target="_blank" rel="noopener" style="background:#444;color:#fff;">Nashville Guru</a>
-    <a href="https://www.nashvillescene.com/calendar" target="_blank" rel="noopener" style="background:#777;color:#fff;">Nashville Scene</a>
-  </div>`;
-  addMessage(localSources, 'bot', true);
+    return html;
+  }, 5, renderLiveFestivalsThenSources);
 }
 
 function showDeliveryOptions() {
@@ -6620,6 +7506,10 @@ function renderRestaurantCard(r) {
   if (b.yelp) html += `<a class="yelp-btn" href="${b.yelp}" target="_blank">Yelp</a>`;
   if (r.website) html += `<a href="${r.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
   if (r.phone) html += `<a class="call-btn" href="tel:${r.phone}">Call ${r.phone}</a>`;
+  // Google Maps link. Walking, transit, and driving directions in one tap.
+  const mapsQuery = r.address ? `${r.name}, ${r.address}` : `${r.name} Nashville TN${r.neighborhood ? ' ' + r.neighborhood : ''}`;
+  const mapsUrl = r.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+  html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
   html += `<a class="doordash-btn" href="#" onclick="return rideClick('doordash','${safeName}',event)">DoorDash</a>`;
   html += `<a class="ubereats-btn" href="#" onclick="return rideClick('ubereats','${safeName}',event)">Uber Eats</a>`;
   html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
@@ -6756,6 +7646,116 @@ async function showRestaurants(list, header) {
 // can step backward through pages before popping to the previous menu.
 let _pagedEventsState = null;
 
+// Stack of active paginateMessages instances in the current view. The global
+// Back button walks this stack from newest to oldest, stepping back any
+// instance that has multiple batches. When an instance has only its first
+// batch left, that batch (and its Next button) is removed and the previous
+// instance is stepped back. Cleared on view change via clearPagedMessagesStack.
+let _pagedMessagesStack = [];
+function clearPagedMessagesStack() { _pagedMessagesStack = []; }
+
+// Generic forward-only paginator for chat-style lists. Shows 5 items, then a
+// "Show next N" button that loads the next batch in line.
+//
+// onComplete fires once the user reaches the end of the list. Use this to
+// chain follow-up sections so multiple paginated lists in the same view don't
+// render simultaneously.
+//
+// Back-button support: each instance tracks its batches in a shared stack.
+// goBack walks the stack newest-to-oldest and steps back the first instance
+// that has anything to undo (or fully removes a single-batch instance and
+// continues to the previous one).
+function paginateMessages(items, renderHtmlFn, pageSize = 5, onComplete) {
+  if (!items || items.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const instance = {
+    batches: [],
+    idx: 0,
+    pageSize,
+    currentNextBtnWrap: null
+  };
+  _pagedMessagesStack.push(instance);
+  let isFirstBatch = true;
+
+  function renderNextButton() {
+    if (instance.idx >= items.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+    const remaining = items.length - instance.idx;
+    const showCount = Math.min(pageSize, remaining);
+    const btnId = 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    instance.currentNextBtnWrap = addMessage(`<div class="quick-replies"><button id="${btnId}" class="quick-reply">Show next ${showCount} of ${remaining} more →</button></div>`, 'bot', true);
+    setTimeout(() => {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const wrap = btn.closest('.message') || btn.parentElement;
+        if (wrap) wrap.remove();
+        instance.currentNextBtnWrap = null;
+        renderBatch();
+      });
+    }, 50);
+  }
+
+  function renderBatch() {
+    const slice = items.slice(instance.idx, instance.idx + pageSize);
+    const batchEls = [];
+    let firstNewElement = null;
+    slice.forEach(item => {
+      const html = renderHtmlFn(item);
+      if (html) {
+        const el = addMessage(html, 'bot', true);
+        batchEls.push(el);
+        if (firstNewElement == null) firstNewElement = el;
+      }
+    });
+    instance.batches.push(batchEls);
+    instance.idx += pageSize;
+
+    if (!isFirstBatch && firstNewElement) {
+      scrollAnchor = firstNewElement;
+      setTimeout(() => {
+        try { firstNewElement.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+        catch (e) { /* older safari */ }
+      }, 60);
+    }
+    isFirstBatch = false;
+
+    renderNextButton();
+  }
+
+  // Step back one batch within this instance. Returns true on success.
+  instance.stepBack = () => {
+    if (instance.batches.length <= 1) return false;
+    const lastBatch = instance.batches.pop();
+    lastBatch.forEach(el => el && el.remove());
+    if (instance.currentNextBtnWrap) {
+      instance.currentNextBtnWrap.remove();
+      instance.currentNextBtnWrap = null;
+    }
+    instance.idx = Math.max(0, instance.idx - pageSize);
+    renderNextButton();
+    return true;
+  };
+
+  // Fully unrender this instance: remove all its batches + Next button.
+  // Caller-added headers (e.g., "More nearby:") are NOT removed here since
+  // paginateMessages doesn't know about them.
+  instance.unrender = () => {
+    instance.batches.forEach(b => b.forEach(el => el && el.remove()));
+    instance.batches = [];
+    if (instance.currentNextBtnWrap) {
+      instance.currentNextBtnWrap.remove();
+      instance.currentNextBtnWrap = null;
+    }
+  };
+
+  renderBatch();
+}
+
 // Paginate live music events 5 at a time, like restaurants/bakeries.
 function showEventsPaged(events, startIdx, pageContainer) {
   const isRerender = !!pageContainer;
@@ -6831,48 +7831,8 @@ async function showLiveMusic() {
   } else {
     addMessage("Nashville is built on live music. Pulling upcoming concerts...", 'bot');
   }
-  // Kick off venue calendar scrape in parallel with the main fetch
-  fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
-    if (!data || !data.events || !data.events.length) return;
-    addMessage(`Plus ${data.events.length} shows scraped from iconic Nashville venues:`, 'bot');
-    data.events.slice(0, 20).forEach(e => {
-      const dateStr = e.date || 'Date TBA';
-      const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
-      let html = `<div class="card">
-        <div class="card-title">${e.name}</div>
-        <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
-      if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
-      html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
-      html += `</div>`;
-      addMessage(html, 'bot', true);
-    });
-  }).catch(() => { /* venue scrape failed silently */ });
 
-  // First, try to pull live concert lineups from the events API
-  if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
-    try {
-      const live = await apiSearchEvents('', 'Music');
-      if (live && live.length) {
-        // Sort by date ascending, then by distance if user location is set
-        const sorted = [...live].sort((a, b) => {
-          const dateA = a.date || '9999-12-31';
-          const dateB = b.date || '9999-12-31';
-          if (dateA !== dateB) return dateA.localeCompare(dateB);
-          const distA = a.distanceMiles ?? 9999;
-          const distB = b.distanceMiles ?? 9999;
-          return distA - distB;
-        });
-        const capped = sorted.slice(0, 50);
-        const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
-        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 per page.`, 'bot');
-        showEventsPaged(capped, 0);
-        addMessage("Plus the always-on live music spots:", 'bot');
-      }
-    } catch (e) {
-      console.warn('live music API failed', e);
-    }
-  }
-  const venues = [
+  const ALWAYS_ON_VENUES = [
     { name: "Lower Broadway Honky Tonks", neighborhood: "Lower Broadway", desc: "Free live music starting at 10am daily. Tootsie's, Robert's, Acme, Legends Corner.", url: null },
     { name: "Grand Ole Opry", neighborhood: "Opry Mills", desc: "The institution. Shows Tue, Fri, Sat. Get tickets in advance.", url: "https://www.opry.com" },
     { name: "Bluebird Cafe", neighborhood: "Green Hills", desc: "Intimate songwriter rounds in Green Hills. Reservations open weeks ahead.", url: "https://bluebirdcafe.com" },
@@ -6892,41 +7852,115 @@ async function showLiveMusic() {
     { name: "Marathon Music Works", neighborhood: "Marathon Village", desc: "Mid-size venue in Marathon Village. National touring acts.", url: "https://www.marathonmusicworks.com" },
     { name: "Cannery Hall", neighborhood: "Wedgewood-Houston", desc: "Reopened 2024. Multi-room music venue in old cannery building.", url: "https://canneryhall.com" }
   ];
-  let enrichedVenues = venues.map(v => ({ item: v, match: null, dist: null }));
-  if (apiServices.google && userLocation) {
+
+  // Render always-on venues with distance enrichment. Last step in the chain.
+  async function renderAlwaysOnVenues() {
+    let enrichedVenues = ALWAYS_ON_VENUES.map(v => ({ item: v, match: null, dist: null }));
+    if (apiServices.google && userLocation) {
+      try {
+        const liveVenues = await apiSearchPlaces('live music venue concert hall', '');
+        enrichedVenues = ALWAYS_ON_VENUES.map(v => ({ item: v, match: findLiveMatch(v, liveVenues), dist: null }));
+      } catch (e) { /* enrichment optional */ }
+    }
+    if (userLocation) {
+      enrichedVenues = enrichedVenues.map(x => {
+        let dist = x.match?.distanceMiles ?? null;
+        if (dist == null && x.item.neighborhood) {
+          const nb = neighborhoodCoords(x.item.neighborhood);
+          if (nb) dist = haversineMiles(userLocation, nb);
+        }
+        return { ...x, dist };
+      });
+      enrichedVenues.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
+    }
+    addMessage("Plus the always-on live music spots:", 'bot');
+    paginateMessages(enrichedVenues, ({ item: v, match, dist }) => {
+      const isApprox = dist != null && match?.distanceMiles == null;
+      const distStr = dist != null ? ` · 📍 ${dist} mi${isApprox ? ' (approx)' : ''}` : '';
+      const ratingStr = match && match.rating ? `★ ${match.rating}` : '';
+      const star = renderSaveStar({ name: v.name, note: v.desc, address: match?.address || v.neighborhood || 'Nashville' });
+      const share = renderShareButton({ name: v.name, desc: v.desc, url: v.url || '' });
+      let html = `<div class="card">
+        <div class="card-title">${star}${share}${v.name}</div>
+        ${ratingStr || distStr ? `<div class="card-meta">${v.neighborhood || ''}${ratingStr || distStr ? ' · ' + ratingStr + distStr : ''}</div>` : (v.neighborhood ? `<div class="card-meta">${v.neighborhood}</div>` : '')}
+        <div class="card-desc">${v.desc}</div>`;
+      if (v.url) html += `<a href="${v.url}" target="_blank">Get tickets</a>`;
+      html += `</div>`;
+      return html;
+    });
+  }
+
+  // Render iconic venue calendar (paginated) then chain to always-on venues.
+  function renderVenueCalendarThenAlwaysOn() {
+    fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null).then(data => {
+      if (data && data.events && data.events.length) {
+        const slice = data.events.slice(0, 20);
+        addMessage(`Plus ${slice.length} shows scraped from iconic Nashville venues. Showing 5 at a time:`, 'bot');
+        paginateMessages(slice, e => {
+          const dateStr = e.date || 'Date TBA';
+          const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
+          let html = `<div class="card">
+            <div class="card-title">${e.name}</div>
+            <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
+          if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
+          html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+          html += `</div>`;
+          return html;
+        }, 5, renderAlwaysOnVenues);
+      } else {
+        renderAlwaysOnVenues();
+      }
+    }).catch(() => renderAlwaysOnVenues());
+  }
+
+  // Pull API events. If we have any, paginate them and chain via onComplete.
+  // If none, skip directly to venue calendar + always-on.
+  if (apiServices.ticketmaster || apiServices.seatgeek || apiServices.eventbrite) {
     try {
-      const liveVenues = await apiSearchPlaces('live music venue concert hall', '');
-      enrichedVenues = venues.map(v => ({ item: v, match: findLiveMatch(v, liveVenues), dist: null }));
+      const live = await apiSearchEvents('', 'Music');
+      if (live && live.length) {
+        const sorted = [...live].sort((a, b) => {
+          const dateA = a.date || '9999-12-31';
+          const dateB = b.date || '9999-12-31';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          const distA = a.distanceMiles ?? 9999;
+          const distB = b.distanceMiles ?? 9999;
+          return distA - distB;
+        });
+        // Cap at 25 so the user reaches the always-on section in 5 clicks max.
+        const capped = sorted.slice(0, 25);
+        const sortLabel = userLocation ? 'by date, closest first when same day' : 'by date';
+        addMessage(`${capped.length} upcoming Nashville concerts, sorted ${sortLabel}. Showing 5 at a time:`, 'bot');
+        paginateMessages(capped, e => {
+          const dateStr = e.date ? new Date(e.date + 'T' + (e.time || '19:00')).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
+          const timeStr = e.time ? ' at ' + new Date('2000-01-01T' + e.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+          const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
+          const star = renderSaveStar({ name: e.name, note: `${dateStr}${timeStr} · ${e.venue || ''}`, address: e.venue || '' });
+          const share = renderShareButton({ name: e.name, desc: `${dateStr}${timeStr} at ${e.venue || 'Nashville'}`, url: e.url || '' });
+          const artistEncoded = encodeURIComponent(e.name || '');
+          const spotifyUrl = `https://open.spotify.com/search/${artistEncoded}`;
+          let card = `<div class="card">
+            <div class="card-title">${star}${share}${e.name}</div>
+            <div class="card-meta">${dateStr}${timeStr} · ${e.venue || ''}${distStr}</div>
+            ${e.priceMin ? `<div class="card-desc" style="font-size:12px;">From $${e.priceMin}</div>` : ''}`;
+          if (e.url) card += `<a href="${e.url}" target="_blank" rel="noopener">Get tickets</a>`;
+          const tnSearch = `https://www.ticketnetwork.com/search?q=${encodeURIComponent(e.name + ' Nashville')}`;
+          card += `<a href="${tnSearch}" target="_blank" rel="noopener" style="background:#0a3d62;color:#fff;">Resale on TicketNetwork</a>`;
+          card += `<a href="${spotifyUrl}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
+          card += `</div>`;
+          return card;
+        }, 5, () => {
+          // After events fully paginated, chain to venue calendar + always-on
+          renderVenueCalendarThenAlwaysOn();
+        });
+        return;
+      }
     } catch (e) {
-      console.warn('venue distance enrichment failed', e);
+      console.warn('live music API failed', e);
     }
   }
-  // Compute distance with neighborhood fallback
-  if (userLocation) {
-    enrichedVenues = enrichedVenues.map(x => {
-      let dist = x.match?.distanceMiles ?? null;
-      if (dist == null && x.item.neighborhood) {
-        const nb = neighborhoodCoords(x.item.neighborhood);
-        if (nb) dist = haversineMiles(userLocation, nb);
-      }
-      return { ...x, dist };
-    });
-    enrichedVenues.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
-  }
-  enrichedVenues.forEach(({ item: v, match, dist }) => {
-    const isApprox = dist != null && match?.distanceMiles == null;
-    const distStr = dist != null ? ` · 📍 ${dist} mi${isApprox ? ' (approx)' : ''}` : '';
-    const ratingStr = match && match.rating ? `★ ${match.rating}` : '';
-    const star = renderSaveStar({ name: v.name, note: v.desc, address: match?.address || v.neighborhood || 'Nashville' });
-    const share = renderShareButton({ name: v.name, desc: v.desc, url: v.url || '' });
-    let html = `<div class="card">
-      <div class="card-title">${star}${share}${v.name}</div>
-      ${ratingStr || distStr ? `<div class="card-meta">${v.neighborhood || ''}${ratingStr || distStr ? ' · ' + ratingStr + distStr : ''}</div>` : (v.neighborhood ? `<div class="card-meta">${v.neighborhood}</div>` : '')}
-      <div class="card-desc">${v.desc}</div>`;
-    if (v.url) html += `<a href="${v.url}" target="_blank">Get tickets</a>`;
-    html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
+  // Fallback when no API events: render venue calendar + always-on directly.
+  renderVenueCalendarThenAlwaysOn();
 }
 
 async function showEvents() {
@@ -6934,8 +7968,8 @@ async function showEvents() {
     addMessage("Pulling live events from Ticketmaster...", 'bot');
     const live = await apiSearchEvents('', '');
     if (live && live.length) {
-      addMessage(`${live.length} upcoming Nashville events:`, 'bot');
-      live.slice(0, 10).forEach(e => {
+      addMessage(`${live.length} upcoming Nashville events. Showing 5 at a time:`, 'bot');
+      paginateMessages(live, e => {
         const dateStr = e.date + (e.time ? ' at ' + e.time : '');
         const distStr = e.distanceMiles != null ? ` · 📍 ${e.distanceMiles} mi` : '';
         const star = renderSaveStar({ name: e.name, note: `${dateStr} · ${e.venue || ''}`, address: e.venue || '' });
@@ -6946,19 +7980,19 @@ async function showEvents() {
           <div class="card-desc">${e.genre || e.classification || ''}${e.priceMin ? ' · From $' + e.priceMin : ''}</div>`;
         if (e.url) html += `<a href="${e.url}" target="_blank">Get tickets</a>`;
         html += `</div>`;
-        addMessage(html, 'bot', true);
+        return html;
       });
       return;
     }
   }
-  addMessage("Here's what's happening around town:", 'bot');
-  NASHVILLE_DATA.events.forEach(e => {
+  addMessage("Here's what's happening around town. Showing 5 at a time:", 'bot');
+  paginateMessages(NASHVILLE_DATA.events, e => {
     let html = `<div class="card">
       <div class="card-title">${e.name}</div>
       <div class="card-meta">${e.date} · ${e.venue}</div>`;
     if (e.url) html += `<a href="${e.url}" target="_blank">Tickets & info</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
+    return html;
   });
 }
 
@@ -6991,8 +8025,36 @@ async function showAttractions() {
     attractions.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
 
-  addMessage("Top Nashville attractions:", 'bot');
-  attractions.forEach(({ item: a, match, dist, approx }) => {
+  // Chain: render curated attractions first. Once user finishes paginating,
+  // render the "More nearby attractions" extras. Avoids two Show-next buttons
+  // appearing simultaneously.
+  function renderExtras() {
+    if (!live || !live.length) return;
+    try {
+      const curatedNames = new Set(NASHVILLE_DATA.attractions.map(a => nameKey(a.name)));
+      const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 12);
+      if (extras.length === 0) return;
+      addMessage(`${extras.length} more nearby attractions:`, 'bot');
+      paginateMessages(extras, a => {
+        const distStr = a.distanceMiles != null ? ` · 📍 ${a.distanceMiles} mi` : '';
+        const star = renderSaveStar({ name: a.name, note: 'Nashville attraction', address: a.address || '' });
+        const share = renderShareButton({ name: a.name, desc: a.address || 'Nashville attraction', url: a.website || a.mapsUrl || '' });
+        let html = `<div class="card">
+          <div class="card-title">${star}${share}${a.name}</div>
+          <div class="card-meta">${a.rating ? '★' + a.rating : ''} ${a.reviewCount ? '(' + a.reviewCount + ' reviews)' : ''}${distStr}</div>
+          <div class="card-desc">${a.address || ''}</div>`;
+        if (a.mapsUrl) html += `<a href="${a.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+        if (a.website) html += `<a href="${a.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
+        html += `</div>`;
+        return html;
+      });
+    } catch (e) {
+      console.warn('attractions extras failed', e);
+    }
+  }
+
+  addMessage("Top Nashville attractions. Showing 5 at a time:", 'bot');
+  paginateMessages(attractions, ({ item: a, match, dist, approx }) => {
     const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
     const ratingStr = match && match.rating ? ` · ★ ${match.rating}` : '';
     const star = renderSaveStar({ name: a.name, note: a.type, address: match?.address || a.neighborhood || 'Nashville' });
@@ -7005,8 +8067,6 @@ async function showAttractions() {
     if (a.url) html += `<a href="${a.url}" target="_blank">Learn more</a>`;
     const mapsUrl = match?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(a.name + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-    // Tiqets and GetYourGuide for skip-the-line tickets and guided tours.
-    // Drive auto-tags both URLs.
     const tiqetsUrl = `https://www.tiqets.com/en/search?q=${encodeURIComponent(a.name + ' Nashville')}`;
     const gygUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(a.name + ' Nashville')}`;
     html += `<a href="${tiqetsUrl}" target="_blank" rel="noopener" style="background:#ff5722;color:#fff;">Book on Tiqets</a>`;
@@ -7015,32 +8075,8 @@ async function showAttractions() {
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
-
-  // Then add live API attractions if available.
-  if (!live || !live.length) return;
-  try {
-    const curatedNames = new Set(NASHVILLE_DATA.attractions.map(a => nameKey(a.name)));
-    const extras = live.filter(a => a.name && !curatedNames.has(nameKey(a.name))).slice(0, 8);
-    if (extras.length === 0) return;
-    addMessage(`${extras.length} more nearby attractions:`, 'bot');
-    extras.forEach(a => {
-      const distStr = a.distanceMiles != null ? ` · 📍 ${a.distanceMiles} mi` : '';
-      const star = renderSaveStar({ name: a.name, note: 'Nashville attraction', address: a.address || '' });
-      const share = renderShareButton({ name: a.name, desc: a.address || 'Nashville attraction', url: a.website || a.mapsUrl || '' });
-      let html = `<div class="card">
-        <div class="card-title">${star}${share}${a.name}</div>
-        <div class="card-meta">${a.rating ? '★' + a.rating : ''} ${a.reviewCount ? '(' + a.reviewCount + ' reviews)' : ''}${distStr}</div>
-        <div class="card-desc">${a.address || ''}</div>`;
-      if (a.mapsUrl) html += `<a href="${a.mapsUrl}" target="_blank">Open in Maps</a>`;
-      if (a.website) html += `<a href="${a.website}" target="_blank">Website</a>`;
-      html += `</div>`;
-      addMessage(html, 'bot', true);
-    });
-  } catch (e) {
-    console.warn('attractions API failed', e);
-  }
+    return html;
+  }, 5, renderExtras);
 }
 
 function showNeighborhoods(text) {
@@ -7181,25 +8217,28 @@ const NEIGHBORHOOD_GUIDES = [
 
 function showNeighborhoodsExplorer() {
   pushMenu('neighborhoods');
-  addMessage("Nashville neighborhoods. Tap one to see what to eat, drink, shop, and see there.", 'bot');
-  NEIGHBORHOOD_GUIDES.forEach((n, idx) => {
-    let dist = '';
+  addMessage(`Nashville neighborhoods (${NEIGHBORHOOD_GUIDES.length}). Tap one to see what to eat, drink, shop, and see there. Showing 5 at a time:`, 'bot');
+  // Sort by distance when location is available so closest neighborhoods come first
+  let withIdx = NEIGHBORHOOD_GUIDES.map((n, idx) => {
+    let miles = null;
     if (userLocation) {
       const nb = neighborhoodCoords(n.key) || neighborhoodCoords(n.name);
-      if (nb) {
-        const miles = haversineMiles(userLocation, nb);
-        if (miles != null) dist = ` · 📍 ${miles} mi`;
-      }
+      if (nb) miles = haversineMiles(userLocation, nb);
     }
-    // Use index-based menu name to dodge keys with spaces or hyphens
-    const html = `<div class="card">
+    return { n, idx, miles };
+  });
+  if (userLocation) {
+    withIdx.sort((a, b) => (a.miles ?? 9999) - (b.miles ?? 9999));
+  }
+  paginateMessages(withIdx, ({ n, idx, miles }) => {
+    const dist = miles != null ? ` · 📍 ${miles} mi` : '';
+    return `<div class="card">
       <div class="card-title">${n.emoji} ${n.name}</div>
       <div class="card-meta">${n.vibe}${dist}</div>
       <div class="card-desc">${n.blurb}</div>
       <a href="#" onclick="navAction(() => showNeighborhoodDetailByIndex(${idx}), 'neighborhood-${idx}', 'Neighborhoods');return false;" style="background:#d62828;color:#fff;">Explore ${n.name}</a>
     </div>`;
-    addMessage(html, 'bot', true);
-  });
+  }, 5);
 }
 
 function showNeighborhoodDetailByIndex(idx) {
@@ -7315,8 +8354,9 @@ function showFilteredAttractions(items, header) {
     addMessage('No attractions curated for this neighborhood yet.', 'bot');
     return;
   }
-  addMessage(`${header} (${items.length})`, 'bot');
-  items.forEach(a => {
+  const showingNote = items.length > 5 ? '. Showing 5 at a time' : '';
+  addMessage(`${header} (${items.length})${showingNote}`, 'bot');
+  paginateMessages(items, a => {
     const star = renderSaveStar({ name: a.name, note: a.type || '', address: a.neighborhood || 'Nashville' });
     const share = renderShareButton({ name: a.name, desc: a.desc || a.type || '', url: a.url || '' });
     let html = `<div class="card">
@@ -7327,8 +8367,8 @@ function showFilteredAttractions(items, header) {
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(a.name + ' Nashville TN')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     html += `</div>`;
-    addMessage(html, 'bot', true);
-  });
+    return html;
+  }, 5);
 }
 
 // Generic helper: render a pre-filtered curated list using the standard card.
@@ -7337,7 +8377,6 @@ function showFilteredCurated(items, header) {
     addMessage('Nothing curated for this filter yet.', 'bot');
     return;
   }
-  addMessage(`${header} (${items.length})`, 'bot');
   // Compute distance via neighborhood fallback
   let withDist = items.map(item => {
     let dist = null;
@@ -7353,9 +8392,9 @@ function showFilteredCurated(items, header) {
   if (userLocation) {
     withDist.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
-  withDist.forEach(({ item }) => {
-    addMessage(renderCuratedCard(item, header), 'bot', true);
-  });
+  const showingNote = withDist.length > 5 ? '. Showing 5 at a time' : '';
+  addMessage(`${header} (${withDist.length})${showingNote}`, 'bot');
+  paginateMessages(withDist, ({ item }) => renderCuratedCard(item, header), 5);
 }
 
 // PWA: register service worker for offline support and home screen install.
