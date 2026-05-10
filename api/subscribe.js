@@ -97,7 +97,7 @@ function buildBacheloretteBlock() {
 <p style="margin:16px 0 12px;">If you reply to this email with your trip dates I will personalize the plan with concerts, weather, and which spots to skip that weekend.</p>`;
 }
 
-// Title-case a single name word so "DAN" or "dan" both render as "Dan".
+// Title-case a single name word so "ABBY" or "abby" both render as "Abby".
 function titleCase(s) {
   return String(s || '').toLowerCase().replace(/(^|\s|-)([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
 }
@@ -214,7 +214,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
   const sourceBlurb = {
     'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
-    'bachelorette': 'Thanks for signing up. I built a Nashville group trip planner page just for trips like yours.',
+    'bachelorette': 'Thanks for signing up. We built a Nashville group trip planner page just for trips like yours.',
     'trip-summary': tripData && tripData.isPayer ? `Here is the summary from your ${tripData.tripName || 'Nashville trip'}. Each person on the trip got their own email with what they owe.` : `Here is your share from the ${tripData && tripData.tripName || 'Nashville trip'}. Tap a payment button below to settle up in seconds.`,
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
   }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
@@ -234,8 +234,8 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
     ${source === 'bachelorette' ? buildBacheloretteBlock() : ''}
     ${source === 'trip-summary' ? buildTripSummaryBlock(tripData) : ''}
     ${savedSpotsBlock}
-    <p style="margin:18px 0 14px;">Reply anytime. I read every email and I am happy to point you to the right spot for whatever you are looking for in Nashville.</p>
-    <p style="margin:0 0 4px;">Dan</p>
+    <p style="margin:18px 0 14px;">Reply anytime. We read every email and we are happy to point you to the right spot for whatever you are looking for in Nashville.</p>
+    <p style="margin:0 0 4px;">Howdy Nash</p>
     <p style="margin:0;color:#666;font-size:14px;">Howdy Nash · Nashville's Free Travel Concierge</p>
     <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent because you signed up at howdynash.com. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
   </div>
