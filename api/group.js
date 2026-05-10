@@ -23,7 +23,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN
 });
 
-const ALLOWED_DURATIONS = [6, 12, 24];
+const ALLOWED_DURATIONS = [8, 12, 24];
 const STALE_AFTER_MS = 60 * 1000; // member pin disappears if not updated in 60s
 const CODE_LEN = 4;
 

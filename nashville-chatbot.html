@@ -2684,7 +2684,7 @@ function routeIntent(text) {
     openSignupModal('cheatsheet');
     return;
   }
-  if (lower.startsWith('🍹 6 hours')) { promptLeaderName(6); return; }
+  if (lower.startsWith('🍹 8 hours')) { promptLeaderName(8); return; }
   if (lower.startsWith('🌞 12 hours')) { promptLeaderName(12); return; }
   if (lower.startsWith('🎉 24 hours')) { promptLeaderName(24); return; }
   if (lower === '← cancel') { showMainMenu(); return; }
@@ -5250,7 +5250,7 @@ function renderGroupShareHowItWorksCard() {
   return `<div class="card" style="background:#fff8f0;border-left:4px solid #f59e0b;">
     <div class="card-title">How it works</div>
     <ol style="padding-left:20px;margin:8px 0;font-size:14px;line-height:1.6;">
-      <li>One person taps Start a new group and picks how long it lasts (6, 12, or 24 hours)</li>
+      <li>One person taps Start a new group and picks how long it lasts (8, 12, or 24 hours)</li>
       <li>They get a 4-letter code to text to the rest of the group</li>
       <li>Everyone else taps Join a group with code and types it in</li>
       <li>Allow location when your phone asks. Your pin appears on the live map for everyone else in the group</li>
@@ -5367,7 +5367,7 @@ function startGroupFlow() {
   scrollAnchor = prompt;
   const wrap = document.createElement('div');
   wrap.className = 'quick-replies group-flow-msg';
-  ['🍹 6 hours · Tonight', '🌞 12 hours · All day', '🎉 24 hours · Full weekend', '← Cancel'].forEach(opt => {
+  ['🍹 8 hours · Tonight', '🌞 12 hours · All day', '🎉 24 hours · Full weekend', '← Cancel'].forEach(opt => {
     const btn = document.createElement('button');
     btn.className = 'quick-reply';
     btn.textContent = opt;
@@ -5657,7 +5657,7 @@ function showGroupSession(code, memberId, isLeader, name) {
     // Pending end (grace period). Surface different UI to leader vs members.
     handlePendingEnd(r.data.endingAt, code, memberId);
     // Time-based affiliate prompts
-    const dur = r.data.durationHours || 6;
+    const dur = r.data.durationHours || 8;
     const createdAt = r.data.expiresAt - dur * 60 * 60 * 1000;
     const hoursElapsed = (Date.now() - createdAt) / 3600000;
     showAffiliateForElapsed(hoursElapsed, isLeader);
