@@ -2490,6 +2490,8 @@ function routeIntent(text) {
   }
 
   // Split Costs hidden in production until full testing is complete.
+  // Re-enable when ready to launch by uncommenting this block AND the
+  // '💰 Split Costs' pill in the main menu reply list.
   // if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
   //   showSplitCosts();
   //   return;
@@ -3203,6 +3205,13 @@ function resetChecklistDirect() {
 
 const TRIP_STORAGE_KEY = 'howdy-nash-trip';
 
+// Basic email shape check. Server validates more strictly; this catches the
+// obvious typos at form-submit time so the user doesn't find out at the
+// "Send summary" step that an address is bad.
+function isValidEmail(s) {
+  return typeof s === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+}
+
 function getTrip() {
   try {
     const raw = localStorage.getItem(TRIP_STORAGE_KEY);
@@ -3264,6 +3273,10 @@ function createTrip() {
     addMessage('Trip name, your name, and your email are required.', 'bot');
     return;
   }
+  if (!isValidEmail(payerEmail)) {
+    addMessage('That email looks off. Use the format name@example.com.', 'bot');
+    return;
+  }
   if (!payerVenmo && !payerCashapp && !payerPaypal) {
     addMessage('Add at least one payment handle (Venmo, Cash App, or PayPal) so people can pay you back.', 'bot');
     return;
@@ -3316,19 +3329,31 @@ function showTripOverview() {
   // Members card
   html += `<div class="message bot"><div class="card"><div class="card-title">People on the trip</div>`;
   trip.members.forEach(m => {
-    html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;">
-      ${m.isPayer ? '⭐ ' : ''}${m.name}${m.email ? ` <span style="color:#888;font-size:12px;">${m.email}</span>` : ''}
+    const removeBtn = !m.isPayer
+      ? `<button onclick="removeTripMember('${m.id}');return false;" style="background:#999;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-left:6px;">Remove</button>`
+      : '';
+    html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+      <span>${m.isPayer ? '⭐ ' : ''}${m.name}${m.email ? ` <span style="color:#888;font-size:12px;">${m.email}</span>` : ''}</span>
+      <span>${removeBtn}</span>
     </div>`;
   });
   html += `</div></div>`;
   // Expenses card
   if (trip.expenses.length > 0) {
     html += `<div class="message bot"><div class="card"><div class="card-title">Expenses</div>`;
-    trip.expenses.slice(-10).reverse().forEach(e => {
+    trip.expenses.slice().reverse().forEach(e => {
       const paidBy = trip.members.find(m => m.id === e.paidBy);
-      html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;">
-        <strong>$${e.amount.toFixed(2)}</strong> ${e.description}
-        <div style="color:#888;font-size:12px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+      html += `<div style="padding:8px 0;border-top:1px solid #f0f0f0;font-size:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;">
+            <strong>$${e.amount.toFixed(2)}</strong> ${e.description}
+            <div style="color:#888;font-size:12px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <button onclick="editTripExpense('${e.id}');return false;" style="background:#444;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Edit</button>
+            <button onclick="deleteTripExpense('${e.id}');return false;" style="background:#d62828;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Delete</button>
+          </div>
+        </div>
       </div>`;
     });
     html += `</div></div>`;
@@ -3374,35 +3399,57 @@ function addMember() {
   const paypal = document.getElementById('newMemberPaypal').value.trim();
   const optIn = document.getElementById('newMemberOptIn').checked;
   if (!name || !email) { addMessage('Name and email required.', 'bot'); return; }
+  if (!isValidEmail(email)) { addMessage('That email looks off. Use the format name@example.com.', 'bot'); return; }
   trip.members.push({ id: uid(), name, email, venmo, cashapp, paypal, isPayer: false, optIn });
   saveTrip(trip);
   addMessage(`${name} added.`, 'bot');
   showTripOverview();
 }
 
-function showAddExpenseCard() {
+// Tracks which expense we're editing so addExpense can update in place
+// instead of creating a new one. Cleared after save or cancel.
+let _editingExpenseId = null;
+
+function showAddExpenseCard(prefillExpense) {
   const trip = getTrip();
   if (!trip) return;
   // Clear the chat so the form is the only thing on screen — no scroll buildup.
   if (messagesEl) messagesEl.innerHTML = '';
-  const memberOptions = trip.members.map(m => `<option value="${m.id}">${m.name}${m.isPayer ? ' (you)' : ''}</option>`).join('');
+  _editingExpenseId = prefillExpense ? prefillExpense.id : null;
+  const memberOptions = trip.members.map(m => {
+    const selected = prefillExpense && prefillExpense.paidBy === m.id ? ' selected' : '';
+    return `<option value="${m.id}"${selected}>${m.name}${m.isPayer ? ' (you)' : ''}</option>`;
+  }).join('');
+  const splitSet = prefillExpense ? new Set(prefillExpense.splitWith) : null;
+  const isEdit = !!prefillExpense;
   const wrap = document.createElement('div');
   wrap.className = 'message bot split-form-block';
   wrap.innerHTML = `<div class="card" style="border-left:4px solid #34a853;">
-    <div class="card-title">Add expense</div>
+    <div class="card-title">${isEdit ? 'Edit expense' : 'Add expense'}</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-      <input id="newExpAmount" type="number" step="0.01" min="0" placeholder="Amount (e.g., 87.50)" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
-      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newExpAmount" type="number" step="0.01" min="0" placeholder="Amount (e.g., 87.50)" value="${isEdit ? prefillExpense.amount : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" value="${isEdit ? (prefillExpense.description || '').replace(/"/g, '&quot;') : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <label style="font-size:13px;color:#555;">Paid by:</label>
       <select id="newExpPaidBy" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;">${memberOptions}</select>
       <div style="font-size:13px;color:#555;margin-top:4px;">Split between (uncheck to exclude):</div>
       <div id="splitMembers" style="display:flex;flex-direction:column;gap:6px;">
-        ${trip.members.map(m => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" checked style="width:16px;height:16px;cursor:pointer;"> ${m.name}${m.isPayer ? ' (you)' : ''}</label>`).join('')}
+        ${trip.members.map(m => {
+          const checked = !splitSet || splitSet.has(m.id) ? 'checked' : '';
+          return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" ${checked} style="width:16px;height:16px;cursor:pointer;"> ${m.name}${m.isPayer ? ' (you)' : ''}</label>`;
+        }).join('')}
       </div>
-      <button onclick="addExpense();return false;" style="background:#34a853;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin-top:8px;">Add expense</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="addExpense();return false;" style="flex:1;background:#34a853;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">${isEdit ? 'Save changes' : 'Add expense'}</button>
+        ${isEdit ? `<button onclick="cancelEditExpense();return false;" style="background:#666;color:#fff;border:none;padding:12px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">Cancel</button>` : ''}
+      </div>
     </div>
   </div>`;
   messagesEl.appendChild(wrap);
+}
+
+function cancelEditExpense() {
+  _editingExpenseId = null;
+  showTripOverview();
 }
 
 function addExpense() {
@@ -3415,9 +3462,57 @@ function addExpense() {
   if (!amount || amount <= 0) { addMessage('Enter a valid amount.', 'bot'); return; }
   if (!description) { addMessage('Add a description.', 'bot'); return; }
   if (splitWith.length === 0) { addMessage('Select at least one person to split with.', 'bot'); return; }
-  trip.expenses.push({ id: uid(), amount, description, paidBy, splitWith, createdAt: Date.now() });
+  if (_editingExpenseId) {
+    const idx = trip.expenses.findIndex(e => e.id === _editingExpenseId);
+    if (idx >= 0) {
+      trip.expenses[idx] = { ...trip.expenses[idx], amount, description, paidBy, splitWith, updatedAt: Date.now() };
+    }
+    saveTrip(trip);
+    addMessage(`Updated: $${amount.toFixed(2)} ${description}`, 'bot');
+    _editingExpenseId = null;
+  } else {
+    trip.expenses.push({ id: uid(), amount, description, paidBy, splitWith, createdAt: Date.now() });
+    saveTrip(trip);
+    addMessage(`Added: $${amount.toFixed(2)} ${description}`, 'bot');
+  }
+  showTripOverview();
+}
+
+function editTripExpense(expenseId) {
+  const trip = getTrip();
+  if (!trip) return;
+  const expense = trip.expenses.find(e => e.id === expenseId);
+  if (!expense) { addMessage('Expense not found.', 'bot'); return; }
+  showAddExpenseCard(expense);
+}
+
+function deleteTripExpense(expenseId) {
+  const trip = getTrip();
+  if (!trip) return;
+  const expense = trip.expenses.find(e => e.id === expenseId);
+  if (!expense) return;
+  if (!confirm(`Delete this expense?\n\n$${expense.amount.toFixed(2)} ${expense.description}\n\nAll balances will recalculate.`)) return;
+  trip.expenses = trip.expenses.filter(e => e.id !== expenseId);
   saveTrip(trip);
-  addMessage(`Added: $${amount.toFixed(2)} ${description}`, 'bot');
+  showTripOverview();
+}
+
+function removeTripMember(memberId) {
+  const trip = getTrip();
+  if (!trip) return;
+  const member = trip.members.find(m => m.id === memberId);
+  if (!member) return;
+  if (member.isPayer) { addMessage('Cannot remove the trip starter.', 'bot'); return; }
+  // Block removal if the member is involved in any expense; user must clean
+  // those up first or it's unclear what to do with the orphan splits.
+  const involved = trip.expenses.some(e => e.paidBy === memberId || (e.splitWith || []).includes(memberId));
+  if (involved) {
+    addMessage(`${member.name} is on one or more expenses. Edit or delete those expenses first, then remove them.`, 'bot');
+    return;
+  }
+  if (!confirm(`Remove ${member.name} from the trip?`)) return;
+  trip.members = trip.members.filter(m => m.id !== memberId);
+  saveTrip(trip);
   showTripOverview();
 }
 
@@ -3434,6 +3529,49 @@ function calculateBalances(trip) {
     });
   });
   return balances;
+}
+
+// Compute per-pair debts: who each debtor owes and to whom. Walks the
+// expenses, accumulates raw obligations, then nets out mutual debts (if A
+// owes B $10 and B owes A $4, A owes B $6 net). The resulting structure is
+// per-debtor: each debtor gets the list of creditors they need to pay so
+// the email can render one pay button per creditor with the right handle.
+function calculatePairDebts(trip) {
+  const debts = {}; // debtorId -> { creditorId: amount }
+  trip.expenses.forEach(e => {
+    const sharePerPerson = e.amount / e.splitWith.length;
+    e.splitWith.forEach(memberId => {
+      if (memberId === e.paidBy) return; // never owe yourself
+      if (!debts[memberId]) debts[memberId] = {};
+      debts[memberId][e.paidBy] = (debts[memberId][e.paidBy] || 0) + sharePerPerson;
+    });
+  });
+  // Net out mutual debts symmetrically
+  Object.keys(debts).forEach(debtorId => {
+    Object.keys(debts[debtorId]).forEach(creditorId => {
+      if (!debts[creditorId] || !debts[creditorId][debtorId]) return;
+      const a = debts[debtorId][creditorId];
+      const b = debts[creditorId][debtorId];
+      if (a > b) {
+        debts[debtorId][creditorId] = a - b;
+        delete debts[creditorId][debtorId];
+      } else if (b > a) {
+        debts[creditorId][debtorId] = b - a;
+        delete debts[debtorId][creditorId];
+      } else {
+        delete debts[debtorId][creditorId];
+        delete debts[creditorId][debtorId];
+      }
+    });
+  });
+  // Drop sub-cent residue from rounding
+  Object.keys(debts).forEach(debtorId => {
+    Object.keys(debts[debtorId]).forEach(creditorId => {
+      if (debts[debtorId][creditorId] < 0.01) delete debts[debtorId][creditorId];
+    });
+    if (Object.keys(debts[debtorId]).length === 0) delete debts[debtorId];
+  });
+  return debts;
 }
 
 function showTripSummary() {
@@ -3474,11 +3612,42 @@ async function sendTripSummary() {
   if (!ok) return;
   addMessage('Sending the summary to everyone...', 'bot');
   const balances = calculateBalances(trip);
+  const pairDebts = calculatePairDebts(trip);
   const payer = trip.members.find(m => m.isPayer);
+  const memberById = id => trip.members.find(mm => mm.id === id) || null;
   let sentCount = 0, errCount = 0;
   for (const m of trip.members) {
     try {
       const memberOwes = balances[m.id] < -0.01 ? Math.abs(balances[m.id]) : 0;
+      // Per-pair settlement list. For each creditor this member needs to pay,
+      // include their name + payment handles so the email can render one
+      // pay button per creditor (Bob's Venmo, Alice's Cash App, etc.).
+      const settlements = [];
+      const myDebts = pairDebts[m.id] || {};
+      Object.keys(myDebts).forEach(creditorId => {
+        const creditor = memberById(creditorId);
+        if (!creditor) return;
+        settlements.push({
+          creditorName: creditor.name,
+          amount: Math.round(myDebts[creditorId] * 100) / 100,
+          venmo: creditor.venmo || '',
+          cashapp: creditor.cashapp || '',
+          paypal: creditor.paypal || ''
+        });
+      });
+      // For the people who are OWED money (positive net balance), also send
+      // them a list of who is paying them so they know what to expect.
+      const incoming = [];
+      Object.keys(pairDebts).forEach(debtorId => {
+        if (pairDebts[debtorId][m.id]) {
+          const debtor = memberById(debtorId);
+          if (!debtor) return;
+          incoming.push({
+            debtorName: debtor.name,
+            amount: Math.round(pairDebts[debtorId][m.id] * 100) / 100
+          });
+        }
+      });
       const r = await fetch(`${API_BASE}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3490,11 +3659,16 @@ async function sendTripSummary() {
           tripData: {
             tripName: trip.name,
             payerName: payer.name,
+            // Legacy fields kept for backward compatibility with the email
+            // template; the new settlements array drives the actual buttons.
             payerVenmo: payer.venmo,
             payerCashapp: payer.cashapp,
             payerPaypal: payer.paypal,
             memberOwes,
+            memberOwed: balances[m.id] > 0.01 ? Math.round(balances[m.id] * 100) / 100 : 0,
             isPayer: !!m.isPayer,
+            settlements, // [{ creditorName, amount, venmo, cashapp, paypal }]
+            incoming,    // [{ debtorName, amount }]
             totalSpent: trip.expenses.reduce((s, e) => s + e.amount, 0),
             expenses: trip.expenses.map(e => ({
               amount: e.amount,
