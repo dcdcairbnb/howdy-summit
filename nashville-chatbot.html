@@ -4214,7 +4214,7 @@ if (document.readyState === 'loading') {
   maybeShowTestTimeBanner();
 }
 
-// Returns minutes until the given closing time (HH:MM 24-hour) or null if
+// Returns minutes until the given closing time (HH:MM 24-hour) or -1 if
 // already past close. Handles wrap-around for after-midnight close times.
 function minutesUntilClose(closesAt) {
   if (!closesAt) return null;
@@ -4231,12 +4231,9 @@ function minutesUntilClose(closesAt) {
   if (closeHour < 6 && now.getHours() >= 6) {
     // Late close (1am-5am) and current time is 6am or later - close is tomorrow
     close.setDate(close.getDate() + 1);
-  } else if (closeHour >= 6 && now.getHours() < closeHour) {
-    // Normal close (e.g., 23:00) and we haven't reached it yet today - same day
-  } else if (closeHour < 6 && now.getHours() < 6) {
-    // It's after midnight (e.g., 1am now) and bar closes at 3am - same morning
-  } else if (close.getTime() < now.getTime()) {
-    // Already past close today - the bar is closed
+  }
+  // After all date adjustments, if the close time is in the past, the bar is closed.
+  if (close.getTime() < now.getTime()) {
     return -1;
   }
   return Math.round((close.getTime() - now.getTime()) / 60000);
