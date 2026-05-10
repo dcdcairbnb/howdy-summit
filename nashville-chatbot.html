@@ -2489,20 +2489,10 @@ function routeIntent(text) {
     return;
   }
 
-<<<<<<< HEAD
   if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
     showSplitCosts();
     return;
   }
-=======
-  // Split Costs hidden in production until full testing is complete.
-  // Re-enable when ready to launch by uncommenting this block AND the
-  // '💰 Split Costs' pill in the main menu reply list.
-  // if (matches(lower, ['💰 split costs', 'split costs', 'split bill', 'split the bill', 'expense tracker', 'who owes', 'venmo split'])) {
-  //   showSplitCosts();
-  //   return;
-  // }
->>>>>>> main
   if (matches(lower, ['+ add person', 'add person'])) { showAddMemberCard(); return; }
   if (matches(lower, ['+ add expense', 'add expense'])) { showAddExpenseCard(); return; }
   if (matches(lower, ['view balance'])) { showTripSummary(); return; }

@@ -282,17 +282,6 @@ Hard refresh browser if you see old content (Cmd+Shift+R on Mac).
 
 Defense in depth across accounts, infrastructure, and runtime. Walk this list during onboarding or annual audits.
 
-<<<<<<< HEAD
-### Account-Level Two-Factor Authentication
-
-Every account that owns infrastructure or codebase has 2FA enabled with Google Authenticator. Backup codes saved offline.
-
-- Vercel (hosts site, owns Postgres, env vars). Enabled at https://vercel.com/account/security
-- GitHub (owns codebase, all 9 dcdcairbnb private repos). Enabled at https://github.com/settings/security
-- Cloudflare (DNS, WAF, edge protection). Enabled at https://dash.cloudflare.com/profile/authentication
-- Gmail jayhawks01@gmail.com (recovery email for everything). Enabled at https://myaccount.google.com/security
-- Gmail howdynashhq@gmail.com (brand inbox). Enabled at https://myaccount.google.com/security
-=======
 ### Two-Factor Authentication
 
 Every account that owns infrastructure or codebase has 2FA enabled with Google Authenticator. Backup codes saved offline.
@@ -302,7 +291,6 @@ Every account that owns infrastructure or codebase has 2FA enabled with Google A
 - Cloudflare: https://dash.cloudflare.com/profile/authentication
 - Gmail jayhawks01@gmail.com: https://myaccount.google.com/security
 - Gmail howdynashhq@gmail.com: https://myaccount.google.com/security
->>>>>>> main
 
 Recovery codes for each account are stored in a password manager. Losing the phone alone never locks anyone out.
 
@@ -315,17 +303,6 @@ Cloudflare sits in front of howdynash.com on the free plan.
 - WWW: CNAME www proxied to Vercel
 - SSL/TLS mode: Full (strict). Cloudflare verifies Vercel's certificate.
 - Always Use HTTPS: ON. Auto-redirects http to https.
-<<<<<<< HEAD
-- Bot Fight Mode: ON. Free bot detection and CAPTCHA challenges.
-- AI bot policy: ALLOW. ChatGPT, Gemini, Perplexity, etc. can crawl. Better visibility in AI search.
-- DDoS protection: unmetered, automatic on free plan.
-
-Vercel itself adds another HTTPS layer and serves as the origin. Cloudflare-to-Vercel hop is HTTPS verified.
-
-### Email Authentication
-
-DNS records at the domain protect deliverability and prevent spoofing.
-=======
 - HSTS: enabled at Cloudflare edge with 12-month max age, includeSubDomains, preload
 - HSTS preload: submitted to https://hstspreload.org for browser inclusion
 - DNSSEC: enabled at Cloudflare and Namecheap (DS record at registrar)
@@ -337,36 +314,16 @@ DNS records at the domain protect deliverability and prevent spoofing.
 ### Email Authentication
 
 DNS records protect deliverability and prevent spoofing.
->>>>>>> main
 
 - SPF: `v=spf1 include:spf.improvmx.com include:amazonses.com ~all` at @
 - DMARC: `v=DMARC1; p=none; rua=mailto:howdynashhq@gmail.com; pct=100` at _dmarc
 - DKIM: Resend's signing key at resend._domainkey
-<<<<<<< HEAD
-- Send subdomain SPF: `v=spf1 include:amazonses.com ~all` at send (Resend fallback)
-- MX: mx1.improvmx.com (priority 10) and mx2.improvmx.com (priority 20) for inbound forwarding to howdynashhq@gmail.com
-=======
 - Send subdomain SPF at send (Resend fallback)
 - MX: mx1.improvmx.com (priority 10), mx2.improvmx.com (priority 20)
->>>>>>> main
 
 Inbound email to howdy@howdynash.com forwards to howdynashhq@gmail.com via ImprovMX.
 Outbound transactional and marketing email sends from howdy@howdynash.com via Resend.
 
-<<<<<<< HEAD
-### API and Runtime Protections
-
-Server-side defenses inside the Vercel functions.
-
-- API keys server-side only. Anthropic, Resend, Postgres connection strings live in Vercel environment variables. Browser never sees them.
-- Per-IP rate limiting on /api/chat: 15 requests per day per IP, returns 429 after.
-- Per-IP rate limiting on /api/subscribe: 10 signups per hour per IP.
-- Daily Anthropic budget cap: $5 USD per UTC day. Tracked in Upstash Redis. Chat returns 429 when hit.
-- Budget alert email at 80% of cap, sent once per day to howdy@howdynash.com.
-- Reply cache for chat: 24-hour TTL, 500-entry max. Same question gets the same answer without burning tokens.
-- Cron auth for newsletter: /api/subscribe?cron=newsletter requires Bearer CRON_SECRET. Vercel attaches this automatically; nobody else can trigger sends.
-- Admin auth for manual newsletter: action=newsletter-send requires ADMIN_TOKEN body field.
-=======
 ### HTTP Security Headers
 
 All set in vercel.json. Applied to every response.
@@ -392,7 +349,6 @@ All set in vercel.json. Applied to every response.
 - Sanitized error responses. All 500 errors return generic "internal server error". Full error logs server-side via console.error visible in Vercel logs.
 - Cron auth for newsletter: requires Bearer CRON_SECRET (Vercel attaches automatically).
 - Admin auth for manual newsletter: requires ADMIN_TOKEN body field.
->>>>>>> main
 
 ### Database Hygiene
 
@@ -405,14 +361,6 @@ Postgres on Vercel stores subscriber emails only. Minimum data principle.
 - Consent IP captured for CAN-SPAM compliance
 - Trip-summary recipients only added to subscribers table if they explicitly opt in
 
-<<<<<<< HEAD
-### Monitoring
-
-- Google Alerts for "howdynash.com" and "Howdy Nash" Nashville. Catches new web mentions, press, clones, social posts.
-- Cloudflare Analytics. Real-time traffic, threat-blocked counts, top countries.
-- Vercel logs. Function invocations, errors, cron runs.
-- Resend dashboard. Email delivery, bounces, complaints.
-=======
 ### Monitoring and Alerting
 
 - DIY error tracker: window.onerror handler POSTs to /api/subscribe?action=log-error. Server dedupes per fingerprint over 1 hour. Emails howdynashhq@gmail.com on first occurrence.
@@ -421,19 +369,13 @@ Postgres on Vercel stores subscriber emails only. Minimum data principle.
 - Cloudflare Analytics: real-time traffic and threat-blocked counts.
 - Vercel logs: function invocations, errors, cron runs.
 - Resend dashboard: email delivery, bounces, complaints.
->>>>>>> main
 
 ### Code and Repo Security
 
 - All 9 dcdcairbnb GitHub repos are private.
-<<<<<<< HEAD
-- Branch protection on main: not enforced (single-developer org). Reconsider if collaborators added.
-- No secrets committed. Verified by grepping for API key patterns before each push.
-=======
 - Branch protection on main: not enforced (Team plan required for private repo enforcement). Solo dev discipline.
 - No secrets committed. Verified via git history audit.
 - npm audit run periodically. Dev dependency vulnerabilities (vercel CLI tree) are dev-only and don't reach production.
->>>>>>> main
 - Vercel deployment protection (preview auth) is OFF intentionally so beta testers can access preview URLs without a Vercel login.
 
 ### iOS App Store
@@ -441,21 +383,6 @@ Postgres on Vercel stores subscriber emails only. Minimum data principle.
 - App is signed with the howdynash dev account.
 - Apple App Store Connect 2FA required by Apple (always on).
 - TestFlight invites limited to known testers.
-<<<<<<< HEAD
-- Capacitor server.url loads howdynash.com directly. App and web stay in sync, but means a bad web deploy affects iOS users immediately. Mitigation: cache version bump in sw.js + 5-minute Vercel rollback if needed.
-
-### Things Still Open
-
-- Linktree or shortened App Store link in TikTok bio (waiting on Business account or 1k followers).
-- Clone detection beyond Google Alerts (no automated affiliate-ID scanner yet).
-- Trademark on "Howdy Nash" not filed.
-- No formal incident response runbook.
-- Postgres backups: Vercel handles daily automated backups by default. Verified retention policy: 7 days on Hobby plan.
-
-### Quick Audit Commands
-
-Verify DNS records propagated correctly:
-=======
 - Capacitor server.url loads howdynash.com directly. Bad web deploys affect iOS users immediately. Mitigation: cache version bump in sw.js + 5-minute Vercel rollback.
 
 ---
@@ -565,37 +492,18 @@ When a key leaks or you suspect compromise, rotate fast. This playbook lists eve
 ### Quick Audit Commands
 
 Verify DNS records:
->>>>>>> main
 
 ```
 dig +short howdynash.com TXT @8.8.8.8
 dig +short _dmarc.howdynash.com TXT @8.8.8.8
 dig +short howdynash.com MX @8.8.8.8
 dig +short howdynash.com NS @8.8.8.8
-<<<<<<< HEAD
-=======
 dig +short howdynash.com DS @8.8.8.8
->>>>>>> main
 ```
 
 Verify Cloudflare is fronting traffic:
 
 ```
-<<<<<<< HEAD
-curl -sI https://howdynash.com | grep -i cf-ray
-```
-
-If you see a `cf-ray:` header, Cloudflare is in the path.
-
-Verify rate limits work:
-
-```
-for i in {1..20}; do curl -s -o /dev/null -w "%{http_code}\n" https://howdynash.com/api/chat -X POST -H "Content-Type: application/json" -d '{"message":"test"}'; done
-```
-
-Should return 200s up to the daily limit, then 429s.
-
-=======
 curl -sI https://www.howdynash.com | grep -i cf-ray
 ```
 
@@ -605,7 +513,6 @@ Verify HTTP security headers:
 curl -sI https://www.howdynash.com | grep -iE "strict-transport|content-security|x-frame|x-content|referrer|permissions"
 ```
 
->>>>>>> main
 ---
 
 ## File Structure
