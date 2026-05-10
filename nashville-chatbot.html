@@ -5080,6 +5080,25 @@ function showLineDancing(skipPush) {
 
 const GROUP_KEY = 'howdy-nash-group-session';
 
+// First-time helper card that explains the Group Share flow before users
+// pick Start or Join. Mirrors the Split Costs how-it-works pattern.
+function renderGroupShareHowItWorksCard() {
+  return `<div class="card" style="background:#fff8f0;border-left:4px solid #f59e0b;">
+    <div class="card-title">How it works</div>
+    <ol style="padding-left:20px;margin:8px 0;font-size:14px;line-height:1.6;">
+      <li>One person taps Start a new group and picks how long it lasts (6, 12, or 24 hours)</li>
+      <li>They get a 4-letter code to text to the rest of the group</li>
+      <li>Everyone else taps Join a group with code and types it in</li>
+      <li>Allow location when your phone asks. Your pin appears on the live map for everyone else in the group</li>
+      <li>Tap any pin for one-tap Walk or Drive directions in Google Maps</li>
+    </ol>
+    <div class="card-desc" style="font-size:13px;color:#555;margin-top:8px;">No app to install. No account. The group ends automatically at the duration you set, or when the leader taps End.</div>
+    <div class="card-desc" style="font-size:12px;color:#666;border-top:1px solid #f0e1c0;padding-top:8px;margin-top:10px;">
+      🔒 Locations are deleted when the session ends. Only people who have your code can see your pin.
+    </div>
+  </div>`;
+}
+
 // Tags any chat message rendered as part of the group flow so endGroup /
 // leaveGroup can clear the whole sequence in one shot. Without this, the
 // stale "What's your name?" prompt and "Creating a group..." status text
@@ -5152,7 +5171,12 @@ async function showFindGroup() {
       return;
     }
   }
-  addGroupFlowMessage("Stay connected with your group. Two options:", 'bot');
+  // Suppress auto-scroll-to-bottom while we stack the intro + how-it-works
+  // + start card. We want the user to land at the top so they read top-down.
+  scrollAnchor = null;
+  suppressAutoScroll = true;
+  addGroupFlowMessage("Stay connected with your group. Live location sharing built for bachelorettes, family trips, and big nights out.", 'bot');
+  addGroupFlowMessage(renderGroupShareHowItWorksCard(), 'bot', true);
   const html = `<div class="card">
     <div class="card-title">👯 Group Location Sharing</div>
     <div class="card-desc">Each person gets a live pin on a Nashville map. Auto-expires after the duration you pick.</div>
@@ -5160,12 +5184,13 @@ async function showFindGroup() {
     <a href="#" onclick="startGroupFlow();return false;" style="background:#d62828;color:#fff;">Start a new group</a>
     <a href="#" onclick="joinGroupFlow();return false;" style="background:#2563eb;color:#fff;">Join a group with code</a>
   </div>`;
-  const card = addGroupFlowMessage(html, 'bot', true);
+  addGroupFlowMessage(html, 'bot', true);
+  // Land at the top so the user reads instructions first.
   setTimeout(() => {
-    if (card && typeof card.scrollIntoView === 'function') {
-      card.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-  }, 100);
+    if (messagesEl) messagesEl.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }, 50);
+  setTimeout(() => { suppressAutoScroll = false; }, 1500);
 }
 
 // Holds the duration chosen by the leader, applied after they enter their name.
