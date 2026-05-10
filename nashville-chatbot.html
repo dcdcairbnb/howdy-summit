@@ -3232,14 +3232,26 @@ function showSplitCosts() {
   // Clear the chat so Split Costs feels like a dedicated screen with no
   // prior history pushing the form/cards out of view.
   if (messagesEl) messagesEl.innerHTML = '';
+  scrollAnchor = null;
+  // Suppress the default auto-scroll-to-bottom while we're stacking the
+  // intro + helper card + form, so the user lands on the intro instead of
+  // the bottom of the form.
+  suppressAutoScroll = true;
   const trip = getTrip();
   if (!trip) {
     addMessage(`💰 Split Costs lets one person track group expenses, then send everyone exactly what they owe with one-tap Venmo, Cash App, or PayPal links. No app to install for the group. Painless.`, 'bot');
     addMessage(renderSplitCostsHowItWorksCard(), 'bot', true);
     addMessage(renderTripStartCard(), 'bot', true);
     addQuickReplies(['← Main menu']);
+    // Land at the top so the user reads from the beginning.
+    setTimeout(() => {
+      if (messagesEl) messagesEl.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }, 50);
+    setTimeout(() => { suppressAutoScroll = false; }, 1500);
     return;
   }
+  suppressAutoScroll = false;
   // Existing trip — show overview
   showTripOverview();
 }
@@ -3326,6 +3338,10 @@ function showTripOverview() {
   // Clear the chat so the trip overview is the only thing visible, no
   // pile-up of cards forcing the user to scroll.
   if (messagesEl) messagesEl.innerHTML = '';
+  scrollAnchor = null;
+  suppressAutoScroll = true;
+  setTimeout(() => { if (messagesEl) messagesEl.scrollTop = 0; }, 50);
+  setTimeout(() => { suppressAutoScroll = false; }, 1500);
   const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
   const memberCount = trip.members.length;
   // Build the entire overview into a single container so future redraws
@@ -3406,6 +3422,8 @@ function showTripOverview() {
 function showAddMemberCard() {
   // Clear the chat so the form is the only thing on screen — no scroll buildup.
   if (messagesEl) messagesEl.innerHTML = '';
+  scrollAnchor = null;
+  setTimeout(() => { if (messagesEl) messagesEl.scrollTop = 0; }, 50);
   const wrap = document.createElement('div');
   wrap.className = 'message bot split-form-block';
   wrap.innerHTML = `<div class="card" style="border-left:4px solid #34a853;">
@@ -3453,6 +3471,8 @@ function showAddExpenseCard(prefillExpense) {
   if (!trip) return;
   // Clear the chat so the form is the only thing on screen — no scroll buildup.
   if (messagesEl) messagesEl.innerHTML = '';
+  scrollAnchor = null;
+  setTimeout(() => { if (messagesEl) messagesEl.scrollTop = 0; }, 50);
   _editingExpenseId = prefillExpense ? prefillExpense.id : null;
   const memberOptions = trip.members.map(m => {
     const selected = prefillExpense && prefillExpense.paidBy === m.id ? ' selected' : '';
