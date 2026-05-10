@@ -2496,7 +2496,7 @@ function routeIntent(text) {
   if (matches(lower, ['+ add person', 'add person'])) { showAddMemberCard(); return; }
   if (matches(lower, ['+ add expense', 'add expense'])) { showAddExpenseCard(); return; }
   if (matches(lower, ['view balance'])) { showTripSummary(); return; }
-  if (matches(lower, ['send summary', 'send updated summary'])) { sendTripSummary(); return; }
+  if (matches(lower, ['send summary', 'send updated summary', 'send to group', 'send updated totals', 'send current totals', 'send totals'])) { sendTripSummary(); return; }
   if (matches(lower, ['end trip'])) { endTrip(); return; }
 
   if (matches(lower, ['📦 shop amazon', 'shop amazon', 'amazon', 'amazon shop', 'shop on amazon'])) {
@@ -3265,7 +3265,7 @@ function renderSplitCostsHowItWorksCard() {
       <li>Start the trip with your name and payment info</li>
       <li>Add the people in your group as you go</li>
       <li>Track each expense as it happens. Anyone in the group can front a bill</li>
-      <li>Hit Send summary at the end. Everyone gets a personalized email with their share and one-tap pay buttons (Venmo, Cash App, PayPal)</li>
+      <li>Tap Send to group anytime to email everyone their current share with one-tap pay buttons (Venmo, Cash App, PayPal). Send mid-trip when someone asks "what do I owe?", and again at the end with final totals</li>
     </ol>
     <div class="card-desc" style="font-size:13px;color:#555;margin-top:8px;">One person tracks for the whole group. No app to install for anyone else. The math sorts itself out so each person pays the right person back.</div>
     <div class="card-desc" style="font-size:12px;color:#666;border-top:1px solid #f0e1c0;padding-top:8px;margin-top:10px;">
@@ -3349,19 +3349,24 @@ function showTripOverview() {
   const wrap = document.createElement('div');
   wrap.className = 'trip-overview-block';
   let html = '';
-  // If a summary was already sent, surface the version + a clear "send
-  // updated summary" affordance so the user knows they CAN fix mistakes.
+  // Show last-sent timestamp + version so the tracker knows when the group
+  // was last pinged and that they can ping again anytime.
   let sentBanner = '';
   if (trip.summarySentAt) {
     const minutesAgo = Math.round((Date.now() - trip.summarySentAt) / 60000);
     const ago = minutesAgo < 1 ? 'just now' : minutesAgo < 60 ? `${minutesAgo} min ago` : `${Math.round(minutesAgo / 60)} hr ago`;
     const v = trip.summaryVersion || 1;
     sentBanner = `<div style="margin-top:10px;background:#fff8e0;border:1px solid #f0c060;border-radius:8px;padding:10px;font-size:13px;">
-      <strong>Summary sent ${ago}</strong>${v > 1 ? ` (version ${v})` : ''}.
-      <div style="color:#555;margin-top:4px;">Spotted a mistake? Edit the expense, then tap <strong>Send updated summary</strong>. Members get a new email labeled UPDATED that replaces the previous one.</div>
+      <strong>Last sent to group ${ago}</strong>${v > 1 ? ` (version ${v})` : ''}.
+      <div style="color:#555;margin-top:4px;">Tap <strong>Send to group</strong> anytime to refresh everyone's totals. Members get a new email labeled UPDATED that replaces the previous one.</div>
+    </div>`;
+  } else {
+    sentBanner = `<div style="margin-top:10px;background:#f0f7ff;border:1px solid #c0d8f0;border-radius:8px;padding:10px;font-size:13px;color:#444;">
+      <strong>💡 Anyone asking what they owe?</strong>
+      <div style="margin-top:4px;">Tap <strong>Send to group</strong> anytime, even mid-trip. Everyone gets a personalized email with their current share. Send again later when amounts change.</div>
     </div>`;
   }
-  const sendButtonLabel = trip.summarySentAt ? 'Send updated summary' : 'Send summary';
+  const sendButtonLabel = trip.summarySentAt ? 'Send updated totals' : 'Send to group';
   html += `<div class="message bot"><div class="card" style="border-left:4px solid #d62828;">
     <div class="card-title">${trip.name}</div>
     <div class="card-meta">${memberCount} ${memberCount === 1 ? 'person' : 'people'} · $${totalSpent.toFixed(2)} tracked · ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}</div>
@@ -3671,8 +3676,8 @@ async function sendTripSummary() {
   const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
   const isUpdate = !!trip.summarySentAt;
   const ok = confirm(isUpdate
-    ? `Send UPDATED summary to ${trip.members.length} people?\n\nEach person gets a fresh email that replaces what they got before. Use this if amounts changed and they need the new totals.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`
-    : `Send summary to ${trip.members.length} people?\n\nEach person gets their own email with what they owe and pay buttons. You can re-send later if anything changes.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`);
+    ? `Send UPDATED totals to ${trip.members.length} people?\n\nEach person gets a fresh email that replaces what they got before. Safe to send anytime - mid-trip status update or final settlement.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`
+    : `Send current totals to ${trip.members.length} people?\n\nEach person gets their own email with what they owe so far and pay buttons. Safe to send mid-trip - just tap again later when amounts change.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`);
   if (!ok) return;
   addMessage('Sending the summary to everyone...', 'bot');
   const balances = calculateBalances(trip);
@@ -3757,12 +3762,10 @@ async function sendTripSummary() {
     trip.summaryVersion = (trip.summaryVersion || 0) + 1;
     saveTrip(trip);
   }
-  const updateLabel = isUpdate ? 'updated summary' : 'summary';
-  const followUp = isUpdate
-    ? `Need another change? Edit any expense and tap Send updated summary again.`
-    : `If anything was wrong, edit it and tap Send summary again. Members will get an UPDATED email replacing the first one.`;
-  addMessage(`${updateLabel.charAt(0).toUpperCase() + updateLabel.slice(1)} sent to ${sentCount} ${sentCount === 1 ? 'person' : 'people'}.${errCount > 0 ? ` ${errCount} failed.` : ''}\n\n${followUp}`, 'bot');
-  addQuickReplies(['View balance', isUpdate ? 'Send updated summary' : 'Send summary', 'End trip', '← Main menu']);
+  const updateLabel = isUpdate ? 'Updated totals' : 'Current totals';
+  const followUp = `Add more expenses or fix mistakes anytime, then tap Send updated totals to refresh everyone. Each new email is labeled UPDATED so they know it replaces the last one.`;
+  addMessage(`${updateLabel} sent to ${sentCount} ${sentCount === 1 ? 'person' : 'people'}.${errCount > 0 ? ` ${errCount} failed.` : ''}\n\n${followUp}`, 'bot');
+  addQuickReplies(['View balance', 'Send updated totals', 'End trip', '← Main menu']);
 }
 
 function endTrip() {
