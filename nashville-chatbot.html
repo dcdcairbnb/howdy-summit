@@ -3522,7 +3522,7 @@ function showAddExpenseCard(prefillExpense) {
   _editingExpenseId = prefillExpense ? prefillExpense.id : null;
   const memberOptions = trip.members.map(m => {
     const selected = prefillExpense && prefillExpense.paidBy === m.id ? ' selected' : '';
-    return `<option value="${m.id}"${selected}>${m.name}${m.isPayer ? ' (you)' : ''}</option>`;
+    return `<option value="${m.id}"${selected}>${escapeHtml(m.name)}${m.isPayer ? ' (you)' : ''}</option>`;
   }).join('');
   const splitSet = prefillExpense ? new Set(prefillExpense.splitWith) : null;
   const isEdit = !!prefillExpense;
@@ -3532,14 +3532,14 @@ function showAddExpenseCard(prefillExpense) {
     <div class="card-title">${isEdit ? 'Edit expense' : 'Add expense'}</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
       <input id="newExpAmount" type="number" step="0.01" min="0" placeholder="Amount (e.g., 87.50)" value="${isEdit ? prefillExpense.amount : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
-      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" value="${isEdit ? (prefillExpense.description || '').replace(/"/g, '&quot;') : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="newExpDesc" type="text" placeholder="What was it? (e.g., Dinner at Husk)" maxlength="80" value="${isEdit ? escapeHtml(prefillExpense.description || '') : ''}" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <label style="font-size:13px;color:#555;">Paid by:</label>
       <select id="newExpPaidBy" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;">${memberOptions}</select>
       <div style="font-size:13px;color:#555;margin-top:4px;">Split between (uncheck to exclude):</div>
       <div id="splitMembers" style="display:flex;flex-direction:column;gap:6px;">
         ${trip.members.map(m => {
           const checked = !splitSet || splitSet.has(m.id) ? 'checked' : '';
-          return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" ${checked} style="width:16px;height:16px;cursor:pointer;"> ${m.name}${m.isPayer ? ' (you)' : ''}</label>`;
+          return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-split-id="${m.id}" ${checked} style="width:16px;height:16px;cursor:pointer;"> ${escapeHtml(m.name)}${m.isPayer ? ' (you)' : ''}</label>`;
         }).join('')}
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;">
@@ -3563,7 +3563,12 @@ function addExpense() {
   const description = document.getElementById('newExpDesc').value.trim();
   const paidBy = document.getElementById('newExpPaidBy').value;
   const splitWith = Array.from(document.querySelectorAll('[data-split-id]:checked')).map(c => c.getAttribute('data-split-id'));
-  if (!amount || amount <= 0) { addMessage('Enter a valid amount.', 'bot'); return; }
+  // Guard against NaN, Infinity, negative, zero, and absurd values that would
+  // break the split math or look broken in the email.
+  if (!amount || !isFinite(amount) || amount <= 0 || amount > 1000000) {
+    addMessage('Enter a valid amount between $0.01 and $1,000,000.', 'bot');
+    return;
+  }
   if (!description) { addMessage('Add a description.', 'bot'); return; }
   if (splitWith.length === 0) { addMessage('Select at least one person to split with.', 'bot'); return; }
   if (_editingExpenseId) {
@@ -4263,6 +4268,8 @@ function minutesUntilClose(closesAt) {
   if (!m) return null;
   const closeHour = Number(m[1]);
   const closeMin = Number(m[2]);
+  // Reject malformed values that would silently roll over via setHours().
+  if (closeHour < 0 || closeHour > 23 || closeMin < 0 || closeMin > 59) return null;
   const now = getSimulatedNow();
   const close = new Date(now);
   close.setHours(closeHour, closeMin, 0, 0);
