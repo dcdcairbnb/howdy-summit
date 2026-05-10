@@ -139,8 +139,15 @@ function buildTripSummaryBlock(tripData) {
   const {
     tripName, payerName, payerVenmo, payerCashapp, payerPaypal,
     memberOwes, memberOwed, isPayer, totalSpent, expenses,
-    settlements, incoming
+    settlements, incoming, isUpdate, summaryVersion
   } = tripData;
+  // Big visible "UPDATED" banner so the recipient knows this email replaces
+  // any earlier summary they got. Version number lets them confirm they have
+  // the latest if multiple corrections went out.
+  const updateBanner = isUpdate ? `<div style="background:#fff5d4;border:2px solid #f0c060;border-radius:8px;padding:12px;margin:0 0 16px;">
+    <div style="font-weight:700;color:#a06000;font-size:15px;">⚠️ Updated summary (v${summaryVersion || 2})</div>
+    <div style="color:#444;font-size:14px;margin-top:4px;">This replaces the previous email${summaryVersion && summaryVersion > 2 ? 's' : ''}. The amounts below are the latest.</div>
+  </div>` : '';
   const expList = (expenses || []).slice(0, 30).map(e => `<li style="margin:4px 0;"><strong>$${Number(e.amount).toFixed(2)}</strong> ${escapeHtml(e.description || '')} <span style="color:#888;">(paid by ${escapeHtml(e.paidByName || '')}, split ${e.splitCount} ways)</span></li>`).join('');
   // PAYER (trip starter) view
   if (isPayer) {
@@ -156,7 +163,7 @@ function buildTripSummaryBlock(tripData) {
       outgoingSection = `<p style="margin:14px 0 6px;font-weight:600;">You also owe (someone else fronted these):</p>
 <ul style="padding-left:18px;margin:0 0 14px;font-size:14px;">${lines}</ul>`;
     }
-    return `<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Your trip')} summary</strong></p>
+    return `${updateBanner}<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Your trip')} summary</strong></p>
 <p style="margin:8px 0;">You started this trip. Total tracked: $${Number(totalSpent || 0).toFixed(2)}.</p>
 <p style="margin:8px 0;">Each person on the trip got their own email with what they owe and one-tap pay buttons to whoever fronted the bill.</p>
 ${owedSection}
@@ -188,7 +195,7 @@ ${outgoingSection}
   } else if (Number(memberOwed || 0) > 0.01) {
     incomingBlock = `<p style="margin:14px 0 8px;">You're owed <strong>$${Number(memberOwed).toFixed(2)}</strong> from the group. They each got an email with your payment links.</p>`;
   }
-  return `<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Nashville trip')} summary</strong></p>
+  return `${updateBanner}<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Nashville trip')} summary</strong></p>
 ${settlementsBlock}
 ${incomingBlock}
 <p style="margin:14px 0 6px;font-weight:600;">Trip expenses:</p>
@@ -580,6 +587,8 @@ export default async function handler(req, res) {
       memberOwes: Math.max(0, Math.min(100000, Number(t.memberOwes) || 0)),
       memberOwed: Math.max(0, Math.min(1000000, Number(t.memberOwed) || 0)),
       isPayer: !!t.isPayer,
+      isUpdate: !!t.isUpdate,
+      summaryVersion: Math.max(1, Math.min(99, Number(t.summaryVersion) || 1)),
       totalSpent: Math.max(0, Math.min(1000000, Number(t.totalSpent) || 0)),
       expenses: Array.isArray(t.expenses)
         ? t.expenses.slice(0, 100).map(e => ({
@@ -650,7 +659,7 @@ export default async function handler(req, res) {
       'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet',
       'saved-spots': 'Your Nashville saved spots',
       'bachelorette': 'Your Nashville group trip planner',
-      'trip-summary': tripData && tripData.isPayer ? `Your ${tripData.tripName || 'Nashville trip'} summary` : `Your share of the ${tripData && tripData.tripName || 'Nashville trip'}`,
+      'trip-summary': (tripData && tripData.isUpdate ? 'UPDATED: ' : '') + (tripData && tripData.isPayer ? `Your ${tripData.tripName || 'Nashville trip'} summary` : `Your share of the ${tripData && tripData.tripName || 'Nashville trip'}`),
       'general': 'Welcome to Howdy Nash'
     }[source] || 'Welcome to Howdy Nash';
 

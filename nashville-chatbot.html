@@ -2496,7 +2496,7 @@ function routeIntent(text) {
   if (matches(lower, ['+ add person', 'add person'])) { showAddMemberCard(); return; }
   if (matches(lower, ['+ add expense', 'add expense'])) { showAddExpenseCard(); return; }
   if (matches(lower, ['view balance'])) { showTripSummary(); return; }
-  if (matches(lower, ['send summary'])) { sendTripSummary(); return; }
+  if (matches(lower, ['send summary', 'send updated summary'])) { sendTripSummary(); return; }
   if (matches(lower, ['end trip'])) { endTrip(); return; }
 
   if (matches(lower, ['📦 shop amazon', 'shop amazon', 'amazon', 'amazon shop', 'shop on amazon'])) {
@@ -3235,12 +3235,31 @@ function showSplitCosts() {
   const trip = getTrip();
   if (!trip) {
     addMessage(`💰 Split Costs lets one person track group expenses, then send everyone exactly what they owe with one-tap Venmo, Cash App, or PayPal links. No app to install for the group. Painless.`, 'bot');
+    addMessage(renderSplitCostsHowItWorksCard(), 'bot', true);
     addMessage(renderTripStartCard(), 'bot', true);
     addQuickReplies(['← Main menu']);
     return;
   }
   // Existing trip — show overview
   showTripOverview();
+}
+
+// First-time helper card explaining the flow before users hit the start
+// form. Only renders when no trip exists, so repeat users skip it.
+function renderSplitCostsHowItWorksCard() {
+  return `<div class="card" style="background:#fff8f0;border-left:4px solid #f59e0b;">
+    <div class="card-title">How it works</div>
+    <ol style="padding-left:20px;margin:8px 0;font-size:14px;line-height:1.6;">
+      <li>Start the trip with your name and payment info</li>
+      <li>Add the people in your group as you go</li>
+      <li>Track each expense as it happens. Anyone in the group can front a bill</li>
+      <li>Hit Send summary at the end. Everyone gets a personalized email with their share and one-tap pay buttons (Venmo, Cash App, PayPal)</li>
+    </ol>
+    <div class="card-desc" style="font-size:13px;color:#555;margin-top:8px;">One person tracks for the whole group. No app to install for anyone else. The math sorts itself out so each person pays the right person back.</div>
+    <div class="card-desc" style="font-size:12px;color:#666;border-top:1px solid #f0e1c0;padding-top:8px;margin-top:10px;">
+      🔒 No payment info is kept or tracked by Howdy Nash. Your handles stay on your phone and only appear inside the emails we send to your group.
+    </div>
+  </div>`;
 }
 
 function renderTripStartCard() {
@@ -3314,6 +3333,19 @@ function showTripOverview() {
   const wrap = document.createElement('div');
   wrap.className = 'trip-overview-block';
   let html = '';
+  // If a summary was already sent, surface the version + a clear "send
+  // updated summary" affordance so the user knows they CAN fix mistakes.
+  let sentBanner = '';
+  if (trip.summarySentAt) {
+    const minutesAgo = Math.round((Date.now() - trip.summarySentAt) / 60000);
+    const ago = minutesAgo < 1 ? 'just now' : minutesAgo < 60 ? `${minutesAgo} min ago` : `${Math.round(minutesAgo / 60)} hr ago`;
+    const v = trip.summaryVersion || 1;
+    sentBanner = `<div style="margin-top:10px;background:#fff8e0;border:1px solid #f0c060;border-radius:8px;padding:10px;font-size:13px;">
+      <strong>Summary sent ${ago}</strong>${v > 1 ? ` (version ${v})` : ''}.
+      <div style="color:#555;margin-top:4px;">Spotted a mistake? Edit the expense, then tap <strong>Send updated summary</strong>. Members get a new email labeled UPDATED that replaces the previous one.</div>
+    </div>`;
+  }
+  const sendButtonLabel = trip.summarySentAt ? 'Send updated summary' : 'Send summary';
   html += `<div class="message bot"><div class="card" style="border-left:4px solid #d62828;">
     <div class="card-title">${trip.name}</div>
     <div class="card-meta">${memberCount} ${memberCount === 1 ? 'person' : 'people'} · $${totalSpent.toFixed(2)} tracked · ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}</div>
@@ -3321,7 +3353,9 @@ function showTripOverview() {
       <a href="#" onclick="showAddMemberCard();return false;" style="background:#d62828;color:#fff;font-weight:600;">+ Add person</a>
       <a href="#" onclick="showAddExpenseCard();return false;" style="background:#34a853;color:#fff;font-weight:600;">+ Add expense</a>
       <a href="#" onclick="showTripSummary();return false;" style="background:#444;color:#fff;font-weight:600;">View balance</a>
+      <a href="#" onclick="sendTripSummary();return false;" style="background:#0a8754;color:#fff;font-weight:600;">${sendButtonLabel}</a>
     </div>
+    ${sentBanner}
   </div></div>`;
   // Members card
   html += `<div class="message bot"><div class="card"><div class="card-title">People on the trip</div>`;
@@ -3337,19 +3371,26 @@ function showTripOverview() {
   html += `</div></div>`;
   // Expenses card
   if (trip.expenses.length > 0) {
-    html += `<div class="message bot"><div class="card"><div class="card-title">Expenses</div>`;
+    html += `<div class="message bot"><div class="card"><div class="card-title">Expenses</div>
+      <div class="card-desc" style="font-size:12px;color:#666;margin:4px 0 8px;">Tap Edit to change an amount or split. Tap Delete to remove an expense. Balances recalculate automatically.</div>`;
     trip.expenses.slice().reverse().forEach(e => {
       const paidBy = trip.members.find(m => m.id === e.paidBy);
-      html += `<div style="padding:8px 0;border-top:1px solid #f0f0f0;font-size:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div style="flex:1;">
-            <strong>$${e.amount.toFixed(2)}</strong> ${e.description}
-            <div style="color:#888;font-size:12px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+      // Whole row is tappable to edit. Visible Edit and Delete buttons too
+      // so users discover both actions and can delete without first opening
+      // the edit form.
+      html += `<div style="padding:10px 0;border-top:1px solid #f0f0f0;font-size:14px;">
+        <div onclick="editTripExpense('${e.id}');return false;" style="cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="flex:1;">
+              <strong style="font-size:15px;">$${e.amount.toFixed(2)}</strong> ${e.description}
+              <div style="color:#888;font-size:12px;margin-top:2px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+            </div>
+            <div style="color:#444;font-size:13px;font-weight:600;">Edit ›</div>
           </div>
-          <div style="display:flex;gap:4px;flex-shrink:0;">
-            <button onclick="editTripExpense('${e.id}');return false;" style="background:#444;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Edit</button>
-            <button onclick="deleteTripExpense('${e.id}');return false;" style="background:#d62828;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Delete</button>
-          </div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button onclick="editTripExpense('${e.id}');return false;" style="flex:1;background:#444;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">✏️ Edit</button>
+          <button onclick="deleteTripExpense('${e.id}');return false;" style="flex:1;background:#d62828;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">🗑️ Delete</button>
         </div>
       </div>`;
     });
@@ -3359,7 +3400,7 @@ function showTripOverview() {
   messagesEl.appendChild(wrap);
   // Scroll to top of the messages container so the user sees the trip header.
   if (messagesEl) messagesEl.scrollTop = 0;
-  addQuickReplies(['+ Add person', '+ Add expense', 'View balance', 'Send summary', 'End trip', '← Main menu']);
+  addQuickReplies(['+ Add person', '+ Add expense', 'View balance', sendButtonLabel, 'End trip', '← Main menu']);
 }
 
 function showAddMemberCard() {
@@ -3603,9 +3644,15 @@ async function sendTripSummary() {
     addMessage('Add at least one expense before sending the summary.', 'bot');
     return;
   }
-  // Confirmation prompt with a quick recap so the user knows what's about to happen.
+  // Re-send detection. If we've sent before, label the email "UPDATED" and
+  // include a banner explaining it replaces the previous version. Each
+  // re-send bumps summaryVersion so members can confirm they have the
+  // latest math.
   const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
-  const ok = confirm(`Send summary to ${trip.members.length} people?\n\nEach person gets their own email with what they owe and pay buttons. This cannot be undone.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`);
+  const isUpdate = !!trip.summarySentAt;
+  const ok = confirm(isUpdate
+    ? `Send UPDATED summary to ${trip.members.length} people?\n\nEach person gets a fresh email that replaces what they got before. Use this if amounts changed and they need the new totals.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`
+    : `Send summary to ${trip.members.length} people?\n\nEach person gets their own email with what they owe and pay buttons. You can re-send later if anything changes.\n\nTotal: $${totalSpent.toFixed(2)} across ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}.`);
   if (!ok) return;
   addMessage('Sending the summary to everyone...', 'bot');
   const balances = calculateBalances(trip);
@@ -3664,6 +3711,8 @@ async function sendTripSummary() {
             memberOwes,
             memberOwed: balances[m.id] > 0.01 ? Math.round(balances[m.id] * 100) / 100 : 0,
             isPayer: !!m.isPayer,
+            isUpdate,
+            summaryVersion: (trip.summaryVersion || 0) + 1,
             settlements, // [{ creditorName, amount, venmo, cashapp, paypal }]
             incoming,    // [{ debtorName, amount }]
             totalSpent: trip.expenses.reduce((s, e) => s + e.amount, 0),
@@ -3681,13 +3730,19 @@ async function sendTripSummary() {
       errCount++;
     }
   }
-  // Mark the trip as having sent the summary so End Trip stops nagging.
+  // Mark the trip as having sent the summary and bump the version so a
+  // future resend identifies itself as an UPDATE in the email.
   if (sentCount > 0) {
     trip.summarySentAt = Date.now();
+    trip.summaryVersion = (trip.summaryVersion || 0) + 1;
     saveTrip(trip);
   }
-  addMessage(`Summary sent to ${sentCount} ${sentCount === 1 ? 'person' : 'people'}.${errCount > 0 ? ` ${errCount} failed.` : ''}`, 'bot');
-  addQuickReplies(['View balance', 'End trip', '← Main menu']);
+  const updateLabel = isUpdate ? 'updated summary' : 'summary';
+  const followUp = isUpdate
+    ? `Need another change? Edit any expense and tap Send updated summary again.`
+    : `If anything was wrong, edit it and tap Send summary again. Members will get an UPDATED email replacing the first one.`;
+  addMessage(`${updateLabel.charAt(0).toUpperCase() + updateLabel.slice(1)} sent to ${sentCount} ${sentCount === 1 ? 'person' : 'people'}.${errCount > 0 ? ` ${errCount} failed.` : ''}\n\n${followUp}`, 'bot');
+  addQuickReplies(['View balance', isUpdate ? 'Send updated summary' : 'Send summary', 'End trip', '← Main menu']);
 }
 
 function endTrip() {
