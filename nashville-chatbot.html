@@ -1610,7 +1610,9 @@ const SAVED_SPOTS_KEY = 'howdy-nashville-saved';
 
 function getSavedSpots() {
   try {
-    return JSON.parse(localStorage.getItem(SAVED_SPOTS_KEY) || '[]');
+    const parsed = JSON.parse(localStorage.getItem(SAVED_SPOTS_KEY) || '[]');
+    // Guard against tampered or stale storage where the value isn't an array.
+    return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     return [];
   }
@@ -1630,7 +1632,7 @@ function toggleSavedSpot(spot, btnEl) {
     saved.push({ ...spot, savedAt: Date.now() });
     if (btnEl) btnEl.textContent = '★ Saved';
   }
-  localStorage.setItem(SAVED_SPOTS_KEY, JSON.stringify(saved));
+  try { localStorage.setItem(SAVED_SPOTS_KEY, JSON.stringify(saved)); } catch (e) { /* private browsing or quota */ }
 }
 
 function showSavedSpots() {
@@ -1854,17 +1856,17 @@ function handleStarClick(btn) {
 
 function removeSavedAndRefresh(name) {
   const saved = getSavedSpots().filter(s => s.name !== name);
-  localStorage.setItem(SAVED_SPOTS_KEY, JSON.stringify(saved));
+  try { localStorage.setItem(SAVED_SPOTS_KEY, JSON.stringify(saved)); } catch (e) { /* private browsing or quota */ }
   messagesEl.innerHTML = '';
   showSavedSpots();
 }
 
 // Welcome tour for first-time users
 function maybeShowWelcomeTour() {
-  if (localStorage.getItem('howdy-nashville-tour-seen')) return;
+  try { if (localStorage.getItem('howdy-nashville-tour-seen')) return; } catch (e) {}
   setTimeout(() => {
     addMessage("First time here? Quick tour. Use the menu below to find restaurants, live music, hotels, and tourist info. Or just type any question. I save your favorites locally on your phone.", 'bot');
-    localStorage.setItem('howdy-nashville-tour-seen', '1');
+    try { localStorage.setItem('howdy-nashville-tour-seen', '1'); } catch (e) {}
   }, 1500);
 }
 
@@ -1876,9 +1878,9 @@ function maybeShowLocationPrompt() {
   if (!navigator.geolocation) return;
 
   const fireAutoPrompt = () => {
-    if (localStorage.getItem('howdy-location-autoprompt-v2')) return;
+    try { if (localStorage.getItem('howdy-location-autoprompt-v2')) return; } catch (e) {}
     setTimeout(() => {
-      localStorage.setItem('howdy-location-autoprompt-v2', '1');
+      try { localStorage.setItem('howdy-location-autoprompt-v2', '1'); } catch (e) {}
       requestLocation();
     }, 2500);
   };
@@ -1889,12 +1891,12 @@ function maybeShowLocationPrompt() {
         // Permission granted at OS level. Always silently refresh on launch
         // so the user never sees a prompt and the location stays current.
         requestLocation();
-        localStorage.setItem('howdy-location-autoprompt-v2', '1');
+        try { localStorage.setItem('howdy-location-autoprompt-v2', '1'); } catch (e) {}
         return;
       }
       if (p.state === 'denied') {
         // Already denied at the OS/browser level, can't re-prompt programmatically
-        localStorage.setItem('howdy-location-autoprompt-v2', '1');
+        try { localStorage.setItem('howdy-location-autoprompt-v2', '1'); } catch (e) {}
         return;
       }
       // 'prompt' state: native dialog hasn't appeared yet, trigger it
@@ -1907,13 +1909,13 @@ function maybeShowLocationPrompt() {
 
 function acceptLocationPrompt() {
   document.getElementById('locationPromptModal').style.display = 'none';
-  localStorage.setItem('howdy-nashville-location-asked', '1');
+  try { localStorage.setItem('howdy-nashville-location-asked', '1'); } catch (e) {}
   requestLocation();
 }
 
 function dismissLocationPrompt() {
   document.getElementById('locationPromptModal').style.display = 'none';
-  localStorage.setItem('howdy-nashville-location-asked', '1');
+  try { localStorage.setItem('howdy-nashville-location-asked', '1'); } catch (e) {}
   addMessage("No worries. You can share your location anytime by tapping 'Share location' at the bottom of the chat.", 'bot');
 }
 
@@ -2972,10 +2974,12 @@ async function askClaude(userText) {
   // Show a one-time AI accuracy notice the first time the user chats with
   // the AI in this device. Helps set expectations so people verify hours
   // before they show up to a closed restaurant.
-  if (!localStorage.getItem('howdy-ai-notice-seen')) {
-    addMessage('Heads up: I use AI to answer your questions. AI gets things wrong sometimes. Always verify hours and prices with the venue before you go.', 'bot');
-    localStorage.setItem('howdy-ai-notice-seen', '1');
-  }
+  try {
+    if (!localStorage.getItem('howdy-ai-notice-seen')) {
+      addMessage('Heads up: I use AI to answer your questions. AI gets things wrong sometimes. Always verify hours and prices with the venue before you go.', 'bot');
+      localStorage.setItem('howdy-ai-notice-seen', '1');
+    }
+  } catch (e) { /* private browsing or quota */ }
   const typingId = 'typing-' + Date.now();
   addMessage(`<div id="${typingId}" class="typing">Thinking...</div>`, 'bot', true);
   try {
@@ -3226,10 +3230,30 @@ function isValidEmail(s) {
   return typeof s === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 }
 
+// Escape user-typed strings before inserting into innerHTML. Defends against
+// self-XSS where a user types HTML/JS in their own form fields and corrupts
+// their own UI. The data is single-device so no cross-user attack vector,
+// but escaping prevents broken layouts and surprise.
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getTrip() {
   try {
     const raw = localStorage.getItem(TRIP_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Sanity-check the shape so corrupted storage doesn't crash the UI.
+    // A valid trip has at minimum an id, a name, and arrays for members/expenses.
+    if (!parsed || typeof parsed !== 'object' || !parsed.id || !parsed.name) return null;
+    if (!Array.isArray(parsed.members)) parsed.members = [];
+    if (!Array.isArray(parsed.expenses)) parsed.expenses = [];
+    return parsed;
   } catch (e) { return null; }
 }
 
@@ -3385,7 +3409,7 @@ function showTripOverview() {
   }
   const sendButtonLabel = trip.summarySentAt ? 'Send updated totals' : 'Send to group';
   html += `<div class="message bot"><div class="card" style="border-left:4px solid #d62828;">
-    <div class="card-title">${trip.name}</div>
+    <div class="card-title">${escapeHtml(trip.name)}</div>
     <div class="card-meta">${memberCount} ${memberCount === 1 ? 'person' : 'people'} · $${totalSpent.toFixed(2)} tracked · ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}</div>
     <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
       <a href="#" onclick="showAddMemberCard();return false;" style="background:#d62828;color:#fff;font-weight:600;">+ Add person</a>
@@ -3402,7 +3426,7 @@ function showTripOverview() {
       ? `<button onclick="removeTripMember('${m.id}');return false;" style="background:#999;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-left:6px;">Remove</button>`
       : '';
     html += `<div style="padding:6px 0;border-top:1px solid #f0f0f0;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
-      <span>${m.isPayer ? '⭐ ' : ''}${m.name}${m.email ? ` <span style="color:#888;font-size:12px;">${m.email}</span>` : ''}</span>
+      <span>${m.isPayer ? '⭐ ' : ''}${escapeHtml(m.name)}${m.email ? ` <span style="color:#888;font-size:12px;">${escapeHtml(m.email)}</span>` : ''}</span>
       <span>${removeBtn}</span>
     </div>`;
   });
@@ -3420,8 +3444,8 @@ function showTripOverview() {
         <div onclick="editTripExpense('${e.id}');return false;" style="cursor:pointer;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
             <div style="flex:1;">
-              <strong style="font-size:15px;">$${e.amount.toFixed(2)}</strong> ${e.description}
-              <div style="color:#888;font-size:12px;margin-top:2px;">Paid by ${paidBy ? paidBy.name : '?'} · split ${e.splitWith.length} ways</div>
+              <strong style="font-size:15px;">$${e.amount.toFixed(2)}</strong> ${escapeHtml(e.description)}
+              <div style="color:#888;font-size:12px;margin-top:2px;">Paid by ${escapeHtml(paidBy ? paidBy.name : '?')} · split ${e.splitWith.length} ways</div>
             </div>
             <div style="color:#444;font-size:13px;font-weight:600;">Edit ›</div>
           </div>
@@ -3602,6 +3626,9 @@ function calculateBalances(trip) {
   const balances = {};
   trip.members.forEach(m => { balances[m.id] = 0; });
   trip.expenses.forEach(e => {
+    // Defend against corrupted state where splitWith is empty (would be
+    // Infinity). addExpense validates, but localStorage could be tampered.
+    if (!e.splitWith || e.splitWith.length === 0) return;
     const sharePerPerson = e.amount / e.splitWith.length;
     balances[e.paidBy] += e.amount; // they paid the full thing
     e.splitWith.forEach(memberId => {
@@ -3619,6 +3646,7 @@ function calculateBalances(trip) {
 function calculatePairDebts(trip) {
   const debts = {}; // debtorId -> { creditorId: amount }
   trip.expenses.forEach(e => {
+    if (!e.splitWith || e.splitWith.length === 0) return;
     const sharePerPerson = e.amount / e.splitWith.length;
     e.splitWith.forEach(memberId => {
       if (memberId === e.paidBy) return; // never owe yourself
@@ -3659,14 +3687,14 @@ function showTripSummary() {
   if (!trip) return;
   const balances = calculateBalances(trip);
   const totalSpent = trip.expenses.reduce((s, e) => s + e.amount, 0);
-  let html = `<div class="card"><div class="card-title">${trip.name} - Balance</div>
+  let html = `<div class="card"><div class="card-title">${escapeHtml(trip.name)} - Balance</div>
     <div class="card-meta">Total: $${totalSpent.toFixed(2)} · ${trip.expenses.length} expense${trip.expenses.length === 1 ? '' : 's'}</div>`;
   trip.members.forEach(m => {
     const bal = balances[m.id];
     const txt = bal > 0.01 ? `is owed $${bal.toFixed(2)}` : (bal < -0.01 ? `owes $${Math.abs(bal).toFixed(2)}` : 'is even');
     const color = bal > 0.01 ? '#1b8a3e' : (bal < -0.01 ? '#d62828' : '#666');
     html += `<div style="padding:8px 0;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;">
-      <span>${m.isPayer ? '⭐ ' : ''}${m.name}</span>
+      <span>${m.isPayer ? '⭐ ' : ''}${escapeHtml(m.name)}</span>
       <span style="color:${color};font-weight:600;">${txt}</span>
     </div>`;
   });
@@ -5246,10 +5274,15 @@ const NASHVILLE_BINGO_SQUARES = [
 ];
 
 function getBingoState() {
+  const defaultState = { completed: [12], startedAt: Date.now() };
   try {
     const raw = localStorage.getItem(BINGO_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { completed: [12], startedAt: Date.now() }; // free space pre-completed
-  } catch (e) { return { completed: [12], startedAt: Date.now() }; }
+    if (!raw) return defaultState;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaultState;
+    if (!Array.isArray(parsed.completed)) parsed.completed = [12];
+    return parsed;
+  } catch (e) { return defaultState; }
 }
 function saveBingoState(state) {
   try { localStorage.setItem(BINGO_STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -5403,7 +5436,10 @@ function clearGroupFlowMessages() {
 function getSavedGroupSession() {
   try {
     const raw = localStorage.getItem(GROUP_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !parsed.code || !parsed.memberId) return null;
+    return parsed;
   } catch (e) { return null; }
 }
 
