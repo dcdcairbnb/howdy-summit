@@ -4172,6 +4172,50 @@ function defaultClosingTime(label) {
   return null; // unknown category - no countdown
 }
 
+// Test override: visit with ?testHour=2&testMin=30 to simulate that time of
+// day so the closing-time logic can be tested without actually staying up
+// until 2:30am. Persists only for the current page load. Production users
+// who don't pass these params get real time, no impact.
+function getSimulatedNow() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const h = params.get('testHour');
+    const m = params.get('testMin');
+    if (h != null) {
+      const d = new Date();
+      d.setHours(Number(h));
+      d.setMinutes(m != null ? Number(m) : 0);
+      d.setSeconds(0);
+      d.setMilliseconds(0);
+      return d;
+    }
+  } catch (e) {}
+  return new Date();
+}
+
+// Show a yellow banner at the top of the screen when test-time override is
+// active so the user remembers they're not seeing real-world behavior.
+function maybeShowTestTimeBanner() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('testHour') == null) return;
+    if (document.getElementById('testTimeBanner')) return;
+    const fake = getSimulatedNow();
+    const timeStr = fake.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const banner = document.createElement('div');
+    banner.id = 'testTimeBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#fff;padding:6px 12px;font-size:12px;font-weight:700;text-align:center;z-index:99998;letter-spacing:0.3px;';
+    banner.innerHTML = `🧪 TEST MODE: simulating ${timeStr}. <a href="${window.location.pathname}" style="color:#fff;text-decoration:underline;">exit</a>`;
+    document.body.appendChild(banner);
+    document.body.style.paddingTop = '24px';
+  } catch (e) {}
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', maybeShowTestTimeBanner);
+} else {
+  maybeShowTestTimeBanner();
+}
+
 // Returns minutes until the given closing time (HH:MM 24-hour) or null if
 // already past close. Handles wrap-around for after-midnight close times.
 function minutesUntilClose(closesAt) {
@@ -4180,7 +4224,7 @@ function minutesUntilClose(closesAt) {
   if (!m) return null;
   const closeHour = Number(m[1]);
   const closeMin = Number(m[2]);
-  const now = new Date();
+  const now = getSimulatedNow();
   const close = new Date(now);
   close.setHours(closeHour, closeMin, 0, 0);
   // Bars that close after midnight (e.g., 03:00) belong to the previous day.
