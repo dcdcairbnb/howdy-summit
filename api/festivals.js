@@ -274,7 +274,8 @@ export default async function handler(req, res) {
         events
       });
     } catch (e) {
-      return console.error("[festivals] error", e); res.status(500).json({ error: "internal server error", events: [] });
+      console.error('[festivals] visitmusiccity error', e);
+      return res.status(500).json({ error: 'internal server error', events: [] });
     }
   }
 
@@ -315,6 +316,7 @@ export default async function handler(req, res) {
       total: combined.length
     });
   } catch (e) {
-    console.error("[festivals] error", e); res.status(500).json({ error: "internal server error" });
+    console.error('[festivals] error', e);
+    return res.status(500).json({ error: 'internal server error' });
   }
 }

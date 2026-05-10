@@ -842,7 +842,7 @@
     <p>If you share your location for nearby search, we use it only to find restaurants, events, and stores around you. We do not store this location on our servers, sell it, or share it beyond the API providers needed to fulfill your request.</p>
 
     <h3>Group Location Sharing</h3>
-    <p>When you start or join a group via the Find My Group feature, your location updates are stored temporarily on our backend (Upstash Redis) so other members of the same group code can see your pin on a live map. Group sessions auto-expire after the duration you pick (6, 12, or 24 hours), at which point all location data is permanently deleted. You can leave a group at any time, which removes your pin immediately. Group leaders can end the session for everyone. We never share group location data with third parties or use it for marketing.</p>
+    <p>When you start or join a group via the Find My Group feature, your location updates are stored temporarily on our backend (Upstash Redis) so other members of the same group code can see your pin on a live map. Group sessions auto-expire after the duration you pick (8, 12, or 24 hours), at which point all location data is permanently deleted. You can leave a group at any time, which removes your pin immediately. Group leaders can end the session for everyone. We never share group location data with third parties or use it for marketing.</p>
     <p>Group sharing is opt-in only. You and every group member must tap "Share location" to appear on the map. We do not track members who haven't actively joined the session.</p>
     <p><strong>You are responsible for who you share your group code with.</strong> Anyone with the code can see member locations during the session. Treat it like a temporary password and only share it with people you trust.</p>
 
@@ -1457,9 +1457,7 @@ function requestLocation() {
 function isMobile() {
   return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 }
-function isIOS() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
+// isIOS defined later at line ~1928 with MSStream guard. Removed duplicate.
 function isAndroid() {
   return /android/i.test(navigator.userAgent);
 }
@@ -5931,7 +5929,7 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
     addMessage(`<div class="card" style="border:2px dashed #d62828;">
       <div class="card-title">🌃 Where to next?</div>
       <div class="card-desc">Best Nashville rooftops walking distance from Broadway. L.A. Jackson, Acme, White Limozeen, Bobby Hotel.</div>
-      <a href="#" onclick="showRooftops();return false;" style="background:#d62828;color:#fff;">Show rooftops</a>
+      <a href="#" onclick="showRooftopBars();return false;" style="background:#d62828;color:#fff;">Show rooftops</a>
       <a href="${viatorSearch('Nashville rooftop bars tour')}" target="_blank" rel="noopener" style="background:#328e3a;color:#fff;">Rooftop tours on Viator</a>
     </div>`, 'bot', true);
   }

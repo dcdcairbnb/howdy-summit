@@ -432,7 +432,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, ...result });
     } catch (e) {
       console.error('cron newsletter error', e);
-      return console.error("[subscribe] error", e); res.status(500).json({ error: "internal server error" });
+      return res.status(500).json({ error: 'internal server error' });
     }
   }
 
@@ -501,7 +501,8 @@ export default async function handler(req, res) {
       const result = await sendWeeklyNewsletter(resend);
       return res.status(200).json(result);
     } catch (e) {
-      return console.error("[subscribe] error", e); res.status(500).json({ error: "internal server error" });
+      console.error('[subscribe] newsletter send error', e);
+      return res.status(500).json({ error: 'internal server error' });
     }
   }
 
