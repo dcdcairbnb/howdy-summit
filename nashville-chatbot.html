@@ -2685,7 +2685,15 @@ function routeIntent(text) {
   if (lower.startsWith('🍹 8 hours')) { promptLeaderName(8); return; }
   if (lower.startsWith('🌞 12 hours')) { promptLeaderName(12); return; }
   if (lower.startsWith('🎉 24 hours')) { promptLeaderName(24); return; }
-  if (lower === '← cancel') { showMainMenu(); return; }
+  if (lower === '← cancel') {
+    // Clean up any in-progress group-flow state and the cards it created so
+    // the user doesn't see a dangling "How long should the group last?"
+    // prompt above the main menu after cancelling.
+    if (typeof resetGroupFlowState === 'function') resetGroupFlowState();
+    if (typeof clearGroupFlowMessages === 'function') clearGroupFlowMessages();
+    showMainMenu();
+    return;
+  }
 
   if (matches(lower, ['bachelorette', 'bach party', 'pedal tavern', 'party bus', 'bach weekend'])) {
     showBachelorette();
