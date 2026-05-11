@@ -5290,7 +5290,14 @@ function getBingoState() {
     if (!raw) return defaultState;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return defaultState;
-    if (!Array.isArray(parsed.completed)) parsed.completed = [12];
+    if (!Array.isArray(parsed.completed)) {
+      parsed.completed = [12];
+    } else {
+      // Drop anything that isn't a valid integer 0..24 so stale or tampered
+      // state can't render invisible "completed" entries off the grid.
+      parsed.completed = parsed.completed.filter(i => Number.isInteger(i) && i >= 0 && i <= 24);
+      if (!parsed.completed.includes(12)) parsed.completed.push(12); // free space always
+    }
     return parsed;
   } catch (e) { return defaultState; }
 }
@@ -5618,7 +5625,11 @@ async function createGroupWithDuration(durationHours, leaderName) {
 async function submitJoinGroup() {
   const code = (document.getElementById('groupCodeInput')?.value || '').trim().toUpperCase();
   const name = (document.getElementById('groupNameInput')?.value || '').trim() || 'Friend';
-  if (code.length < 3) { alert('Enter the 4-letter code from the group leader.'); return; }
+  // Server generates exactly 4-letter codes (A-Z minus I/O, plus 2-9 minus 0/1).
+  // Reject obviously invalid input early so users get a clear error before the
+  // round-trip.
+  if (code.length !== 4) { alert('Enter the 4-letter code from the group leader.'); return; }
+  if (!/^[A-Z2-9]{4}$/.test(code)) { alert('Codes use letters and numbers only (no I, O, 0, or 1).'); return; }
   const memberId = `m_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
   const check = await groupApi({ action: 'get', code });
   // Group exists but the leader already ended it
