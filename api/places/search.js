@@ -10,11 +10,30 @@ function haversineMiles(a, b) {
   return Number((R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x))).toFixed(2));
 }
 
+// Coordinates arrive as query strings from the browser's Geolocation API, but
+// can also be hand-typed or malformed. A string like "notanumber" is truthy,
+// so an unvalidated check would treat it as a real location: flipping the
+// response into distance-sort mode and forwarding garbage to the upstream
+// provider. Return null unless the value is a finite, in-range coordinate.
+function validCoord(v, max) {
+  // Number('') and Number('   ') both coerce to 0, so an empty ?lat=&lng=
+  // would otherwise be read as the valid coordinate 0,0 off West Africa.
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
+}
+function parseLatLng(rawLat, rawLng) {
+  const lat = validCoord(rawLat, 90);
+  const lng = validCoord(rawLng, 180);
+  return (lat === null || lng === null) ? { lat: null, lng: null } : { lat, lng };
+}
+
 export default async function handler(req, res) {
   if (!process.env.GOOGLE_PLACES_KEY) {
     return res.status(503).json({ error: 'GOOGLE_PLACES_KEY not configured' });
   }
-  const { q = '', type = 'tourist_attraction', lat, lng } = req.query;
+  const { q = '', type = 'tourist_attraction' } = req.query;
+  const { lat, lng } = parseLatLng(req.query.lat, req.query.lng);
 
   // Google Places (New) only accepts a fixed list of includedType values.
   // If we're handed something invalid or empty, drop the type filter rather

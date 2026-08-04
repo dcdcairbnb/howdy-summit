@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,10 +28,18 @@
 <meta property="og:title" content="Howdy Summit - Your Summit County Colorado Tourist Guide + AI Concierge">
 <meta property="og:description" content="Howdy Summit is your free Summit County Colorado tourist guide with an AI concierge. Skiing, hiking, breweries, restaurants, festivals, and tours. No signup.">
 <meta property="og:site_name" content="Howdy Summit">
+<meta property="og:image" content="https://www.howdysummitcounty.com/og-image.png">
+<meta property="og:image:secure_url" content="https://www.howdysummitcounty.com/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Howdy Summit - Summit County's free travel concierge">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Howdy Summit - Your Summit County Colorado Tourist Guide + AI Concierge">
 <meta name="twitter:description" content="Howdy Summit. Free Summit County Colorado tourist guide with AI concierge. Skiing, hiking, breweries, restaurants, festivals, and more. No signup.">
+<meta name="twitter:image" content="https://www.howdysummitcounty.com/og-image.png">
+<meta name="twitter:image:alt" content="Howdy Summit - Summit County's free travel concierge">
 
 <meta name="robots" content="index, follow">
 <meta name="googlebot" content="index, follow">
@@ -57,21 +65,6 @@
     "https://www.pinterest.com/howdysummit"
   ],
   "keywords": "Summit County guide, Colorado travel, things to do Summit County, skiing Colorado, hiking, breweries, Breckenridge, Keystone, Summit County tourism, Colorado mountain travel"
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "MobileApplication",
-  "name": "Howdy Summit",
-  "operatingSystem": "iOS",
-  "applicationCategory": "TravelApplication",
-  "url": "https://www.howdysummitcounty.com/",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  }
 }
 </script>
 <script type="application/ld+json">
@@ -167,8 +160,8 @@
   "@type": "TouristInformationCenter",
   "name": "Howdy Summit - Summit County Visitor Guide",
   "description": "Free digital Summit County, Colorado tourist information center with AI concierge. Ski resorts, restaurants, breweries, apres-ski, trails, towns, festivals, and family activities.",
-  "url": "https://howdysummitcounty.com/",
-  "image": "https://howdysummitcounty.com/logo.jpg",
+  "url": "https://www.howdysummitcounty.com/",
+  "image": "https://www.howdysummitcounty.com/logo.jpg",
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Summit County",
@@ -176,8 +169,12 @@
     "addressCountry": "US"
   },
   "areaServed": {
-    "@type": "City",
-    "name": "Summit County"
+    "@type": "AdministrativeArea",
+    "name": "Summit County",
+    "containedInPlace": {
+      "@type": "State",
+      "name": "Colorado"
+    }
   },
   "priceRange": "Free"
 }
@@ -295,6 +292,29 @@
     .message { max-width: 85%; }
     .quick-reply { font-size: 12px; padding: 7px 12px; }
   }
+
+  /* iOS Safari auto-zooms the page whenever a focused form control renders
+     below 16px. The old workaround was maximum-scale=1 in the viewport tag,
+     but that also disables pinch-zoom for everyone, which fails WCAG 1.4.4
+     and is rough on a guide people read outdoors in glare. Enforcing a 16px
+     minimum on touch devices fixes the zoom-on-focus jump at the source and
+     lets pinch-zoom stay enabled. Inline font-size:14px on individual inputs
+     is overridden here because these selectors are more specific. */
+  @media (pointer: coarse) {
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="search"],
+    input[type="url"],
+    input[type="password"],
+    input:not([type]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   .header {
     background: linear-gradient(135deg, #d62828 0%, #f77f00 100%);
     color: #fff;
@@ -765,7 +785,11 @@
     <div class="header-spacer-right" aria-hidden="true"></div>
     <button class="nav-btn" id="homeBtn" onclick="goHome()" title="Home" aria-label="Return to main menu">⌂</button>
   </div>
-  <div class="messages" id="messages"></div>
+  <!-- role=log + aria-live so screen readers announce bot replies as they are
+       injected. Without this the entire conversation is silent to assistive
+       tech, which is the whole product. aria-atomic=false so only the new
+       message is read, not the full transcript on every update. -->
+  <div class="messages" id="messages" role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions text" aria-label="Conversation with Howdy Summit"></div>
   <div class="input-area">
     <label for="userInput" class="sr-only">Ask Howdy Summit a question</label>
     <input type="text" id="userInput" placeholder="Ask about Summit County..." autocomplete="off" maxlength="500" aria-label="Ask Howdy Summit a question">
@@ -826,7 +850,7 @@
     <p>Howdy Summit is an independent Summit County tourism guide. We aggregate data from third-party services to help you discover the city.</p>
 
     <h3>Data Accuracy</h3>
-    <p>Restaurant info, hours, prices, ratings, and event details come from third parties including Foursquare, Google Places, Ticketmaster, SeatGeek, and the City of Summit County Open Data Portal. Information may be inaccurate or outdated. Verify with the venue before going.</p>
+    <p>Restaurant info, hours, prices, ratings, and event details come from third parties including Google Places, Foursquare, Ticketmaster, SeatGeek, Eventbrite, and the National Weather Service. Information may be inaccurate or outdated. Hours in particular swing hard between ski season and mud season. Verify with the venue before going.</p>
 
     <h3>AI Chatbot</h3>
     <p>The Howdy Summit chatbot uses AI to answer questions. AI responses can be wrong, outdated, or made up. Before traveling to any spot the chatbot recommends, confirm the address, hours, prices, and reservation details directly with the venue. Howdy Summit is not responsible for closed restaurants, sold-out events, or anything else the AI gets wrong.</p>
@@ -1207,7 +1231,11 @@ function updateStatusBadge() {
   const text = document.getElementById('statusText');
   const dot = document.getElementById('statusDot');
   if (!text || !dot) return;
-  const active = Object.entries(apiServices).filter(([_, v]) => v).map(([k]) => k);
+  // Only count services that actually pull live local data. `weather` is
+  // always true (the National Weather Service needs no key), so counting it
+  // would make the badge read green even when no live feed is configured.
+  const LIVE_DATA_SERVICES = ['foursquare', 'google', 'ticketmaster', 'seatgeek', 'eventbrite'];
+  const active = LIVE_DATA_SERVICES.filter(k => apiServices[k]);
   if (active.length === 0) {
     text.textContent = 'Curated mode';
     dot.style.background = '#fbbf24';
@@ -1215,6 +1243,19 @@ function updateStatusBadge() {
     text.textContent = 'Your Summit County guide';
     dot.style.background = '#4ade80';
   }
+}
+
+// Google returns addresses like "110 S Ridge St, Breckenridge, CO 80424, USA".
+// Pull the town out so cards say "Breckenridge" instead of the vague
+// "Summit County" the API hands back for every result.
+const SUMMIT_TOWN_NAMES = ['Breckenridge', 'Frisco', 'Dillon', 'Silverthorne',
+                           'Keystone', 'Copper Mountain', 'Blue River', 'Montezuma'];
+function townFromAddress(address) {
+  if (!address) return null;
+  for (const t of SUMMIT_TOWN_NAMES) {
+    if (address.includes(t)) return t;
+  }
+  return null;
 }
 
 async function apiSearchRestaurants(term, category, limit = 10) {
@@ -1232,21 +1273,30 @@ async function apiSearchRestaurants(term, category, limit = 10) {
     if (!r.ok) return null;
     const data = await r.json();
     return (data.results || []).map(b => {
-      const distPart = b.distanceMiles != null ? `📍 ${b.distanceMiles} mi` : '';
+      // Do NOT fold distance into `vibe`. renderRestaurantCard already renders
+      // distance in the card meta line, and duplicating it there produced two
+      // conflicting distances per card (a precise one in the description and a
+      // coarse neighborhood-centroid one in the meta).
       const sourcesPart = (b.sources && b.sources.length > 1) ? 'verified' : '';
       const descPart = b.description ? b.description.slice(0, 80) : '';
-      const vibe = [distPart, sourcesPart, descPart].filter(Boolean).join(' · ').trim();
+      const vibe = [sourcesPart, descPart].filter(Boolean).join(' · ').trim();
       return {
         name: b.name,
         cuisine: b.cuisine || 'Restaurant',
-        neighborhood: b.neighborhood || (b.address ? b.address.split(',')[0] : 'Summit County'),
+        neighborhood: townFromAddress(b.address) || b.neighborhood || 'Summit County',
         price: b.price || '',
         rating: b.rating || null,
         reviewCount: b.reviewCount || null,
         vibe: vibe,
         phone: b.phone || '',
         website: b.website || '',
-        booking: { yelp: b.mapsUrl || b.website }
+        address: b.address || '',
+        // Pass these through so the card shows the real per-restaurant
+        // distance instead of falling back to a county-wide centroid.
+        coords: b.coords || null,
+        distanceMiles: b.distanceMiles != null ? b.distanceMiles : null,
+        mapsUrl: b.mapsUrl || '',
+        booking: {}
       };
     });
   } catch (e) {
@@ -1513,7 +1563,7 @@ function showSavedSpots() {
   const showingNote = saved.length > 5 ? '. Showing 5 at a time' : '';
   addMessage(`Your ${saved.length} saved spot${saved.length === 1 ? '' : 's'}${showingNote}:`, 'bot');
   paginateMessages(saved, spot => {
-    const safeName = (spot.name || '').replace(/'/g, "\\'");
+    const safeName = jsAttr(spot.name || '');
     let html = `<div class="card">
       <div class="card-title">${spot.name || 'Saved spot'}</div>
       ${spot.note ? `<div class="card-desc">${spot.note}</div>` : ''}
@@ -2274,11 +2324,6 @@ function routeIntent(text) {
     return;
   }
 
-  if (lower === 'luggage storage' || matches(lower, ['luggage storage', 'store luggage', 'store my bags', 'bag storage', 'where to leave bags', 'bag check', 'left luggage'])) {
-    showLuggageStorage();
-    return;
-  }
-
   if (lower.includes('🍽️') || matches(lower, ['eat & drink', 'eat and drink', 'food menu', 'drinks menu'])) {
     showEatDrinkMenu();
     return;
@@ -2803,7 +2848,7 @@ function detectVenuesInReply(replyText) {
 function buildAffiliatePanel(venues) {
   if (!venues || venues.length === 0) return '';
   const cards = venues.map(v => {
-    const safeName = v.name.replace(/'/g, "\\'");
+    const safeName = jsAttr(v.name);
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(v.name + ' Summit County CO')}`;
     let buttons = `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;font-size:12px;padding:6px 10px;">Maps</a>`;
     buttons += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;color:#fff;font-size:12px;padding:6px 10px;">Uber</a>`;
@@ -3104,6 +3149,23 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Escape a value that gets embedded as a single-quoted JS string INSIDE a
+// double-quoted HTML attribute, e.g. onclick="doThing('${jsAttr(name)}')".
+//
+// Escaping only single quotes is not enough: names come from live Google
+// Places data, so a name containing a double quote would terminate the HTML
+// attribute early and a name containing < or > could break out of the tag.
+// Order matters - backslashes first, then the quote, then HTML-encode. The
+// HTML parser decodes the entities back before the JS is parsed, so the JS
+// string ends up with exactly the right escapes.
+function jsAttr(s) {
+  return escapeHtml(
+    String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+  );
 }
 
 function getTrip() {
@@ -3869,6 +3931,10 @@ function showThingsToDoMenu(skipPush) {
     'What\'s happening',
     'Attractions',
     'Family friendly',
+    // The router has always accepted '💦 waterfalls' but no menu ever offered
+    // it, so 10 curated hikes (Mohawk Lakes, McCullough Gulch, Continental
+    // Falls) were reachable only by typing the word.
+    '💦 Waterfalls & alpine lakes',
     '🛷 Sleigh rides & snowmobiles',
     'Free things to do',
     'Sports',
@@ -3888,7 +3954,6 @@ function showGetAroundMenu(skipPush) {
   addQuickReplies([
     'Hotels nearby',
     'Vacation rentals',
-    'Luggage storage',
     'Get a ride',
     'Gas stations',
     'DEN flight tracker',
@@ -3980,13 +4045,18 @@ async function enrichCuratedWithLive(items, query, type) {
     if (distanceMiles == null && item.coords) {
       distanceMiles = haversineMiles(userLocation, item.coords);
     }
+    let distApprox = false;
     if (distanceMiles == null && item.neighborhood) {
       const nb = neighborhoodCoords(item.neighborhood);
-      if (nb) distanceMiles = haversineMiles(userLocation, nb);
+      if (nb) {
+        distanceMiles = haversineMiles(userLocation, nb);
+        distApprox = true; // town center, not the venue itself
+      }
     }
     return {
       ...item,
       distanceMiles: distanceMiles ?? item.distanceMiles ?? null,
+      _distApprox: distApprox,
       rating: item.rating || match?.rating,
       reviewCount: item.reviewCount || match?.reviewCount,
       address: item.address || match?.address,
@@ -4204,7 +4274,7 @@ function renderCuratedCard(s, label, liveMatch) {
   if (s.url) html += `<a href="${s.url}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
   const mapsUrl = liveMatch?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(s.name + ' Summit County CO')}`;
   html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-  const safeName = s.name.replace(/'/g, "\\'");
+  const safeName = jsAttr(s.name);
   html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
   html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
   html += `</div>`;
@@ -4255,7 +4325,7 @@ async function showCuratedThenLive(curatedList, query, type, label) {
       const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
       const ratingStr = s.rating ? `★ ${s.rating}` : '';
       const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
-      const safeName = (s.name || '').replace(/'/g, "\\'");
+      const safeName = jsAttr(s.name || '');
       const star = renderSaveStar({ name: s.name, note: label, address: s.address });
       const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
       let html = `<div class="card">
@@ -4645,7 +4715,7 @@ function showMainStreetBars() {
     if (s.url) html += `<a href="${s.url}" target="_blank" rel="noopener">Website</a>`;
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(s.name + ' Summit County CO')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-    const safeName = s.name.replace(/'/g, "\\'");
+    const safeName = jsAttr(s.name);
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `</div>`;
@@ -5636,7 +5706,7 @@ function showGroupSession(code, memberId, isLeader, name) {
     const currentLeader = r.data.members.find(m => m.isLeader);
     const currentLeaderId = currentLeader ? currentLeader.id : null;
     if (prevLeaderId && currentLeaderId && prevLeaderId !== currentLeaderId) {
-      const newLeaderName = (currentLeader.name || 'A member').replace(/</g, '');
+      const newLeaderName = escapeHtml(currentLeader.name || 'A member');
       const saved2 = getSavedGroupSession();
       if (!saved2 || currentLeaderId !== saved2.memberId) {
         // Only announce to others. The new leader gets their own confirmation
@@ -5993,7 +6063,7 @@ async function renderGroupLiveMap(members) {
   const bounds = [];
   clusters.forEach(cluster => {
     const isLeaderCluster = cluster.members.some(m => m.isLeader);
-    const labelMembers = cluster.members.map(m => (m.isLeader ? '⭐ ' : '') + (m.name || 'Friend').replace(/</g, ''));
+    const labelMembers = cluster.members.map(m => (m.isLeader ? '⭐ ' : '') + escapeHtml(m.name || 'Friend'));
     const labelText = cluster.members.length === 1
       ? labelMembers[0]
       : `${cluster.members.length} together: ${labelMembers.join(' + ')}`;
@@ -6011,7 +6081,7 @@ async function renderGroupLiveMap(members) {
     let popupHtml = '<div style="text-align:center;font-size:14px;min-width:200px;">';
     cluster.members.forEach(m => {
       const star = m.isLeader ? '⭐ ' : '';
-      const safe = (m.name || 'Friend').replace(/</g, '');
+      const safe = escapeHtml(m.name || 'Friend');
       const isMe = m.id === myId;
       popupHtml += `<div style="font-weight:600;margin:6px 0 6px;">${star}${safe}${isMe ? ' (you)' : ''}</div>`;
       if (!isMe) {
@@ -6081,7 +6151,7 @@ function renderGroupSvgFallbackMap(mapDiv, members) {
   withCoords.forEach(m => {
     const { x, y } = project(m.lat, m.lng);
     const color = m.isLeader ? '#d62828' : '#2563eb';
-    const safeName = (m.name || 'Friend').replace(/</g, '').replace(/>/g, '').slice(0, 24);
+    const safeName = escapeHtml(String(m.name || 'Friend').slice(0, 24));
     const star = m.isLeader ? '⭐ ' : '';
     svg += `<g>
       <circle cx="${x}" cy="${y}" r="9" fill="${color}" stroke="#fff" stroke-width="2.5"/>
@@ -6137,13 +6207,13 @@ function renderGroupMembers(members, expiresAt) {
     // Leader-only: button to promote another member to leader. Never on self.
     let promote = '';
     if (iAmLeader && !m.isLeader && m.id && !isMe) {
-      const safeId = String(m.id).replace(/'/g, "\\'");
-      const safeMemberName = (m.name || 'Friend').replace(/'/g, "\\'");
+      const safeId = jsAttr(m.id);
+      const safeMemberName = jsAttr(m.name || 'Friend');
       promote = `<div style="margin-top:6px;">
         <button type="button" onclick="promoteToLeader('${safeId}','${safeMemberName}')" style="background:#d62828;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">👑 Make leader</button>
       </div>`;
     }
-    h += `<li style="padding:8px 0;border-bottom:1px solid #eee;">${dot} <strong>${(m.name || 'Friend').replace(/</g,'')}</strong>${star}${youTag} <span style="color:#888;font-size:12px;">· ${ageStr}</span>${actions}${promote}</li>`;
+    h += `<li style="padding:8px 0;border-bottom:1px solid #eee;">${dot} <strong>${escapeHtml(m.name || 'Friend')}</strong>${star}${youTag} <span style="color:#888;font-size:12px;">· ${ageStr}</span>${actions}${promote}</li>`;
   });
   h += '</ul>';
   el.innerHTML = h;
@@ -6177,8 +6247,8 @@ function promoteToLeader(newLeaderId, newLeaderName) {
     return;
   }
   // In-app confirmation card. Avoids iOS WebView quirks with native confirm().
-  const safeId = String(newLeaderId).replace(/'/g, "\\'");
-  const safeName = String(newLeaderName).replace(/[<>]/g, '').replace(/'/g, "\\'");
+  const safeId = jsAttr(newLeaderId);
+  const safeName = jsAttr(newLeaderName);
   const html = `<div class="card transfer-leader-card">
     <div class="card-title">Transfer leadership?</div>
     <div class="card-desc">Make <strong>${safeName.replace(/\\'/g, "'")}</strong> the new group leader. You'll stay in the group as a regular member.</div>
@@ -6277,7 +6347,7 @@ async function confirmPromoteToLeader(newLeaderId, newLeaderName, originBtn) {
 
 function shareGroupCode(code) {
   const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummitcounty.com/?join=${code}`;
-  const safeCode = String(code).replace(/[<>]/g, '');
+  const safeCode = escapeHtml(code);
   const safeText = text.replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const encodedText = encodeURIComponent(text);
   const linkStyle = 'display:inline-block;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;margin:4px;color:#fff;text-decoration:none;';
@@ -6846,33 +6916,6 @@ function buildVrboUrl() {
   return url;
 }
 
-function showLuggageStorage() {
-  addMessage("Need to stash bags or skis between checkout and your drive back to Denver? Summit County has no dedicated storage storefronts, so these are the options that actually work.", 'bot');
-
-  const locationNote = userLocation ? "Showing options near your current spot." : "Share your location for nearby filters.";
-
-  // Bounce and LuggageHero coverage in mountain towns is thin. Homepage links
-  // work everywhere; city deep links 404 outside major metros.
-  const bounceUrl = `https://bounce.com`;
-  const luggageheroUrl = `https://luggagehero.com`;
-
-  const html = `<div class="card">
-    <div class="card-title">Where to stash your bags and skis</div>
-    <div class="card-desc">${locationNote}</div>
-    <div class="card-desc"><strong>1. Your lodging front desk.</strong> Nearly every hotel, lodge, and property manager in the county will hold luggage free after checkout. Ask before you pay for anything else.</div>
-    <div class="card-desc"><strong>2. Base-area ski check.</strong> Breckenridge, Keystone, and Copper all run paid overnight ski and board storage at the base areas, and most rental shops store your gear free for the length of the rental.</div>
-    <div class="card-desc"><strong>3. Rec center lockers.</strong> Breckenridge and Silverthorne recreation centers have day lockers with a day pass, handy if you want a shower before the drive.</div>
-    <a href="${bounceUrl}" target="_blank" rel="noopener" style="background:#ff5b3a;color:#fff;">Check Bounce for local hosts</a>
-    <a href="${luggageheroUrl}" target="_blank" rel="noopener" style="background:#1f3a93;color:#fff;">Check LuggageHero</a>
-    <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Tip: Denver International also has paid baggage storage near the terminal if you have a long layover on the way out.</div>
-  </div>`;
-  addMessage(html, 'bot', true);
-
-  if (!userLocation) {
-    addMessage("Want results near you? Tap 'Share location' at the bottom of the chat.", 'bot');
-  }
-}
-
 // Host's Pick card. Dan's real Summit County listing.
 const HOST_PICK = {
   name: "Dan's Summit County Getaway",
@@ -7205,7 +7248,7 @@ async function showSports() {
     } else {
       html += `<div class="card-desc" style="font-size:12px;color:#666;margin-top:4px;">No upcoming home games found in feed. Check team site directly.</div>`;
     }
-    const safeName = team.venue.replace(/'/g, "\\'");
+    const safeName = jsAttr(team.venue);
     html += `<a href="${team.tickets}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Official team tickets</a>
       <a href="https://www.google.com/maps/search/${encodeURIComponent(team.venue)}+Colorado" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Venue on Maps</a>
       <a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber to venue</a>
@@ -7362,7 +7405,7 @@ async function showHotels() {
           const distStr = h.distanceMiles != null ? ` · 📍 ${h.distanceMiles} mi` : '';
           const ratingStr = h.rating ? `★ ${h.rating}` : '';
           const reviewStr = h.reviewCount ? ` (${h.reviewCount})` : '';
-          const safeName = (h.name || '').replace(/'/g, "\\'");
+          const safeName = jsAttr(h.name || '');
           const star = renderSaveStar({ name: h.name, note: 'Hotel', address: h.address || '' });
           const share = renderShareButton({ name: h.name, desc: h.address || 'Summit County hotel', url: h.website || h.mapsUrl || '' });
           let html = `<div class="card">
@@ -7458,7 +7501,7 @@ async function showStoreType(query, type, label) {
     const distStr = s.distanceMiles != null ? ` · 📍 ${s.distanceMiles} mi` : '';
     const ratingStr = s.rating ? `★ ${s.rating}` : '';
     const reviewStr = s.reviewCount ? ` (${s.reviewCount})` : '';
-    const safeName = (s.name || '').replace(/'/g, "\\'");
+    const safeName = jsAttr(s.name || '');
     const star = renderSaveStar({ name: s.name, note: label, address: s.address });
     const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
     let html = `<div class="card">
@@ -7680,24 +7723,32 @@ function showRideOptions() {
 }
 
 function renderRestaurantCard(r) {
-  const safeName = r.name.replace(/'/g, "\\'");
+  const safeName = jsAttr(r.name);
   const b = r.booking || {};
   const isWalkin = !!b.walkin;
   const ratingBadge = r.rating ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;margin-left:6px;">⭐ ${r.rating}${r.reviewCount ? ' · ' + r.reviewCount : ''}</span>` : '';
   // Last-ditch distance fallback: if upstream enrichment didn't set distanceMiles
   // but we have user location and a neighborhood string, compute it inline so
   // every restaurant card shows distance.
+  // Track whether the distance is exact (from real coords) or approximate
+  // (from a town-center fallback), rather than inferring it from whether the
+  // spot happens to have a rating.
+  let distIsApprox = false;
   if (r.distanceMiles == null && userLocation) {
     if (r.coords) {
       r.distanceMiles = haversineMiles(userLocation, r.coords);
     } else if (r.neighborhood) {
       const nb = neighborhoodCoords(r.neighborhood);
-      if (nb) r.distanceMiles = haversineMiles(userLocation, nb);
+      if (nb) {
+        r.distanceMiles = haversineMiles(userLocation, nb);
+        distIsApprox = true;
+      }
     }
+  } else if (r.distanceMiles != null && !r.coords) {
+    // Distance arrived precomputed but with no coords to verify it against.
+    distIsApprox = !!r._distApprox;
   }
-  // Mark distance as approx if it came from a neighborhood center fallback
-  // (when there's no exact rating, we know it didn't come from Google Places).
-  const isApprox = r.distanceMiles != null && !r.rating;
+  const isApprox = r.distanceMiles != null && distIsApprox;
   const distStr = r.distanceMiles != null ? ` · 📍 ${r.distanceMiles} mi${isApprox ? ' (approx)' : ''}` : '';
   const star = renderSaveStar({ name: r.name, note: r.vibe || r.cuisine, address: r.neighborhood || '', phone: r.phone || '' });
   const share = renderShareButton({ name: r.name, desc: `${r.cuisine || ''}${r.neighborhood ? ' in ' + r.neighborhood : ''}`, url: b.opentable || b.resy || b.tock || b.yelp || '' });
@@ -8281,7 +8332,7 @@ async function showAttractions() {
     const ratingStr = match && match.rating ? ` · ★ ${match.rating}` : '';
     const star = renderSaveStar({ name: a.name, note: a.type, address: match?.address || a.neighborhood || 'Summit County' });
     const share = renderShareButton({ name: a.name, desc: a.desc || a.type, url: a.url || '' });
-    const safeName = (a.name || '').replace(/'/g, "\\'");
+    const safeName = jsAttr(a.name || '');
     let html = `<div class="card">
       <div class="card-title">${star}${share}${a.name}</div>
       <div class="card-meta">${a.type}${a.neighborhood ? ' · ' + a.neighborhood : ''}${ratingStr}${distStr}</div>

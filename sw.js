@@ -1,13 +1,16 @@
 // Howdy Summit service worker. Caches static assets for offline use.
 // Bump CACHE_VERSION when deploying changes you want users to see immediately.
 
-const CACHE_VERSION = 'howdysummit-v3';
+const CACHE_VERSION = 'howdysummit-v4';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  // Precached so the offline shell still renders branded instead of showing
+  // a broken image where the logo should be.
+  '/logo.png'
 ];
 
 self.addEventListener('install', event => {
@@ -46,11 +49,19 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const copy = response.clone();
-          caches.open(STATIC_CACHE).then(cache => cache.put(event.request, copy));
+          // Store the app shell under a single canonical key. Caching by the
+          // full request URL would create a separate permanent entry for every
+          // distinct query string (?join=CODE group invites, ?q= deep links,
+          // utm tags), growing the cache without bound and never serving a hit
+          // since the next visitor's code differs. The app is a single-page
+          // shell, so one copy answers every navigation.
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(STATIC_CACHE).then(cache => cache.put('/index.html', copy));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request).then(r => r || caches.match('/index.html')))
+        .catch(() => caches.match('/index.html').then(r => r || caches.match('/')))
     );
     return;
   }

@@ -1,6 +1,6 @@
-# Howdy Nash robots.txt
-# Free Nashville visitor guide with AI concierge
-# https://howdynash.com
+# Howdy Summit robots.txt
+# Free Summit County, Colorado visitor guide with AI concierge
+# https://howdysummitcounty.com
 
 # Allow all search engines (Google, Bing, DuckDuckGo, etc.) to crawl everything
 User-agent: *
@@ -12,8 +12,12 @@ Disallow: /api/
 # Block service worker (no SEO value, only used by the PWA)
 Disallow: /sw.js
 
+# Block internal/dev pages that should never rank
+Disallow: /api-test.html
+Disallow: /preview.html
+
 # Block uploads and temp folders if any
 Disallow: /uploads/
 
 # Sitemap location for fast discovery
-Sitemap: https://howdynash.com/sitemap.xml
+Sitemap: https://howdysummitcounty.com/sitemap.xml

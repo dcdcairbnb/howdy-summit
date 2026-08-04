@@ -67,10 +67,16 @@
   <pre id="tm-out"></pre>
 </div>
 
-<div class="test" id="nash-test">
-  <h2>Nashville open data <span class="status pending" id="nash-status">Pending</span></h2>
-  <button onclick="runNash()">Test</button>
-  <pre id="nash-out"></pre>
+<div class="test" id="fest-test">
+  <h2>Festivals <span class="status pending" id="fest-status">Pending</span></h2>
+  <button onclick="runFest()">Test</button>
+  <pre id="fest-out"></pre>
+</div>
+
+<div class="test" id="weather-test">
+  <h2>Weather <span class="status pending" id="weather-status">Pending</span></h2>
+  <button onclick="runWeather()">Test</button>
+  <pre id="weather-out"></pre>
 </div>
 
 <button onclick="runAll()" style="background:#1a1a2e;padding:12px 20px;font-size:14px;">Run all tests</button>
@@ -97,17 +103,19 @@ async function call(url, outId, statusId) {
 }
 
 const runHealth = () => call('/api/health', 'health-out', 'health-status');
-const runYelp = () => call('/api/restaurants/search?term=hot+chicken&limit=3', 'yelp-out', 'yelp-status');
-const runGoogle = () => call('/api/places/search?q=Grand+Ole+Opry&type=tourist_attraction', 'google-out', 'google-status');
+const runYelp = () => call('/api/restaurants/search?term=pizza&limit=3', 'yelp-out', 'yelp-status');
+const runGoogle = () => call('/api/places/search?q=Breckenridge+Ski+Resort&type=tourist_attraction', 'google-out', 'google-status');
 const runTM = () => call('/api/events?classificationName=Music', 'tm-out', 'tm-status');
-const runNash = () => call('/api/nashville/data?dataset=qbg9-9eq2&limit=3', 'nash-out', 'nash-status');
+const runFest = () => call('/api/festivals', 'fest-out', 'fest-status');
+const runWeather = () => call('/api/weather?lat=39.4817&lng=-106.0384', 'weather-out', 'weather-status');
 
 function runAll() {
   runHealth();
   setTimeout(runYelp, 200);
   setTimeout(runGoogle, 400);
   setTimeout(runTM, 600);
-  setTimeout(runNash, 800);
+  setTimeout(runFest, 800);
+  setTimeout(runWeather, 1000);
 }
 </script>
 </body>

@@ -204,8 +204,27 @@ function dedupe(events) {
   return Array.from(seen.values());
 }
 
+// Coordinates arrive as query strings from the browser's Geolocation API, but
+// can also be hand-typed or malformed. A string like "notanumber" is truthy,
+// so an unvalidated check would treat it as a real location: flipping the
+// response into distance-sort mode and forwarding garbage to the upstream
+// provider. Return null unless the value is a finite, in-range coordinate.
+function validCoord(v, max) {
+  // Number('') and Number('   ') both coerce to 0, so an empty ?lat=&lng=
+  // would otherwise be read as the valid coordinate 0,0 off West Africa.
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
+}
+function parseLatLng(rawLat, rawLng) {
+  const lat = validCoord(rawLat, 90);
+  const lng = validCoord(rawLng, 180);
+  return (lat === null || lng === null) ? { lat: null, lng: null } : { lat, lng };
+}
+
 export default async function handler(req, res) {
-  const { keyword = '', classificationName = '', startDateTime, endDateTime, lat, lng } = req.query;
+  const { keyword = '', classificationName = '', startDateTime, endDateTime } = req.query;
+  const { lat, lng } = parseLatLng(req.query.lat, req.query.lng);
 
   try {
     const [tm, sg, eb] = await Promise.all([

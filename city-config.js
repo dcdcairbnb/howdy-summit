@@ -1,73 +1,88 @@
-// Howdy Nash city configuration. Swap this file (and city-data.js) to launch in a new city.
+// Howdy Summit city configuration. Swap this file to launch in a new market.
 // Loaded as a regular script tag, so all values live on window.CITY_CONFIG.
 //
-// To launch in a new city (e.g. Austin):
-//   1. Copy this file: city-config.austin.js
-//   2. Update every value below for the new city
-//   3. Copy city-data.js: city-data.austin.js
-//   4. Replace the curated arrays inside with the new city's spots
-//   5. In nashville-chatbot.html, change the two <script src="..."> tags to point to the new files
-//   6. Rebrand /logo.jpg, /logo.png, /howdynash-splash-2732.png, manifest.json
-//   7. Update api/chat.js SYSTEM_PROMPT for the new city
-//   8. Deploy to a new domain (e.g. howdyatx.com)
-//   9. Submit a new iOS app to the App Store
+// NOTE: as of the Summit County launch nothing loads this file. index.html
+// carries its own inline constants and curated data arrays. This config is
+// kept as the reference sheet for standing up a new market, and is updated
+// alongside the app so it does not drift out of date. If you wire it back in,
+// add a <script src="/city-config.js"></script> tag before the main app script.
 //
-// All city-specific values live here. The HTML and API read from window.CITY_CONFIG.
+// To launch in a new market (e.g. Jackson Hole):
+//   1. Copy this file: city-config.jackson.js
+//   2. Update every value below for the new market
+//   3. Replace the curated arrays inside index.html with the new market's spots
+//   4. Rebrand /logo.jpg, /logo.png, /app-icon.png, manifest.json
+//   5. Update api/chat.js SYSTEM_PROMPT, NEIGHBORHOODS, and NEIGHBORHOOD_PICKS
+//   6. Repoint the api/* handlers at the new market's lat/lng
+//   7. Deploy to a new domain (e.g. howdyjackson.com)
+//   8. Submit a new iOS app to the App Store
+//
+// All market-specific values live here. The HTML and API read from window.CITY_CONFIG.
 
 window.CITY_CONFIG = {
   // Core identity
-  cityName: 'Nashville',
-  cityShortName: 'Nash',
-  state: 'TN',
-  stateFull: 'Tennessee',
-  brandName: 'Howdy Nash',
-  brandTitle: 'Howdy Nash: Nashville Guide',
-  tagline: "Nashville's Free Travel Concierge",
-  domain: 'howdynash.com',
-  url: 'https://howdynash.com',
+  cityName: 'Summit County',
+  cityShortName: 'Summit',
+  state: 'CO',
+  stateFull: 'Colorado',
+  brandName: 'Howdy Summit',
+  brandTitle: 'Howdy Summit: Summit County Guide',
+  tagline: "Summit County's Free Travel Concierge",
+  domain: 'howdysummitcounty.com',
+  url: 'https://howdysummitcounty.com',
 
   // Visual identity (used by graphics generator and CSS)
   primaryColor: '#d62828',
   secondaryColor: '#f4a200',
   accentColor: '#34a853',
 
-  // Geographic center (used as map default and distance fallback)
-  centerLat: 36.1627,
-  centerLng: -86.7816,
+  // Geographic center (used as map default and distance fallback).
+  // Frisco/Dillon area, roughly the middle of the six towns.
+  centerLat: 39.5744,
+  centerLng: -106.0975,
 
-  // Airport
-  airportCode: 'BNA',
-  airportName: 'Nashville International Airport',
-  airportShortName: 'BNA airport',
+  // Airport. Summit County has no commercial airport of its own; nearly every
+  // visitor flies into Denver and drives I-70 west.
+  airportCode: 'DEN',
+  airportName: 'Denver International Airport',
+  airportShortName: 'DEN airport',
 
-  // Sports teams (used for the Sports section)
-  sportsTeams: ['Titans', 'Predators', 'Sounds'],
+  // Towns covered by the app
+  towns: ['Breckenridge', 'Frisco', 'Dillon', 'Silverthorne', 'Keystone', 'Copper Mountain'],
 
-  // City nicknames and identifiers (used in copy and SEO)
-  nicknames: ['Music City', 'Nash', 'Nashville'],
+  // Ski resorts in and around the county
+  skiResorts: ['Breckenridge', 'Keystone', 'Copper Mountain', 'Arapahoe Basin', 'Loveland'],
 
-  // What the city is famous for (used in marketing copy)
-  signatureFoods: ['hot chicken', 'biscuits', 'BBQ'],
-  signatureExperiences: ['honky tonks', 'live music', 'songwriter rounds'],
+  // Sports teams (used for the Sports section). No pro teams in the county,
+  // so this points at the Denver market that locals actually follow.
+  sportsTeams: ['Broncos', 'Nuggets', 'Avalanche', 'Rockies'],
 
-  // Major event categories the city is known for
-  eventCategories: ['country music', 'bachelorette parties', 'CMA Fest', 'festivals'],
+  // Market nicknames and identifiers (used in copy and SEO)
+  nicknames: ['Summit County', 'Summit', 'Breck', 'Colorado high country'],
+
+  // What the area is famous for (used in marketing copy)
+  signatureFoods: ['craft beer', 'apres-ski', 'green chili'],
+  signatureExperiences: ['skiing and snowboarding', 'hiking', 'mountain biking', 'Dillon Reservoir'],
+
+  // Major event categories the area is known for
+  eventCategories: ['ski season', 'Oktoberfest', 'snow sculpture championships', 'festivals'],
 
   // SMS / share message template (use {code} placeholder)
-  groupShareMessage: 'Join my Nashville group on Howdy Nash!\nCode: {code}\n\nTap to open and auto-join:\nhttps://howdynash.com/?join={code}',
+  groupShareMessage: 'Join my Summit County group on Howdy Summit!\nCode: {code}\n\nTap to open and auto-join:\nhttps://howdysummitcounty.com/?join={code}',
 
   // Email defaults
-  fromEmail: 'Howdy Nash <howdy@howdynash.com>',
-  supportEmail: 'howdy@howdynash.com',
+  fromEmail: 'Howdy Summit <howdy@howdysummitcounty.com>',
+  supportEmail: 'howdy@howdysummitcounty.com',
 
-  // App Store / iOS
-  appStoreId: 'com.howdynash.app',
-  appStoreName: 'Howdy Nash',
+  // App Store / iOS. No published Howdy Summit app yet, so the in-app
+  // App Store promo is disabled in index.html until one exists.
+  appStoreId: 'com.howdysummit.app',
+  appStoreName: 'Howdy Summit',
   iosSchemes: ['https']
 };
 
 // Convenience getter for one-liner reads in inline HTML.
-// Usage: cityCfg('cityName') returns 'Nashville'
+// Usage: cityCfg('cityName') returns 'Summit County'
 window.cityCfg = function (key, fallback) {
   return (window.CITY_CONFIG && window.CITY_CONFIG[key] != null) ? window.CITY_CONFIG[key] : fallback;
 };

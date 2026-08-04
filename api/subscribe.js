@@ -7,10 +7,10 @@ import crypto from 'crypto';
 
 const { Pool } = pg;
 
-const FROM_EMAIL = 'Howdy Nash <howdy@howdynash.com>';
-const SITE_URL = 'https://howdynash.com';
-const CHEATSHEET_URL = 'https://howdynash.com/cheatsheet.html';
-const BACHELORETTE_URL = 'https://howdynash.com/bachelorette.html';
+const FROM_EMAIL = 'Howdy Summit <howdy@howdysummitcounty.com>';
+const SITE_URL = 'https://howdysummitcounty.com';
+const CHEATSHEET_URL = 'https://howdysummitcounty.com/cheatsheet.html';
+const BACHELORETTE_URL = 'https://howdysummitcounty.com/bachelorette.html';
 
 let pool;
 function getPool() {
@@ -51,7 +51,7 @@ const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const errorRateLimitStore = new Map();
 const ERROR_RATE_LIMIT_PER_HOUR = 20;
 const recentErrorFingerprints = new Map();
-const ERROR_REPORTER_TO = 'howdynashhq@gmail.com';
+const ERROR_REPORTER_TO = 'howdysummithq@gmail.com';
 
 function checkErrorRateLimit(ip) {
   const now = Date.now();
@@ -217,17 +217,17 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
     'bachelorette': 'Thanks for signing up. We built a Nashville group trip planner page just for trips like yours.',
     'trip-summary': tripData && tripData.isPayer ? `Here is the summary from your ${tripData.tripName || 'Nashville trip'}. Each person on the trip got their own email with what they owe.` : `Here is your share from the ${tripData && tripData.tripName || 'Nashville trip'}. Tap a payment button below to settle up in seconds.`,
     'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
-  }[source] || 'Welcome to Howdy Nash. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
+  }[source] || 'Welcome to Howdy Summit. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
 
   // Subtle branding (small logo) plus plain-text body. Logo helps the email
   // feel polished without triggering Gmail's Promotions classifier (no big CTA
   // buttons, no colored headers, no marketing copy).
   return `<!doctype html>
 <html>
-<head><meta charset="utf-8"><title>Howdy Nash</title></head>
+<head><meta charset="utf-8"><title>Howdy Summit</title></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#222;font-size:16px;line-height:1.55;">
   <div style="max-width:560px;margin:0 auto;padding:20px 18px;">
-    <div style="margin-bottom:18px;"><img src="${SITE_URL}/logo.png" alt="Howdy Nash" width="56" height="56" style="border-radius:12px;display:block;" /></div>
+    <div style="margin-bottom:18px;"><img src="${SITE_URL}/logo.png" alt="Howdy Summit" width="56" height="56" style="border-radius:12px;display:block;" /></div>
     <p style="margin:0 0 14px;">${greeting},</p>
     <p style="margin:0 0 14px;">${sourceBlurb}</p>
     ${source === 'cheatsheet' ? `<p style="margin:14px 0;"><a href="${CHEATSHEET_URL}" style="color:#d62828;font-weight:600;">${CHEATSHEET_URL}</a></p>` : ''}
@@ -235,9 +235,9 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
     ${source === 'trip-summary' ? buildTripSummaryBlock(tripData) : ''}
     ${savedSpotsBlock}
     <p style="margin:18px 0 14px;">Reply anytime. We read every email and we are happy to point you to the right spot for whatever you are looking for in Nashville.</p>
-    <p style="margin:0 0 4px;">Howdy Nash</p>
-    <p style="margin:0;color:#666;font-size:14px;">Howdy Nash · Nashville's Free Travel Concierge</p>
-    <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent because you signed up at howdynash.com. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
+    <p style="margin:0 0 4px;">Howdy Summit</p>
+    <p style="margin:0;color:#666;font-size:14px;">Howdy Summit · Nashville's Free Travel Concierge</p>
+    <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent because you signed up at howdysummitcounty.com. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
   </div>
 </body>
 </html>`;
@@ -256,7 +256,7 @@ async function fetchEaterOpenings() {
   // Scrapes Eater Nashville (ATOM feed format) for restaurant opening articles.
   try {
     const r = await fetch('https://nashville.eater.com/rss/index.xml', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HowdyNash/1.0)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HowdySummit/1.0)' }
     });
     if (!r.ok) return [];
     const xml = await r.text();
@@ -372,7 +372,7 @@ function buildNewsletterHTML(events, openings) {
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#222;">
   <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;">
     <div style="text-align:center;padding:16px 0;border-bottom:3px solid #d62828;">
-      <div style="font-size:28px;font-weight:800;color:#d62828;">Howdy Nash</div>
+      <div style="font-size:28px;font-weight:800;color:#d62828;">Howdy Summit</div>
       <div style="font-size:13px;color:#666;margin-top:4px;">This Weekend in Nashville · ${today}</div>
     </div>
     <div style="padding:24px 0;line-height:1.6;font-size:16px;">
@@ -382,13 +382,13 @@ function buildNewsletterHTML(events, openings) {
       <table style="width:100%;border-collapse:collapse;">${festRows || '<tr><td style="padding:12px 0;color:#666;">No major festivals scheduled. Tap below for live music.</td></tr>'}</table>
       ${openingsBlock}
       <p style="margin:24px 0 12px;">For live music tonight, weekend brunch, hot chicken lines, and group location sharing, open the full guide:</p>
-      <p style="margin:16px 0;text-align:center;"><a href="${SITE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Howdy Nash</a></p>
+      <p style="margin:16px 0;text-align:center;"><a href="${SITE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Howdy Summit</a></p>
       <p style="margin:24px 0 12px;font-size:14px;color:#666;">Heading to Nashville for a bachelorette? Reply to this email and tell me when. I will send you a personalized planner.</p>
-      <p style="margin:0;">Howdy,<br>Howdy Nash</p>
+      <p style="margin:0;">Howdy,<br>Howdy Summit</p>
     </div>
     <div style="border-top:1px solid #eee;padding:16px 0;font-size:12px;color:#888;text-align:center;">
-      <a href="${SITE_URL}" style="color:#d62828;text-decoration:none;">howdynash.com</a> &middot; <a href="{{UNSUB_URL}}" style="color:#888;text-decoration:underline;">Unsubscribe</a>
-      <div style="margin-top:8px;">You are receiving this because you signed up at howdynash.com. Restaurant news from Eater Nashville.</div>
+      <a href="${SITE_URL}" style="color:#d62828;text-decoration:none;">howdysummitcounty.com</a> &middot; <a href="{{UNSUB_URL}}" style="color:#888;text-decoration:underline;">Unsubscribe</a>
+      <div style="margin-top:8px;">You are receiving this because you signed up at howdysummitcounty.com. Restaurant news from Eater Nashville.</div>
     </div>
   </div>
 </body></html>`;
@@ -479,7 +479,7 @@ export default async function handler(req, res) {
     for (const url of urls) {
       try {
         const r = await fetch(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HowdyNash/1.0)' }
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HowdySummit/1.0)' }
         });
         const text = r.ok ? await r.text() : '';
         const itemCount = (text.match(/<item>/g) || []).length;
@@ -541,8 +541,8 @@ export default async function handler(req, res) {
       await resend.emails.send({
         from: FROM_EMAIL,
         to: ERROR_REPORTER_TO,
-        subject: `Howdy Nash JS error: ${errMsg.slice(0, 80)}`,
-        text: `A new client-side error fired on howdynash.com.\n\n` +
+        subject: `Howdy Summit JS error: ${errMsg.slice(0, 80)}`,
+        text: `A new client-side error fired on howdysummitcounty.com.\n\n` +
           `Message: ${errMsg}\n` +
           `URL: ${errUrl}\n` +
           `Line: ${errLine}, Column: ${errCol}\n` +
@@ -661,8 +661,8 @@ export default async function handler(req, res) {
       'saved-spots': 'Your Nashville saved spots',
       'bachelorette': 'Your Nashville group trip planner',
       'trip-summary': (tripData && tripData.isUpdate ? 'UPDATED: ' : '') + (tripData && tripData.isPayer ? `Your ${tripData.tripName || 'Nashville trip'} summary` : `Your share of the ${tripData && tripData.tripName || 'Nashville trip'}`),
-      'general': 'Welcome to Howdy Nash'
-    }[source] || 'Welcome to Howdy Nash';
+      'general': 'Welcome to Howdy Summit'
+    }[source] || 'Welcome to Howdy Summit';
 
     await resend.emails.send({
       from: FROM_EMAIL,

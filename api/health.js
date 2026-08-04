@@ -12,8 +12,11 @@ export default function handler(req, res) {
       aviationstack: !!process.env.AVIATIONSTACK_KEY,
       anthropic: !!process.env.ANTHROPIC_API_KEY,
       setlistfm: !!process.env.SETLIST_FM_API_KEY,
-      weather: true,
-      nashville: true
+      // Always-on services that need no API key. Kept separate from the
+      // keyed services above so the frontend's status badge can tell the
+      // difference between "a real live feed is configured" and "we can
+      // still hit the free National Weather Service endpoint."
+      weather: true
     }
   });
 }

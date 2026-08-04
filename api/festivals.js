@@ -36,7 +36,7 @@ async function fetchVisitMusicCity() {
   return [];
   try {
     const r = await fetch(VMC_URL, {
-      headers: { 'User-Agent': 'HowdyNash/1.0 (+https://howdynash.com)', 'Accept': 'text/html' }
+      headers: { 'User-Agent': 'HowdySummit/1.0 (+https://howdysummitcounty.com)', 'Accept': 'text/html' }
     });
     if (!r.ok) return [];
     const html = await r.text();
@@ -270,8 +270,27 @@ function isActualFestival(item) {
   return false;
 }
 
+// Coordinates arrive as query strings from the browser's Geolocation API, but
+// can also be hand-typed or malformed. A string like "notanumber" is truthy,
+// so an unvalidated check would treat it as a real location: flipping the
+// response into distance-sort mode and forwarding garbage to the upstream
+// provider. Return null unless the value is a finite, in-range coordinate.
+function validCoord(v, max) {
+  // Number('') and Number('   ') both coerce to 0, so an empty ?lat=&lng=
+  // would otherwise be read as the valid coordinate 0,0 off West Africa.
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
+}
+function parseLatLng(rawLat, rawLng) {
+  const lat = validCoord(rawLat, 90);
+  const lng = validCoord(rawLng, 180);
+  return (lat === null || lng === null) ? { lat: null, lng: null } : { lat, lng };
+}
+
 export default async function handler(req, res) {
-  const { lat, lng, source } = req.query;
+  const { source } = req.query;
+  const { lat, lng } = parseLatLng(req.query.lat, req.query.lng);
 
   // Pure Visit Music City mode: ?source=visitmusiccity returns only the scraped feed.
   if (source === 'visitmusiccity') {
@@ -291,14 +310,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [festivals, eventbrite, nash, vmc] = await Promise.all([
+    // fetchNashvilleSpecialEvents() and fetchVisitMusicCity() are both
+    // Nashville-only sources and are disabled (they return [] immediately).
+    // They stay in the call for now so the shape is easy to re-enable if a
+    // Summit County open-data or tourism-board feed is ever wired up.
+    const [festivals, eventbrite] = await Promise.all([
       fetchTicketmasterFestivals(lat, lng, 'Festival'),
-      fetchEventbriteFestivals(lat, lng),
-      fetchNashvilleSpecialEvents(),
-      fetchVisitMusicCity()
+      fetchEventbriteFestivals(lat, lng)
     ]);
 
-    let combined = dedupe([...festivals, ...eventbrite, ...nash, ...vmc]).filter(isActualFestival);
+    let combined = dedupe([...festivals, ...eventbrite]).filter(isActualFestival);
 
     if (lat && lng) {
       combined.sort((a, b) => {
@@ -318,9 +339,8 @@ export default async function handler(req, res) {
     res.status(200).json({
       source: 'combined',
       sources: {
-        festivals: festivals.length,
-        eventbrite: eventbrite.length,
-        nashville: nash.length
+        ticketmaster: festivals.length,
+        eventbrite: eventbrite.length
       },
       sortedBy: (lat && lng) ? 'distance' : 'date',
       festivals: combined,

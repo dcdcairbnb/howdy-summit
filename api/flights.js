@@ -1,13 +1,14 @@
 // AviationStack flight tracker. Free tier: 100 requests/month, 1 req/sec.
 // Sign up at https://aviationstack.com to get a key.
-// Default airport: BNA (Nashville International).
+// Default airport: DEN (Denver International). Summit County has no commercial
+// airport, so essentially every visitor flies into DEN and drives I-70 west.
 
 export default async function handler(req, res) {
   if (!process.env.AVIATIONSTACK_KEY) {
     return res.status(503).json({ error: 'AVIATIONSTACK_KEY not configured' });
   }
 
-  const { airport = 'BNA', direction = 'arrivals', limit = 20 } = req.query;
+  const { airport = 'DEN', direction = 'arrivals', limit = 20 } = req.query;
 
   try {
     const url = new URL('http://api.aviationstack.com/v1/flights');

@@ -4,3 +4,5 @@ node_modules
 .vercel
 .DS_Store
 .env*.local
+DEPLOY.command
+COMMIT_MSG.txt
