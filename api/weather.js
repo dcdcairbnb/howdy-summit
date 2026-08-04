@@ -1,7 +1,7 @@
 // Weather.gov (US National Weather Service). Free, no API key required.
 // Returns forecast plus active alerts for the user's location.
 
-const UA = 'HowdySummit/1.0 (contact@howdysummit.com)';
+const UA = 'HowdySummit/1.0 (contact@howdysummitcounty.com)';
 
 async function fetchAlerts(lat, lng) {
   try {

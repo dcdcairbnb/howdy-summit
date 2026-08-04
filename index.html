@@ -15,7 +15,7 @@
 <meta name="author" content="Howdy Summit">
 <meta name="google-site-verification" content="FukosyOiWlgn962QRk7rBXaMj-qEJdJlruyT78Kcdl0" />
 <meta name="p:domain_verify" content="f0376c956ce6170a7cd05f4004cdb1b6"/>
-<link rel="canonical" href="https://www.howdysummit.com/">
+<link rel="canonical" href="https://www.howdysummitcounty.com/">
 
 <link rel="icon" href="/logo.jpg" type="image/jpeg">
 <link rel="apple-touch-icon" href="/logo.jpg">
@@ -24,7 +24,7 @@
 <link rel="manifest" href="/manifest.json">
 
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://www.howdysummit.com/">
+<meta property="og:url" content="https://www.howdysummitcounty.com/">
 <meta property="og:title" content="Howdy Summit - Your Summit County Colorado Tourist Guide + AI Concierge">
 <meta property="og:description" content="Howdy Summit is your free Summit County Colorado tourist guide with an AI concierge. Skiing, hiking, breweries, restaurants, festivals, and tours. No signup.">
 <meta property="og:site_name" content="Howdy Summit">
@@ -42,7 +42,7 @@
   "@type": "WebApplication",
   "name": "Howdy Summit",
   "alternateName": ["Howdy Summit County", "Summit County Travel Guide"],
-  "url": "https://www.howdysummit.com/",
+  "url": "https://www.howdysummitcounty.com/",
   "description": "Free Summit County Colorado tourist guide with AI concierge. Skiing, hiking, breweries, restaurants, festivals, and group location sharing. Built for outdoor enthusiasts and vacation planners.",
   "applicationCategory": "TravelApplication",
   "operatingSystem": "Any",
@@ -66,7 +66,7 @@
   "name": "Howdy Summit",
   "operatingSystem": "iOS",
   "applicationCategory": "TravelApplication",
-  "url": "https://www.howdysummit.com/",
+  "url": "https://www.howdysummitcounty.com/",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -79,9 +79,9 @@
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "Howdy Summit",
-  "url": "https://www.howdysummit.com/",
-  "logo": "https://www.howdysummit.com/logo.jpg",
-  "email": "howdy@howdysummit.com",
+  "url": "https://www.howdysummitcounty.com/",
+  "logo": "https://www.howdysummitcounty.com/logo.jpg",
+  "email": "howdy@howdysummitcounty.com",
   "areaServed": {
     "@type": "AdministrativeArea",
     "name": "Summit County",
@@ -167,8 +167,8 @@
   "@type": "TouristInformationCenter",
   "name": "Howdy Summit - Summit County Visitor Guide",
   "description": "Free digital Summit County, Colorado tourist information center with AI concierge. Ski resorts, restaurants, breweries, apres-ski, trails, towns, festivals, and family activities.",
-  "url": "https://howdysummit.com/",
-  "image": "https://howdysummit.com/logo.jpg",
+  "url": "https://howdysummitcounty.com/",
+  "image": "https://howdysummitcounty.com/logo.jpg",
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Summit County",
@@ -1032,7 +1032,7 @@ let messageSnapshots = [];
 
 // Lightweight client-side error reporter. Reports uncaught errors and unhandled
 // promise rejections to /api/subscribe?action=log-error. Server dedupes per
-// hour and emails howdy@howdysummit.com on first occurrence. Local rate limit
+// hour and emails howdy@howdysummitcounty.com on first occurrence. Local rate limit
 // here prevents a buggy loop from drowning the inbox before the server sees it.
 (function setupErrorReporter() {
   const recentLocalErrors = new Set();
@@ -1709,7 +1709,7 @@ function reportIssue() {
     `Browser: ${decodeURIComponent(ua)}\n` +
     `Time: ${new Date().toISOString()}`
   );
-  window.location.href = `mailto:howdy@howdysummit.com?subject=${subject}&body=${body}`;
+  window.location.href = `mailto:howdy@howdysummitcounty.com?subject=${subject}&body=${body}`;
 }
 
 function handleStarClick(btn) {
@@ -5232,9 +5232,9 @@ function shareBingoCard() {
   const state = getBingoState();
   const done = (state.completed || []).length;
   const total = SUMMIT_BINGO_SQUARES.length;
-  const text = `I'm crushing Summit County Bingo! ${done}/${total} squares checked off. Get your own card at howdysummit.com 🎯`;
+  const text = `I'm crushing Summit County Bingo! ${done}/${total} squares checked off. Get your own card at howdysummitcounty.com 🎯`;
   if (navigator.share) {
-    navigator.share({ title: 'Summit County Bingo', text, url: 'https://howdysummit.com' }).catch(() => {});
+    navigator.share({ title: 'Summit County Bingo', text, url: 'https://howdysummitcounty.com' }).catch(() => {});
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => addMessage('Copied to clipboard. Paste it into Instagram, TikTok, or texts.', 'bot'));
   } else {
@@ -6276,7 +6276,7 @@ async function confirmPromoteToLeader(newLeaderId, newLeaderName, originBtn) {
 }
 
 function shareGroupCode(code) {
-  const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummit.com/?join=${code}`;
+  const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummitcounty.com/?join=${code}`;
   const safeCode = String(code).replace(/[<>]/g, '');
   const safeText = text.replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const encodedText = encodeURIComponent(text);
@@ -6307,7 +6307,7 @@ function shareGroupCode(code) {
 }
 
 async function copyGroupShareText(btn, code) {
-  const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummit.com/?join=${code}`;
+  const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummitcounty.com/?join=${code}`;
   try {
     await navigator.clipboard.writeText(text);
     if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(() => { btn.textContent = orig; }, 2000); }
@@ -6320,7 +6320,7 @@ async function copyGroupShareText(btn, code) {
 }
 
 async function nativeShareGroupCode(code) {
-  const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummit.com/?join=${code}`;
+  const text = `Join my Summit County group on Howdy Summit!\nCode: ${code}\n\nTap to open and auto-join:\nhttps://howdysummitcounty.com/?join=${code}`;
   try {
     await navigator.share({ title: 'Howdy Summit group', text });
   } catch (e) { /* user cancelled */ }
