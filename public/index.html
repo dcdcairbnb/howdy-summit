@@ -892,6 +892,56 @@
 </div>
 
 <script>
+// ===== BOOT ERROR OVERLAY =====
+// A WKWebView that throws during startup just shows a black screen, and if
+// Xcode cannot attach to the process there is no console to read. This catches
+// startup errors and paints them onto the screen so the device itself reports
+// the fault. Registered before the main app script so it can catch failures in
+// it. Removes itself once the app renders successfully.
+(function bootErrorOverlay() {
+  function show(kind, msg, extra) {
+    try {
+      let el = document.getElementById('__bootError');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = '__bootError';
+        el.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#111;color:#fff;'
+          + 'font:13px/1.45 -apple-system,BlinkMacSystemFont,monospace;padding:48px 16px 16px;'
+          + 'overflow:auto;-webkit-user-select:text;user-select:text;';
+        (document.body || document.documentElement).appendChild(el);
+      }
+      el.innerHTML += '<div style="margin-bottom:14px;border-bottom:1px solid #444;padding-bottom:10px;">'
+        + '<div style="color:#ff6b6b;font-weight:700;margin-bottom:4px;">' + kind + '</div>'
+        + '<div style="white-space:pre-wrap;word-break:break-word;">' + String(msg).replace(/</g,'&lt;') + '</div>'
+        + (extra ? '<div style="color:#888;margin-top:6px;white-space:pre-wrap;word-break:break-word;">'
+            + String(extra).replace(/</g,'&lt;') + '</div>' : '')
+        + '</div>';
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (e) {
+    show('JS ERROR', e.message, (e.filename || '') + (e.lineno ? ':' + e.lineno + ':' + e.colno : ''));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    const r = e.reason;
+    show('UNHANDLED PROMISE', (r && (r.message || r)) || 'unknown', r && r.stack);
+  });
+
+  // If the app never paints, say so rather than sitting on a black screen.
+  setTimeout(function () {
+    const m = document.getElementById('messages');
+    if (!m || m.children.length === 0) {
+      show('APP DID NOT RENDER',
+        'No messages were drawn within 7s of load.',
+        'readyState=' + document.readyState
+          + '\nlocation=' + location.href
+          + '\nCapacitor=' + (!!window.Capacitor)
+          + '\nplugins=' + (window.Capacitor && window.Capacitor.Plugins
+              ? Object.keys(window.Capacitor.Plugins).join(',') : 'none'));
+    }
+  }, 7000);
+})();
+
 const SUMMIT_DATA = {
   restaurants: [
     { name: "Hearthstone Restaurant", cuisine: "Steakhouse", neighborhood: "Breckenridge", price: "$$$$", vibe: "Historic 1886 Victorian house, Rocky Mountain fine dining, sunset views off the porch", booking: { opentable: "https://www.opentable.com/s?term=Hearthstone%20Restaurant%20Breckenridge" } },
@@ -1117,6 +1167,45 @@ let userLocation = (function loadCachedLocation() {
   }
 })();
 
+// ===== NATIVE GEOLOCATION SHIM =====
+// In the Capacitor iOS app, navigator.geolocation still works, but it routes
+// through WKWebView. That has two visible problems:
+//   1. The permission prompt reads '"localhost" would like to use your current
+//      location', because the web origin is capacitor://localhost. Users see a
+//      technical string instead of "Howdy Summit" and are more likely to deny.
+//   2. It ignores the NSLocationWhenInUseUsageDescription we set in Info.plist,
+//      so the explanation of WHY we want location never appears.
+//
+// The @capacitor/geolocation plugin asks through the native CoreLocation API
+// instead, so the prompt is properly attributed and shows our reason string.
+//
+// This shim swaps in the native plugin when running in the app and leaves the
+// browser API alone on the web, so the five existing call sites below don't
+// need to change. Signature matches navigator.geolocation.getCurrentPosition.
+function getPositionCompat(onSuccess, onError, options) {
+  options = options || {};
+  const plugin = window.Capacitor
+    && window.Capacitor.Plugins
+    && window.Capacitor.Plugins.Geolocation;
+
+  if (!plugin) {
+    if (!navigator.geolocation) { if (onError) onError(new Error('no geolocation')); return; }
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+    return;
+  }
+
+  plugin.getCurrentPosition({
+    enableHighAccuracy: !!options.enableHighAccuracy,
+    timeout: options.timeout || 10000,
+    maximumAge: options.maximumAge || 0
+  }).then(pos => {
+    // Normalize to the browser shape so callers reading pos.coords.latitude work.
+    onSuccess({ coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy } });
+  }).catch(err => {
+    if (onError) onError(err);
+  });
+}
+
 // Silently refresh GPS if the cached location is stale. Called on app launch
 // and on visibilitychange (foreground). No prompts, no UI changes - if the
 // permission was already granted iOS returns position fast; otherwise it
@@ -1129,7 +1218,7 @@ function refreshLocationIfStale() {
     if (raw) savedAt = JSON.parse(raw).savedAt || 0;
   } catch (e) {}
   if (Date.now() - savedAt < LOCATION_STALE_MS) return;
-  navigator.geolocation.getCurrentPosition(
+  getPositionCompat(
     pos => {
       userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       try {
@@ -1198,9 +1287,29 @@ if (document.readyState === 'loading') {
   syncLocationBarVisibility();
 }
 
-// API config. When deployed to Vercel, leave as relative path.
-// For local dev pointing at a hosted backend, change to your Vercel URL.
-const API_BASE = '';
+// API config.
+//
+// On the web, relative paths are correct: the API lives on the same Vercel
+// origin as the page.
+//
+// Inside the Capacitor iOS app the web assets are bundled and served from
+// capacitor://localhost, so window.location.origin points at the local
+// WKWebView, not at Vercel. Relative /api/* calls would resolve to
+// capacitor://localhost/api/... and fail every request. Detect the native
+// shell and send API traffic to production instead.
+//
+// Anything appended to this must keep working with `new URL(path, origin)`
+// callers below, so API_BASE is either '' or a full https origin.
+const PROD_ORIGIN = 'https://www.howdysummitcounty.com';
+const API_BASE = (function () {
+  try {
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const isLocalScheme = /^(capacitor|ionic|file):$/.test(window.location.protocol);
+    return (isNative || isLocalScheme) ? PROD_ORIGIN : '';
+  } catch (e) {
+    return '';
+  }
+})();
 let apiServices = { foursquare: false, google: false, ticketmaster: false, localEvents: false };
 
 // The /api/* live-data handlers (places/search, restaurants/search, events,
@@ -1356,7 +1465,7 @@ function requestLocation() {
   status.textContent = '📍 Getting location...';
   btn.disabled = true;
 
-  navigator.geolocation.getCurrentPosition(
+  getPositionCompat(
     pos => {
       userLocation = {
         lat: pos.coords.latitude,
@@ -2574,6 +2683,12 @@ function routeIntent(text) {
     return;
   }
 
+  if (matches(lower, ['hiking', 'hiking trails', '🥾 hiking trails', 'hike', 'hikes', 'trail', 'trails', 'trailhead',
+                      'where to hike', 'best hikes', 'easy hike', 'hard hike', 'day hike', 'fourteener', '14er',
+                      'quandary', 'mount royal', 'buffalo mountain', 'mayflower gulch', 'peaks trail'])) {
+    showHikingTrails();
+    return;
+  }
   if (matches(lower, ['waterfall', 'waterfalls', '💦 waterfalls', 'falls', 'alpine lake', 'alpine lakes', 'mohawk lakes', 'hanging lake'])) {
     showWaterfalls();
     return;
@@ -3934,6 +4049,7 @@ function showThingsToDoMenu(skipPush) {
     // The router has always accepted '💦 waterfalls' but no menu ever offered
     // it, so 10 curated hikes (Mohawk Lakes, McCullough Gulch, Continental
     // Falls) were reachable only by typing the word.
+    '🥾 Hiking trails',
     '💦 Waterfalls & alpine lakes',
     '🛷 Sleigh rides & snowmobiles',
     'Free things to do',
@@ -4267,9 +4383,34 @@ function renderCuratedCard(s, label, liveMatch) {
   // Last call countdown for bars. Per-entry closesAt overrides category default.
   const closesAt = s.closesAt || defaultClosingTime(label);
   const lastCallBadge = renderLastCallBadge(closesAt);
+  // Trail entries carry difficulty and length. Surface them as badges rather
+  // than burying them in the description: when you are picking a hike those
+  // two facts decide it, and nobody reads a paragraph to find them.
+  let trailBadges = '';
+  if (s.difficulty || s.miles) {
+    const diffColors = {
+      'Easy':   { bg: '#dcfce7', fg: '#166534' },
+      'Moderate': { bg: '#fef3c7', fg: '#92400e' },
+      'Hard':   { bg: '#fee2e2', fg: '#991b1b' }
+    };
+    const c = diffColors[s.difficulty] || { bg: '#e5e7eb', fg: '#374151' };
+    trailBadges = '<div style="margin:6px 0 2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">';
+    if (s.difficulty) {
+      trailBadges += `<span style="background:${c.bg};color:${c.fg};padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700;">${s.difficulty}</span>`;
+    }
+    if (s.miles) {
+      const lengthLabel = s.oneWay ? 'mi one way' : 'mi round trip';
+      trailBadges += `<span style="background:#e0f2fe;color:#075985;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">↔ ${s.miles} ${lengthLabel}</span>`;
+    }
+    if (s.gain) {
+      trailBadges += `<span style="background:#f3e8ff;color:#6b21a8;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">↑ ${s.gain} ft gain</span>`;
+    }
+    trailBadges += '</div>';
+  }
   let html = `<div class="card">
     <div class="card-title">${star}${share}${s.name}${lastCallBadge}</div>
     <div class="card-meta">${meta}</div>
+    ${trailBadges}
     <div class="card-desc">${s.desc || ''}</div>`;
   if (s.url) html += `<a href="${s.url}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
   const mapsUrl = liveMatch?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(s.name + ' Summit County CO')}`;
@@ -5085,6 +5226,49 @@ function showCuratedListPaged(list, label, startIdx, pageContainer) {
 }
 // Colorado waterfalls and alpine lakes within day-trip distance of Summit County. Verified
 // park or natural area. Drive times approximate from Breckenridge or Frisco.
+// Summit County hiking trails, sorted roughly easy to hard.
+// Distances are round trip and approximate; trailhead signs and current
+// conditions always win. Every one of these is in or immediately around the
+// county, unlike the waterfall list below which includes some day trips.
+const CURATED_HIKES = [
+  // ---- Easy / family ----
+  { name: "Sapphire Point Overlook", neighborhood: "Dillon", difficulty: "Easy", miles: "0.6", gain: "50", desc: "A gentle loop between Breckenridge and Keystone with the best view of Dillon Reservoir and the Tenmile Range behind it. The payoff comes almost immediately. Paved parking right off Swan Mountain Road." },
+  { name: "Old Dillon Reservoir Trail", neighborhood: "Dillon", difficulty: "Easy", miles: "1.2", gain: "150", desc: "A short steady climb to a small reservoir with a wide-open view over Lake Dillon. A local sunset favorite. Small lot that fills on summer evenings." },
+  { name: "Rainbow Lake", neighborhood: "Frisco", difficulty: "Easy", miles: "1.5", gain: "100", desc: "Mostly flat walking through lodgepole to a quiet lake on the Frisco side. A good choice for a first day while you are still adjusting to the altitude." },
+  { name: "Frisco Peninsula Recreation Area", neighborhood: "Frisco", difficulty: "Easy", miles: "1-6", desc: "A web of flat, well-marked trails on the peninsula that juts into Dillon Reservoir. Walk as long or as short as you like, with water views most of the way. Also the local mountain bike hub." },
+  { name: "Sallie Barber Mine Road", neighborhood: "Breckenridge", difficulty: "Easy", miles: "2.5", gain: "400", desc: "An old mining road out of French Gulch leading to a preserved mine site. Wide with a steady grade, good with kids and dogs." },
+  { name: "Lower Cataract Lake Loop", neighborhood: "Silverthorne", difficulty: "Easy", miles: "2.5", gain: "200", desc: "A loop around a lake in the Eagles Nest Wilderness with a tall waterfall on the far side. Wildflowers in July, aspens in late September. Small day-use fee, about 45 minutes north." },
+  { name: "Burro Trail", neighborhood: "Breckenridge", difficulty: "Easy", miles: "2-4", gain: "500", desc: "Starts right at the base of Peak 9, so you can walk to it from town without driving. Climbs gently along the creek and you turn around whenever you like." },
+
+  // ---- Moderate ----
+  { name: "Lily Pad Lake", neighborhood: "Silverthorne", difficulty: "Moderate", miles: "3", gain: "500", desc: "A pair of small lakes covered in lily pads with Buffalo Mountain looming above. Two trailheads; the Ryan Gulch side is the gentler approach." },
+  { name: "McCullough Gulch", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "3", gain: "700", desc: "A waterfall and alpine lake below Quandary Peak, and one of the prettiest short hikes in the county. That popularity means the tiny lot fills before 7am. Take the shuttle in summer." },
+  { name: "Mount Royal", neighborhood: "Frisco", difficulty: "Moderate", miles: "3", gain: "1400", desc: "Short but relentlessly steep, ending at a cliff-edge view straight down onto Frisco and the reservoir. Passes the Masontown ruins on the way up." },
+  { name: "Mayflower Gulch", neighborhood: "Copper Mountain", difficulty: "Moderate", miles: "3.5", gain: "700", desc: "An old road climbing to a basin ringed by peaks, with the Boston Mine cabins still standing. Peak wildflowers in mid-July. Just south of Copper on Highway 91." },
+  { name: "Keystone Gulch", neighborhood: "Keystone", difficulty: "Moderate", miles: "4-8", gain: "800", desc: "A wide service road up the gulch below the ski area. Go as far as you want and turn back. The aspens light up in late September. Shared with mountain bikers, so stay right." },
+  { name: "Wheeler Lakes", neighborhood: "Copper Mountain", difficulty: "Moderate", miles: "6.5", gain: "1300", desc: "A Colorado Trail segment from the Copper side climbing through forest to open lakes on a shelf above the valley. Steep for the first mile, then it eases." },
+
+  // ---- Hard / alpine ----
+  { name: "Buffalo Mountain", neighborhood: "Silverthorne", difficulty: "Hard", miles: "6", gain: "3000", desc: "A steep, rocky climb to the flat summit above Silverthorne, fully exposed up top. Start early and be off the summit by noon." },
+  { name: "Chihuahua Lake", neighborhood: "Keystone", difficulty: "Hard", miles: "6", gain: "1700", desc: "Up Peru Creek near Montezuma to a lake in a high cirque. The access road is rough, which keeps the crowds away. Worth it for the solitude." },
+  { name: "Mohawk Lakes", neighborhood: "Breckenridge", difficulty: "Hard", miles: "6.5", gain: "1700", desc: "Up the Spruce Creek Trail past Continental Falls to a chain of alpine lakes with old mining cabins and a standing tramway. Widely considered the best hike in the county." },
+  { name: "Quandary Peak", neighborhood: "Breckenridge", difficulty: "Hard", miles: "6.75", gain: "3450", desc: "Summit County's only fourteener at 14,265 feet, via the East Ridge. One of Colorado's more approachable 14ers but still a long day at altitude. A parking or shuttle reservation is required in summer." },
+  { name: "Peaks Trail", neighborhood: "Frisco", difficulty: "Hard", miles: "9", oneWay: true, gain: "1200", desc: "Runs between Frisco and Breckenridge through the trees along the base of the Tenmile Range. Rolling rather than steep, but long. Take the free Summit Stage back so you only walk it once." }
+];
+
+function showHikingTrails() {
+  addMessage("Hiking in Summit County, easiest first. Everything here is in or right around the county.", 'bot');
+  showCuratedThenLive(CURATED_HIKES, 'hiking trail trailhead', '', 'hiking trails');
+  setTimeout(() => {
+    addMessage('<div class="card"><div class="card-title">⛰️ Before you head out</div>'
+      + '<div class="card-desc"><strong>Altitude first.</strong> These trails start at 9,000 feet and climb from there. Save the hard ones for day two or three, and drink far more water than feels necessary.</div>'
+      + '<div class="card-desc"><strong>Be off summits by noon.</strong> Afternoon thunderstorms build almost daily in July and August, and there is no shelter above treeline. Early starts are not optional here.</div>'
+      + '<div class="card-desc"><strong>Parking fills before 7am.</strong> Quandary and McCullough Gulch require a reservation or shuttle in summer. The Summit Stage bus is free and reaches several trailheads.</div>'
+      + '<div class="card-desc"><strong>Snow lingers.</strong> High trails hold snow into July. Check conditions before counting on reaching a lake or summit.</div>'
+      + '</div>', 'bot', true);
+  }, 600);
+}
+
 const CURATED_WATERFALLS = [
   { name: "Continental Falls", neighborhood: "Breckenridge (20 min)", desc: "Roaring cascade on the Spruce Creek Trail south of Breckenridge. About 2.5 miles round trip from the lower trailhead, or shorter if you drive the rough upper road. Peak flow is late June into July.", url: null },
   { name: "Mohawk Lakes", neighborhood: "Breckenridge (20 min)", desc: "Continue past Continental Falls to a chain of alpine lakes with old mining cabins and a preserved tramway. Roughly 6.5 miles round trip and one of the best hikes in the county.", url: null },
@@ -5615,7 +5799,7 @@ function showGroupSession(code, memberId, isLeader, name) {
   if (navigator.geolocation) {
     if (groupGeoWatchId != null) navigator.geolocation.clearWatch(groupGeoWatchId);
     // Send one quick getCurrentPosition first so the user appears on the map fast
-    navigator.geolocation.getCurrentPosition((pos) => {
+    getPositionCompat((pos) => {
       groupApi({
         action: 'update',
         code, memberId, name,
@@ -6814,10 +6998,10 @@ function getTimeContext() {
   const h = new Date().getHours();
   // Colorado bars can serve until 2am, but most Summit County bars close earlier.
   if (h >= 0 && h < 3) return { mode: 'last_call', greeting: 'Howdy. Last call hour. Cecilia\'s in Breck is usually the last one standing. Drink water before bed, altitude doubles a hangover.' };
-  if (h >= 3 && h < 5) return { mode: 'late_night', greeting: 'Howdy night owl. Most spots are closed now. Cafe Coco is 24 hours and Sun Diner opens at 6.' };
+  if (h >= 3 && h < 5) return { mode: 'late_night', greeting: 'Howdy night owl. Nothing is open in the county at this hour, and that is normal up here. Breakfast places start opening around 7. Want me to line up a morning?' };
   if (h >= 5 && h < 11) return { mode: 'morning', greeting: 'Howdy. First chair or first coffee? Both are good options up here.' };
   if (h >= 11 && h < 14) return { mode: 'lunch', greeting: 'Howdy. Lunch o\'clock. On-mountain or down in town?' };
-  if (h >= 14 && h < 17) return { mode: 'afternoon', greeting: 'Howdy. Afternoon vibes. Distillery tour or rooftop bar?' };
+  if (h >= 14 && h < 17) return { mode: 'afternoon', greeting: 'Howdy. Apres hour. Distillery tour or a sunny deck?' };
   if (h >= 17 && h < 22) return { mode: 'evening', greeting: 'Howdy. Prime time in Summit County. Dinner and live music?' };
   return { mode: 'night', greeting: 'Howdy. Quiet mountain night. Main Street bar or a brewery taproom?' };
 }
@@ -8609,8 +8793,54 @@ function showFilteredCurated(items, header) {
   paginateMessages(withDist, ({ item }) => renderCuratedCard(item, header), 5);
 }
 
+// ===== NATIVE SPLASH SCREEN HANDOFF =====
+// The splash used to auto-hide on a 1200ms timer. That is a guess, and on a
+// real iPhone it is the wrong guess: this file is ~525KB with one very large
+// inline script, and parsing plus executing it takes longer on device than in
+// the Simulator (which runs on the Mac's CPU). When the timer won the race the
+// splash vanished and uncovered a WebView that had not painted yet, so the app
+// appeared to launch straight to a black screen.
+//
+// launchAutoHide is now false, so the splash stays up until we explicitly hide
+// it here, after the first menu has actually rendered. The timeout is a safety
+// net so a JS error can never strand the user on the splash forever.
+(function handOffSplashScreen() {
+  const plugin = window.Capacitor
+    && window.Capacitor.Plugins
+    && window.Capacitor.Plugins.SplashScreen;
+  if (!plugin) return; // web: no native splash to hide
+
+  let hidden = false;
+  const hide = (reason) => {
+    if (hidden) return;
+    hidden = true;
+    try { plugin.hide({ fadeOutDuration: 200 }); } catch (e) {}
+    console.log('[splash] hidden:', reason);
+  };
+
+  // Normal path: wait until the UI has painted at least one frame of content.
+  const whenPainted = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const messages = document.getElementById('messages');
+      if (messages && messages.children.length > 0) hide('content rendered');
+      else setTimeout(whenPainted, 150);
+    }));
+  };
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') whenPainted();
+  else document.addEventListener('DOMContentLoaded', whenPainted);
+
+  // Safety net. Never leave the splash up longer than this no matter what.
+  setTimeout(() => hide('safety timeout'), 6000);
+})();
+
 // PWA: register service worker for offline support and home screen install.
-if ('serviceWorker' in navigator) {
+//
+// Skipped inside the Capacitor iOS shell. There the web assets are already
+// bundled on-device, so the service worker adds nothing: it would try to
+// cache capacitor://localhost URLs, and its network-first navigation handler
+// competes with WKWebView's own local asset loading. Web only.
+if ('serviceWorker' in navigator && API_BASE === '') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(err => {
       console.warn('Service worker registration failed:', err);
@@ -8850,7 +9080,13 @@ async function maybeShowWeatherAlertBanner() {
       banner = document.createElement('div');
       banner.id = 'weatherAlertBanner';
       // Fixed at the very top of the viewport so it stays visible across menu changes.
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;align-items:center;gap:10px;padding:10px 14px;color:#fff;font-size:14px;font-weight:600;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,0.18);';
+      //
+      // The top padding adds env(safe-area-inset-top) so the text clears the
+      // status bar and Dynamic Island on notched iPhones. Without it the alert
+      // text renders underneath the clock and camera cutout and is unreadable
+      // in the native app. The colored background still extends to the very
+      // top edge, which is what you want behind the status bar.
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;align-items:center;gap:10px;padding:calc(16px + env(safe-area-inset-top, 0px)) 14px 12px;color:#fff;font-size:14px;font-weight:600;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,0.18);';
       document.body.appendChild(banner);
     }
     banner.style.background = bg;

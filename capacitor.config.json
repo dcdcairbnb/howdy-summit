@@ -1,0 +1,33 @@
+{
+  "appId": "com.howdysummit.app",
+  "appName": "Howdy Summit",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#d62828",
+    "limitsNavigationsToAppBoundDomains": false,
+    "scrollEnabled": true
+  },
+  "server": {
+    "iosScheme": "capacitor",
+    "allowNavigation": [
+      "www.howdysummitcounty.com",
+      "howdysummitcounty.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 8000,
+      "launchAutoHide": false,
+      "backgroundColor": "#d62828",
+      "showSpinner": true,
+      "iosSpinnerStyle": "small",
+      "spinnerColor": "#ffffff",
+      "splashFullScreen": true,
+      "splashImmersive": false
+    },
+    "Geolocation": {
+      "iosLocationWhenInUseUsageDescription": "Howdy Summit uses your location to show the closest restaurants, apres-ski bars, and trailheads, to set an accurate rideshare pickup, and to place you on the map when you join a group."
+    }
+  }
+}
