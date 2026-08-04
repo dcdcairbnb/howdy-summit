@@ -1,12 +1,12 @@
-// Howdy Nash service worker. Caches static assets for offline use.
+// Howdy Summit service worker. Caches static assets for offline use.
 // Bump CACHE_VERSION when deploying changes you want users to see immediately.
 
-const CACHE_VERSION = 'howdynash-v174';
+const CACHE_VERSION = 'howdysummit-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_ASSETS = [
   '/',
-  '/nashville-chatbot.html',
+  '/index.html',
   '/manifest.json'
 ];
 
@@ -50,7 +50,7 @@ self.addEventListener('fetch', event => {
           caches.open(STATIC_CACHE).then(cache => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match(event.request).then(r => r || caches.match('/nashville-chatbot.html')))
+        .catch(() => caches.match(event.request).then(r => r || caches.match('/index.html')))
     );
     return;
   }
