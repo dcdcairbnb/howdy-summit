@@ -8678,9 +8678,11 @@ setTimeout(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || /CapacitorWebView/i.test(navigator.userAgent);
     const isIosSafari = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (!isStandalone && !isCapacitor && !isIosSafari) {
-      addMessage(renderAppStoreBadge(), 'bot', true);
-    }
+    // App Store badge disabled until Howdy Summit has its own published app
+    // (the App Store link currently points to the Howdy Nash listing).
+    // if (!isStandalone && !isCapacitor && !isIosSafari) {
+    //   addMessage(renderAppStoreBadge(), 'bot', true);
+    // }
     // Skip the main menu and cheat sheet when the user is arriving via a group
     // invite link. They came to join, not to browse.
     const joiningGroup = (() => {
@@ -8711,7 +8713,9 @@ setTimeout(() => {
   }, 800);
   setTimeout(() => { suppressAutoScroll = false; }, 2000);
   setTimeout(() => snapshot('initial'), 500);
-  setTimeout(() => maybeShowIosInstallHint(), 1000);
+  // iOS "Get the app" install hint disabled until Howdy Summit has its own
+  // published app (the App Store link currently points to the Howdy Nash listing).
+  // setTimeout(() => maybeShowIosInstallHint(), 1000);
   maybeShowWelcomeTour();
   maybeShowLocationPrompt();
   // Auto-fetch active weather alerts for Summit County and show a sticky banner.
