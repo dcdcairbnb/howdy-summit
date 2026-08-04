@@ -5198,9 +5198,69 @@ function showBakeries() {
 
 // Paginate any curated list 5 at a time, like restaurants. Reuses renderCuratedCard.
 let _pagedCuratedState = null;
+// ===== GENERIC COMPACT LIST =====
+// Same idea as the trail picker, reused for restaurants, bars, breweries and
+// every other curated list. The full cards are tall (description, badges,
+// four or five buttons) so a page of five filled the phone screen and the
+// list looked like a single entry. Render one tight row per item so you can
+// compare a screenful at a glance, and expand only the one you pick.
+const _compactRegistry = {};
+
+function renderCompactList(list, key, cardFn, metaFn) {
+  _compactRegistry[key] = { list, cardFn };
+  let html = '<div class="card" style="padding:6px 4px;">';
+  list.forEach((item, i) => {
+    const meta = metaFn ? metaFn(item) : (item.neighborhood || '');
+    html += `<div style="border-bottom:1px solid #eee;">
+      <div onclick="toggleCompactDetail('${key}',${i})" style="padding:9px 10px;cursor:pointer;">
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <div style="flex:1;min-width:0;font-weight:700;color:#d62828;font-size:15px;line-height:1.25;">${item.name}</div>
+          <span id="${key}-chev-${i}" style="color:#bbb;font-size:11px;flex-shrink:0;">\u25be</span>
+        </div>
+        <div style="font-size:12px;color:#777;margin-top:3px;">${meta}</div>
+      </div>
+      <div id="${key}-detail-${i}" style="display:none;padding:0 2px 8px;"></div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function toggleCompactDetail(key, i) {
+  const reg = _compactRegistry[key];
+  if (!reg) return;
+  const box = document.getElementById(`${key}-detail-${i}`);
+  const chev = document.getElementById(`${key}-chev-${i}`);
+  if (!box) return;
+  if (box.style.display === 'block') {
+    box.style.display = 'none';
+    if (chev) chev.textContent = '\u25be';
+    return;
+  }
+  if (!box.innerHTML) {
+    try { box.innerHTML = reg.cardFn(reg.list[i]); }
+    catch (e) { box.innerHTML = '<div style="color:#999;font-size:13px;">Could not load details.</div>'; }
+  }
+  box.style.display = 'block';
+  if (chev) chev.textContent = '\u25b4';
+}
+
+// Meta line for a restaurant row: cuisine, town, price, rating, distance.
+function compactRestaurantMeta(r) {
+  const bits = [];
+  if (r.cuisine) bits.push(r.cuisine);
+  if (r.neighborhood) bits.push(r.neighborhood);
+  if (r.price) bits.push(r.price);
+  if (r.rating) bits.push(`\u2605 ${r.rating}`);
+  if (r.distanceMiles != null) {
+    bits.push(r.distanceMiles < 1 ? 'nearby' : `${r.distanceMiles} mi`);
+  }
+  return bits.join(' \u00b7 ');
+}
+
 function showCuratedListPaged(list, label, startIdx, pageContainer) {
   const isRerender = !!pageContainer; // a re-render means the user clicked Next/Prev
-  const pageSize = 5;
+  const pageSize = 12;
   const totalPages = Math.ceil(list.length / pageSize);
   const currentPage = Math.floor(startIdx / pageSize) + 1;
   const slice = list.slice(startIdx, startIdx + pageSize);
@@ -5212,14 +5272,17 @@ function showCuratedListPaged(list, label, startIdx, pageContainer) {
   if (totalPages > 1) {
     html += `<div class="message bot" style="font-size:13px;color:#666;text-align:center;background:transparent;padding:6px 0;">Page ${currentPage} of ${totalPages}</div>`;
   }
-  slice.forEach(item => {
-    html += `<div class="message bot">${renderCuratedCard(item, label, null)}</div>`;
-  });
+  html += `<div class="message bot">${renderCompactList(slice, 'cur' + label.replace(/[^a-z0-9]/gi, '') + startIdx, it => renderCuratedCard(it, label, null), it => {
+    const bits = [];
+    if (it.neighborhood) bits.push(it.neighborhood);
+    if (it.note) bits.push(it.note);
+    return bits.join(' \u00b7 ');
+  })}</div>`;
 
   if (hasPrev || hasNext) {
     html += `<div class="quick-replies" id="curatedPageNav">`;
     if (hasPrev) {
-      html += `<button class="quick-reply" data-curated-action="prev">← Previous 5</button>`;
+      html += `<button class="quick-reply" data-curated-action="prev">← Previous</button>`;
     }
     if (hasNext) {
       html += `<button class="quick-reply" data-curated-action="next">Show next ${Math.min(pageSize, remaining)} →</button>`;
@@ -8139,7 +8202,9 @@ let _pagedRestaurantsState = null;
 // pageContainer is the div the cards live in. If null, a new one is created.
 function showRestaurantsPaged(list, startIdx, pageContainer) {
   const isRerender = !!pageContainer; // a re-render means the user clicked Next/Prev
-  const pageSize = 5;
+  // Rows are two lines tall now instead of a full card, so a page can hold
+  // far more without the user losing their place.
+  const pageSize = 12;
   const totalPages = Math.ceil(list.length / pageSize);
   const currentPage = Math.floor(startIdx / pageSize) + 1;
   const slice = list.slice(startIdx, startIdx + pageSize);
@@ -8152,15 +8217,15 @@ function showRestaurantsPaged(list, startIdx, pageContainer) {
   if (totalPages > 1) {
     html += `<div class="message bot" style="font-size:13px;color:#666;text-align:center;background:transparent;padding:6px 0;">Page ${currentPage} of ${totalPages}</div>`;
   }
-  slice.forEach(r => {
-    html += `<div class="message bot">${renderRestaurantCard(r)}</div>`;
-  });
+  // Compact rows instead of five full-height cards. Tapping a row expands
+  // that restaurant's full card in place.
+  html += `<div class="message bot">${renderCompactList(slice, 'rest' + startIdx, renderRestaurantCard, compactRestaurantMeta)}</div>`;
 
   // Pagination controls
   if (hasPrev || hasNext) {
     html += `<div class="quick-replies" id="restPageNav">`;
     if (hasPrev) {
-      html += `<button class="quick-reply" data-paged-action="prev">← Previous 5</button>`;
+      html += `<button class="quick-reply" data-paged-action="prev">← Previous</button>`;
     }
     if (hasNext) {
       html += `<button class="quick-reply" data-paged-action="next">Show next ${Math.min(pageSize, remaining)} →</button>`;
@@ -8373,7 +8438,7 @@ function showEventsPaged(events, startIdx, pageContainer) {
 
   if (hasPrev || hasNext) {
     html += `<div class="quick-replies">`;
-    if (hasPrev) html += `<button class="quick-reply" data-events-action="prev">← Previous 5</button>`;
+    if (hasPrev) html += `<button class="quick-reply" data-events-action="prev">← Previous</button>`;
     if (hasNext) html += `<button class="quick-reply" data-events-action="next">Show next ${Math.min(pageSize, remaining)} →</button>`;
     html += `</div>`;
   } else if (totalPages > 1) {
