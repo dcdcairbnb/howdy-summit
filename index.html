@@ -5329,11 +5329,11 @@ const CURATED_BIKE_RIDES = [
   { name: "Dillon Dam Road", neighborhood: "Dillon", difficulty: "Easy", miles: "3.5", oneWay: true, gain: "250", desc: "Paved path running along the top of the dam between Frisco and Dillon, with the reservoir on one side and the Gore Range straight ahead. The easiest big-view ride in the county." },
   { name: "Frisco to Farmers Korner", neighborhood: "Frisco", difficulty: "Easy", miles: "4.5", oneWay: true, gain: "300", desc: "The gentlest stretch of the Blue River Bikeway heading south out of Frisco. Flat enough for kids and a good turnaround if the full Breckenridge ride is too much." },
   { name: "Ten Mile Canyon Recpath", neighborhood: "Frisco", difficulty: "Moderate", miles: "7", oneWay: true, gain: "700", desc: "Frisco up to Copper Mountain through Ten Mile Canyon, following the creek and the old railroad grade with the Tenmile Range overhead. Steady climb out, fast coast back." },
-  { name: "Blue River Bikeway", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "9.5", oneWay: true, gain: "800", desc: "Frisco to Breckenridge entirely on paved path, climbing gently the whole way alongside the Blue River. Ride up and take the free Summit Stage back, which is the local move." },
+  { name: "Blue River Bikeway", neighborhood: "Breckenridge", difficulty: "Easy", miles: "9.2", oneWay: true, gain: "800", desc: "Frisco to Breckenridge entirely on paved path, climbing gently the whole way alongside the Blue River. Ride up and take the free Summit Stage back, which is the local move." },
   { name: "Vail Pass from Copper", neighborhood: "Copper Mountain", difficulty: "Hard", miles: "8", oneWay: true, gain: "1300", desc: "The classic. Paved path from Copper to the 10,662-foot Vail Pass summit, car-free almost the entire way. Shuttle services will drop you at the top if you only want the descent." },
 
   // ---- Gravel ----
-  { name: "Boreas Pass Road", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "13", desc: "Gravel. An old narrow-gauge railroad grade out of Breckenridge, so the climb never exceeds a steady 4 percent. Wildflowers in July, glowing aspens in late September, mining history the whole way." },
+  { name: "Boreas Pass Road", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "13", desc: "Gravel. Breckenridge up to the 11,481-foot pass summit and back. An old railroad grade, so the climb never exceeds a steady 4 percent. Continuing over to Como makes it a 21-mile point-to-point. Wildflowers in July, glowing aspens in late September, mining history the whole way." },
   { name: "Sallie Barber Mine Road", neighborhood: "Breckenridge", difficulty: "Easy", miles: "5", gain: "600", desc: "Gravel. A wide, steady climb through French Gulch to a preserved mine site. A good first dirt ride and easy to shorten." },
 
   // ---- Singletrack ----
@@ -5354,6 +5354,15 @@ const CURATED_BIKE_RIDES = [
 const _trailRegistry = {};
 
 function renderTrailPicker(list, label, key) {
+  // Sort easiest first at render time rather than relying on array order.
+  // Verified distances shifted several trails between difficulty bands, and a
+  // hand-ordered array silently goes stale the moment a value changes.
+  const rank = { 'Easy': 0, 'Moderate': 1, 'Hard': 2 };
+  list = [...list].sort((a, b) => {
+    const d = (rank[a.difficulty] ?? 3) - (rank[b.difficulty] ?? 3);
+    if (d !== 0) return d;
+    return (parseFloat(a.miles) || 99) - (parseFloat(b.miles) || 99);
+  });
   _trailRegistry[key] = list;
   const diffColors = {
     'Easy':     { bg: '#dcfce7', fg: '#166534' },
@@ -5422,27 +5431,27 @@ function showBikeTrails() {
 
 const CURATED_HIKES = [
   // ---- Easy / family ----
-  { name: "Sapphire Point Overlook", neighborhood: "Dillon", difficulty: "Easy", miles: "0.6", gain: "50", desc: "A gentle loop between Breckenridge and Keystone with the best view of Dillon Reservoir and the Tenmile Range behind it. The payoff comes almost immediately. Paved parking right off Swan Mountain Road." },
-  { name: "Old Dillon Reservoir Trail", neighborhood: "Dillon", difficulty: "Easy", miles: "1.2", gain: "150", desc: "A short steady climb to a small reservoir with a wide-open view over Lake Dillon. A local sunset favorite. Small lot that fills on summer evenings." },
-  { name: "Rainbow Lake", neighborhood: "Frisco", difficulty: "Easy", miles: "1.5", gain: "100", desc: "Mostly flat walking through lodgepole to a quiet lake on the Frisco side. A good choice for a first day while you are still adjusting to the altitude." },
+  { name: "Sapphire Point Overlook", neighborhood: "Dillon", difficulty: "Easy", miles: "0.6", gain: "42", desc: "A gentle loop between Breckenridge and Keystone with the best view of Dillon Reservoir and the Tenmile Range behind it. The payoff comes almost immediately. Paved parking right off Swan Mountain Road." },
+  { name: "Old Dillon Reservoir Trail", neighborhood: "Dillon", difficulty: "Easy", miles: "1.6", gain: "203", desc: "A short steady climb to a small reservoir with a wide-open view over Lake Dillon. A local sunset favorite. Small lot that fills on summer evenings." },
+  { name: "Rainbow Lake", neighborhood: "Frisco", difficulty: "Easy", miles: "1.6", gain: "157", desc: "Mostly flat walking through lodgepole to a quiet lake on the Frisco side. A good choice for a first day while you are still adjusting to the altitude." },
   { name: "Frisco Peninsula Recreation Area", neighborhood: "Frisco", difficulty: "Easy", miles: "1-6", desc: "A web of flat, well-marked trails on the peninsula that juts into Dillon Reservoir. Walk as long or as short as you like, with water views most of the way. Also the local mountain bike hub." },
-  { name: "Sallie Barber Mine Road", neighborhood: "Breckenridge", difficulty: "Easy", miles: "2.5", gain: "400", desc: "An old mining road out of French Gulch leading to a preserved mine site. Wide with a steady grade, good with kids and dogs." },
-  { name: "Lower Cataract Lake Loop", neighborhood: "Silverthorne", difficulty: "Easy", miles: "2.5", gain: "200", desc: "A loop around a lake in the Eagles Nest Wilderness with a tall waterfall on the far side. Wildflowers in July, aspens in late September. Small day-use fee, about 45 minutes north." },
-  { name: "Burro Trail", neighborhood: "Breckenridge", difficulty: "Easy", miles: "2-4", gain: "500", desc: "Starts right at the base of Peak 9, so you can walk to it from town without driving. Climbs gently along the creek and you turn around whenever you like." },
+  { name: "Sallie Barber Mine Road", neighborhood: "Breckenridge", difficulty: "Easy", miles: "2.7", gain: "390", desc: "An old mining road out of French Gulch leading to a preserved mine site. Wide with a steady grade, good with kids and dogs." },
+  { name: "Lower Cataract Lake Loop", neighborhood: "Silverthorne", difficulty: "Easy", miles: "2.3", gain: "219", desc: "A loop around a lake in the Eagles Nest Wilderness with a tall waterfall on the far side. Wildflowers in July, aspens in late September. Small day-use fee, about 45 minutes north." },
+  { name: "Burro Trail", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "6.1", gain: "915", desc: "Starts right at the base of Peak 9, so you can walk to it from town without driving. Climbs steadily along the creek. Full length is 6.1 miles but it is an out-and-back, so turn around whenever you like. Continuing to Francie's Cabin makes it 8.2 miles." },
 
   // ---- Moderate ----
-  { name: "Lily Pad Lake", neighborhood: "Silverthorne", difficulty: "Moderate", miles: "3", gain: "500", desc: "A pair of small lakes covered in lily pads with Buffalo Mountain looming above. Two trailheads; the Ryan Gulch side is the gentler approach." },
-  { name: "McCullough Gulch", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "3", gain: "700", desc: "A waterfall and alpine lake below Quandary Peak, and one of the prettiest short hikes in the county. That popularity means the tiny lot fills before 7am. Take the shuttle in summer." },
-  { name: "Mount Royal", neighborhood: "Frisco", difficulty: "Moderate", miles: "3", gain: "1400", desc: "Short but relentlessly steep, ending at a cliff-edge view straight down onto Frisco and the reservoir. Passes the Masontown ruins on the way up." },
+  { name: "Lily Pad Lake", neighborhood: "Silverthorne", difficulty: "Moderate", miles: "3.4", gain: "413", desc: "A pair of small lakes covered in lily pads with Buffalo Mountain looming above. Two trailheads; the Ryan Gulch side is the gentler approach." },
+  { name: "McCullough Gulch", neighborhood: "Breckenridge", difficulty: "Hard", miles: "6.5", gain: "1591", desc: "A waterfall and alpine lake below Quandary Peak, and one of the prettiest hikes in the county. Longer than it looks from the map since the lower gate closure added mileage. The tiny lot fills before 7am, so take the shuttle in summer." },
+  { name: "Mount Royal", neighborhood: "Frisco", difficulty: "Hard", miles: "4.1", gain: "1381", desc: "Relentlessly steep for its length, ending at a cliff-edge view straight down onto Frisco and the reservoir. Passes the Masontown ruins on the way up. Rated hard despite the modest distance because of the sustained grade." },
   { name: "Mayflower Gulch", neighborhood: "Copper Mountain", difficulty: "Moderate", miles: "3.5", gain: "700", desc: "An old road climbing to a basin ringed by peaks, with the Boston Mine cabins still standing. Peak wildflowers in mid-July. Just south of Copper on Highway 91." },
-  { name: "Keystone Gulch", neighborhood: "Keystone", difficulty: "Moderate", miles: "4-8", gain: "800", desc: "A wide service road up the gulch below the ski area. Go as far as you want and turn back. The aspens light up in late September. Shared with mountain bikers, so stay right." },
-  { name: "Wheeler Lakes", neighborhood: "Copper Mountain", difficulty: "Moderate", miles: "6.5", gain: "1300", desc: "A Colorado Trail segment from the Copper side climbing through forest to open lakes on a shelf above the valley. Steep for the first mile, then it eases." },
+  { name: "Keystone Gulch", neighborhood: "Keystone", difficulty: "Moderate", miles: "4-8", gain: "800", desc: "A wide service road up the gulch below the ski area, ridden as an out-and-back so you turn around wherever you like. The full loop to the top is 15.9 miles and rated hard. Aspens light up in late September. Shared with mountain bikers, so stay right." },
+  { name: "Wheeler Lakes", neighborhood: "Copper Mountain", difficulty: "Moderate", miles: "7.1", gain: "1476", desc: "A Colorado Trail segment from the Copper side climbing through forest to open lakes on a shelf above the valley. Steep for the first mile, then it eases." },
 
   // ---- Hard / alpine ----
-  { name: "Buffalo Mountain", neighborhood: "Silverthorne", difficulty: "Hard", miles: "6", gain: "3000", desc: "A steep, rocky climb to the flat summit above Silverthorne, fully exposed up top. Start early and be off the summit by noon." },
-  { name: "Chihuahua Lake", neighborhood: "Keystone", difficulty: "Hard", miles: "6", gain: "1700", desc: "Up Peru Creek near Montezuma to a lake in a high cirque. The access road is rough, which keeps the crowds away. Worth it for the solitude." },
-  { name: "Mohawk Lakes", neighborhood: "Breckenridge", difficulty: "Hard", miles: "6.5", gain: "1700", desc: "Up the Spruce Creek Trail past Continental Falls to a chain of alpine lakes with old mining cabins and a standing tramway. Widely considered the best hike in the county." },
-  { name: "Quandary Peak", neighborhood: "Breckenridge", difficulty: "Hard", miles: "6.75", gain: "3450", desc: "Summit County's only fourteener at 14,265 feet, via the East Ridge. One of Colorado's more approachable 14ers but still a long day at altitude. A parking or shuttle reservation is required in summer." },
+  { name: "Buffalo Mountain", neighborhood: "Silverthorne", difficulty: "Hard", miles: "6", gain: "3021", desc: "A steep, rocky climb to the flat summit above Silverthorne, fully exposed up top. Start early and be off the summit by noon." },
+  { name: "Chihuahua Lake", neighborhood: "Keystone", difficulty: "Hard", miles: "7.5", gain: "1906", desc: "Up Peru Creek near Montezuma to a lake in a high cirque. The access road is rough, which keeps the crowds away. Worth it for the solitude." },
+  { name: "Mohawk Lakes", neighborhood: "Breckenridge", difficulty: "Hard", miles: "9.2", gain: "2175", desc: "Up the Spruce Creek Trail past Continental Falls to a chain of alpine lakes with old mining cabins and a standing tramway. Widely considered the best hike in the county. Distance is from the lower trailhead; the rough upper road shortens it if your vehicle can handle it." },
+  { name: "Quandary Peak", neighborhood: "Breckenridge", difficulty: "Hard", miles: "7.1", gain: "3428", desc: "Summit County's only fourteener at 14,265 feet, via the East Ridge. One of Colorado's more approachable 14ers but still a long day at altitude. A parking or shuttle reservation is required in summer." },
   { name: "Peaks Trail", neighborhood: "Frisco", difficulty: "Hard", miles: "9", oneWay: true, gain: "1200", desc: "Runs between Frisco and Breckenridge through the trees along the base of the Tenmile Range. Rolling rather than steep, but long. Take the free Summit Stage back so you only walk it once." }
 ];
 
@@ -5455,6 +5464,7 @@ function showHikingTrails() {
       + '<div class="card-desc"><strong>Be off summits by noon.</strong> Afternoon thunderstorms build almost daily in July and August, and there is no shelter above treeline. Early starts are not optional here.</div>'
       + '<div class="card-desc"><strong>Parking fills before 7am.</strong> Quandary and McCullough Gulch require a reservation or shuttle in summer. The Summit Stage bus is free and reaches several trailheads.</div>'
       + '<div class="card-desc"><strong>Snow lingers.</strong> High trails hold snow into July. Check conditions before counting on reaching a lake or summit.</div>'
+      + '<div class="card-desc" style="font-size:12px;color:#777;">Distances and elevation are cross-checked against AllTrails where a matching route exists. Trailhead signs and current conditions always win.</div>'
       + '</div>', 'bot', true);
   }, 600);
 }
