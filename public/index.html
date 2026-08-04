@@ -2683,6 +2683,13 @@ function routeIntent(text) {
     return;
   }
 
+  if (matches(lower, ['ski rental', 'ski rentals', 'snowboard rental', 'board rental', 'rent skis',
+                      'rent a snowboard', 'gear rental', 'gear rentals', 'ski shop', 'ski shops',
+                      'demo skis', 'boot fitting', 'bike rental', 'bike rentals', 'rent a bike',
+                      '\ud83c\udfbf ski & gear rentals', 'ski and gear rentals', 'where to rent'])) {
+    showGearDelivery();
+    return;
+  }
   // 'ski' is a substring of 'ski shop' and 'ski rental', which should route
   // to Shopping instead. Apres-ski is already matched earlier. Exclude the
   // retail and rental phrasings so they fall through.
@@ -4073,14 +4080,20 @@ function showThingsToDoMenu(skipPush) {
 
   const winterFirst = [
     '\u26f7\ufe0f Skiing & snowboarding',
+    '\ud83c\udfbf Ski & gear rentals',
     '\ud83d\udef7 Sleigh rides & snowmobiles',
     '\ud83e\udd7e Hiking trails',
     '\ud83d\udeb2 Bike trails'
   ];
+  // Skiing still appears in summer, just lower down. People plan winter trips
+  // in August, and burying it entirely was the same "content with no button"
+  // problem this menu was meant to fix.
   const summerFirst = [
     '\ud83e\udd7e Hiking trails',
     '\ud83d\udeb2 Bike trails',
     '\ud83d\udca6 Waterfalls & alpine lakes',
+    '\ud83c\udfbf Ski & gear rentals',
+    '\u26f7\ufe0f Skiing & snowboarding',
     '\ud83d\udef7 Sleigh rides & snowmobiles'
   ];
 
