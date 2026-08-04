@@ -36,8 +36,11 @@ async function fetchTicketmaster(keyword, classificationName, startDateTime, end
       url.searchParams.set('unit', 'miles');
       url.searchParams.set('sort', 'distance,asc');
     } else {
-      url.searchParams.set('city', 'Nashville');
-      url.searchParams.set('stateCode', 'TN');
+      // No user location shared: default to Summit County's geographic center
+      // (Frisco/Dillon) rather than a single town, so results cover all six towns.
+      url.searchParams.set('latlong', '39.5744,-106.0975');
+      url.searchParams.set('radius', '30');
+      url.searchParams.set('unit', 'miles');
       url.searchParams.set('sort', 'date,asc');
     }
     if (keyword) url.searchParams.set('keyword', keyword);
@@ -89,8 +92,9 @@ async function fetchSeatGeek(keyword, lat, lng) {
       url.searchParams.set('lon', String(lng));
       url.searchParams.set('range', '25mi');
     } else {
-      url.searchParams.set('venue.city', 'Nashville');
-      url.searchParams.set('venue.state', 'TN');
+      url.searchParams.set('lat', '39.5744');
+      url.searchParams.set('lon', '-106.0975');
+      url.searchParams.set('range', '30mi');
     }
     url.searchParams.set('sort', 'datetime_local.asc');
     if (keyword) url.searchParams.set('q', keyword);
@@ -136,8 +140,9 @@ async function fetchEventbrite(keyword, lat, lng) {
       url.searchParams.set('location.longitude', String(lng));
       url.searchParams.set('location.within', '25mi');
     } else {
-      url.searchParams.set('location.address', 'Nashville, TN');
-      url.searchParams.set('location.within', '25mi');
+      url.searchParams.set('location.latitude', '39.5744');
+      url.searchParams.set('location.longitude', '-106.0975');
+      url.searchParams.set('location.within', '30mi');
     }
     if (keyword) url.searchParams.set('q', keyword);
     url.searchParams.set('expand', 'venue');

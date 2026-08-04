@@ -35,7 +35,7 @@ async function searchFoursquare(term, category, limit, lat, lng) {
       url.searchParams.set('radius', '16000');
       url.searchParams.set('sort', 'DISTANCE');
     } else {
-      url.searchParams.set('near', 'Nashville, TN');
+      url.searchParams.set('near', 'Breckenridge, CO');
       url.searchParams.set('sort', 'RATING');
     }
     if (term) url.searchParams.set('query', term);
@@ -55,7 +55,7 @@ async function searchFoursquare(term, category, limit, lat, lng) {
       id: 'fsq:' + (b.fsq_place_id || b.fsq_id),
       name: b.name,
       cuisine: (b.categories || []).map(c => c.name).join(', '),
-      neighborhood: b.location?.neighborhood?.[0] || b.location?.locality || 'Nashville',
+      neighborhood: b.location?.neighborhood?.[0] || b.location?.locality || 'Summit County',
       address: b.location?.formatted_address || '',
       price: PRICE_MAP_FSQ[b.price] || '',
       rating: b.rating ? Number((b.rating / 2).toFixed(1)) : null,
@@ -77,7 +77,7 @@ async function searchGoogle(term, lat, lng) {
   if (!process.env.GOOGLE_PLACES_KEY) return [];
   try {
     const body = {
-      textQuery: `${term || 'restaurants'} in Nashville, TN`,
+      textQuery: `${term || 'restaurants'} in Summit County, CO`,
       includedType: 'restaurant',
       maxResultCount: 20
     };
@@ -107,7 +107,7 @@ async function searchGoogle(term, lat, lng) {
       id: 'google:' + p.id,
       name: p.displayName?.text || '',
       cuisine: p.primaryTypeDisplayName?.text || (p.types || []).filter(t => t !== 'point_of_interest' && t !== 'establishment').slice(0, 2).join(', '),
-      neighborhood: 'Nashville',
+      neighborhood: 'Summit County',
       address: p.formattedAddress || '',
       price: PRICE_MAP_GOOGLE[p.priceLevel] || '',
       rating: p.rating ? Number(p.rating).toFixed(1) : null,

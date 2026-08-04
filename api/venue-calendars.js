@@ -93,6 +93,12 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, max-age=600, s-maxage=600, stale-while-revalidate=3600');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Disabled: this whole endpoint scrapes four Nashville-only music venues
+  // (Bluebird Cafe, Station Inn, Ryman, Opry). No Summit County venue
+  // scrapers have been researched/wired up yet, so return empty rather than
+  // surface Nashville shows in the Summit County app.
+  return res.status(200).json({ total: 0, counts: {}, events: [] });
+
   try {
     const [bluebird, stationInn, ryman, opry] = await Promise.all([
       scrapeBluebird(),

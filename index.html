@@ -1180,14 +1180,14 @@ const API_BASE = '';
 let apiServices = { foursquare: false, google: false, ticketmaster: false, localEvents: false };
 
 // The /api/* live-data handlers (places/search, restaurants/search, events,
-// festivals, venue-calendars) are still hardcoded to the previous city's
-// coordinates and scrapers. Until those are repointed at Summit County, keep
-// live feeds off so the app never surfaces out-of-state venues or events.
-// Everything falls back to the curated Summit County data below, which is the
-// same path used whenever the APIs are unavailable.
-// Flip this to true once api/places/search.js, api/restaurants/search.js,
-// api/events.js, api/festivals.js and api/venue-calendars.js are updated.
-const LIVE_CITY_FEEDS_ENABLED = false;
+// festivals) are now repointed at Summit County coordinates instead of
+// Nashville. venue-calendars.js (Nashville-only venue scrapers) is disabled
+// server-side pending real Summit venue scrapers. Live feeds only actually
+// activate per-service once a real API key is added in Vercel (Google
+// Places, Foursquare, Ticketmaster, SeatGeek, Eventbrite) -- see api/health.js.
+// Until a key exists for a service, its handler returns [] and the app keeps
+// using the curated Summit County data below, same as always.
+const LIVE_CITY_FEEDS_ENABLED = true;
 
 async function checkApiHealth() {
   try {

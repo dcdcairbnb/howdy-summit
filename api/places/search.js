@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
   try {
     const body = {
-      textQuery: `${q} in Nashville, TN`,
+      textQuery: `${q} in Summit County, CO`,
       maxResultCount: 20
     };
     if (safeType) body.includedType = safeType;

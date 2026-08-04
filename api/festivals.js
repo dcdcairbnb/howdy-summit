@@ -30,6 +30,10 @@ function vmcParseCard(cardHtml) {
   return { name: title, date, venue, url: link, source: 'visitmusiccity' };
 }
 async function fetchVisitMusicCity() {
+  // Disabled: this scrapes visitmusiccity.com, a Nashville-only tourism site.
+  // No Summit County equivalent has been wired up yet. Returning [] keeps this
+  // safe to leave in the Promise.all below without leaking Nashville events.
+  return [];
   try {
     const r = await fetch(VMC_URL, {
       headers: { 'User-Agent': 'HowdyNash/1.0 (+https://howdynash.com)', 'Accept': 'text/html' }
@@ -102,8 +106,11 @@ async function fetchTicketmasterFestivals(lat, lng, classificationName) {
       url.searchParams.set('unit', 'miles');
       url.searchParams.set('sort', 'date,asc');
     } else {
-      url.searchParams.set('city', 'Nashville');
-      url.searchParams.set('stateCode', 'TN');
+      // No user location shared: default to Summit County's geographic center
+      // (Frisco/Dillon) rather than a single town, so results cover all six towns.
+      url.searchParams.set('latlong', '39.5744,-106.0975');
+      url.searchParams.set('radius', '50');
+      url.searchParams.set('unit', 'miles');
       url.searchParams.set('sort', 'date,asc');
     }
 
@@ -148,7 +155,8 @@ async function fetchEventbriteFestivals(lat, lng) {
       url.searchParams.set('location.longitude', String(lng));
       url.searchParams.set('location.within', '50mi');
     } else {
-      url.searchParams.set('location.address', 'Nashville, TN');
+      url.searchParams.set('location.latitude', '39.5744');
+      url.searchParams.set('location.longitude', '-106.0975');
       url.searchParams.set('location.within', '50mi');
     }
     url.searchParams.set('q', 'festival OR fest OR street fair OR market OR celebration');
@@ -198,6 +206,9 @@ async function fetchEventbriteFestivals(lat, lng) {
 }
 
 async function fetchNashvilleSpecialEvents() {
+  // Disabled: hits Nashville's Socrata open-data portal. No Summit County
+  // equivalent open-data feed has been researched/wired up yet.
+  return [];
   try {
     const url = new URL('https://data.nashville.gov/resource/cdmh-mfwx.json');
     url.searchParams.set('$limit', '50');
@@ -248,7 +259,7 @@ function dedupe(items) {
 // Filters by name keywords. Removes most concerts that slipped through.
 function isActualFestival(item) {
   const name = (item.name || '').toLowerCase();
-  const festivalKeywords = /\bfest\b|festival|fair\b|street fair|block party|market|jubilee|celebration|expo|carnival|parade|crawl|tomato art|cma fest|pilgrimage|beale street|bonnaroo|country to country/i;
+  const festivalKeywords = /\bfest\b|festival|fair\b|street fair|block party|market|jubilee|celebration|expo|carnival|parade|crawl|oktoberfest|bluegrass|winterfest|snow sculpture|bike week|epic|closing day|sunsation/i;
   if (festivalKeywords.test(name)) return true;
   // Common concert patterns we want to exclude
   const concertPatterns = /\bw\/\b|\bwith\b|\bfeat\.\b|\bft\.\b|\btour\b|\blive at\b|: the|presents:/i;
