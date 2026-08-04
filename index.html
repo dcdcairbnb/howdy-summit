@@ -1004,11 +1004,11 @@ const SUMMIT_DATA = {
     { name: "Montezuma Ghost Town", type: "Historic", neighborhood: "Keystone", desc: "Tiny surviving 1860s silver-mining town up Montezuma Road past Keystone. Dirt-road drive, old cabins, a working schoolhouse.", url: null }
   ],
   events: [
-    { name: "Ullr Fest", date: "December or January (annual)", venue: "Main Street Breckenridge", url: "https://www.gobreck.com" },
-    { name: "Budweiser International Snow Sculpture Championships", date: "Late January (annual)", venue: "Riverwalk Center, Breckenridge", url: "https://www.gobreck.com" },
-    { name: "Frisco BBQ Challenge", date: "Father's Day weekend in June (annual)", venue: "Main Street Frisco", url: "https://www.friscobbq.com" },
-    { name: "Dillon Amphitheater Summer Concerts", date: "June through September", venue: "Dillon Amphitheater", url: "https://www.dillonamphitheater.com" },
-    { name: "Breckenridge Wine Classic", date: "September (annual)", venue: "Breckenridge", url: "https://www.breckenridgewineclassic.com" }
+    { name: "Ullr Fest", date: "December or January (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", url: "https://www.gobreck.com" },
+    { name: "Budweiser International Snow Sculpture Championships", date: "Late January (annual)", venue: "Riverwalk Center, Breckenridge", neighborhood: "Breckenridge", url: "https://www.gobreck.com" },
+    { name: "Frisco BBQ Challenge", date: "Father's Day weekend in June (annual)", venue: "Main Street Frisco", neighborhood: "Frisco", url: "https://www.friscobbq.com" },
+    { name: "Dillon Amphitheater Summer Concerts", date: "June through September", venue: "Dillon Amphitheater", neighborhood: "Dillon", url: "https://www.dillonamphitheater.com" },
+    { name: "Breckenridge Wine Classic", date: "September (annual)", venue: "Breckenridge", neighborhood: "Breckenridge", url: "https://www.breckenridgewineclassic.com" }
   ],
   neighborhoods: {
     "breckenridge": "Historic gold-rush Main Street, the county's biggest ski resort, and most of the nightlife. Busy, walkable, and the highest-priced.",
@@ -4627,11 +4627,21 @@ function showMainStreetBars() {
   addMessage(`Main Street Breckenridge is the heart of Summit County nightlife. ${CURATED_MAIN_STREET_BARS.length} bars and restaurants on the strip. Showing 5 at a time:`, 'bot');
 
   paginateMessages(CURATED_MAIN_STREET_BARS, s => {
+    let dist = null;
+    let approx = false;
+    if (userLocation && s.coords) {
+      dist = haversineMiles(userLocation, s.coords);
+    }
+    if (dist == null && userLocation && s.neighborhood) {
+      const nb = neighborhoodCoords(s.neighborhood);
+      if (nb) { dist = haversineMiles(userLocation, nb); approx = true; }
+    }
+    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
     const star = renderSaveStar({ name: s.name, note: s.desc || s.neighborhood, address: s.neighborhood });
     const share = renderShareButton({ name: s.name, desc: s.desc, url: s.url || '' });
     let html = `<div class="card">
       <div class="card-title">${star}${share}${s.name}</div>
-      <div class="card-meta">${s.neighborhood}</div>
+      <div class="card-meta">${s.neighborhood}${distStr}</div>
       <div class="card-desc">${s.desc}</div>`;
     if (s.url) html += `<a href="${s.url}" target="_blank" rel="noopener">Website</a>`;
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(s.name + ' Summit County CO')}`;
@@ -7477,34 +7487,34 @@ function showGroceries() {
 // Curated annual Summit County festivals with 2026 dates. Verify against official sites yearly.
 // "month" is used by getMonthOrder + daysUntilFestival for sorting; "dates" is the user-facing label.
 const CURATED_SUMMIT_FESTIVALS = [
-  { name: "Ullr Fest", month: "January", dates: "Mid-January (annual)", venue: "Main Street Breckenridge", desc: "Breckenridge's tribute to the Norse god of snow. Viking helmets, the Ullr parade, a bonfire, and the Main Street shotski world-record attempt. Free to watch.", url: "https://www.gobreck.com" },
-  { name: "International Snow Sculpture Championships", month: "January", dates: "Late January (annual)", venue: "Riverwalk Center lawn, Breckenridge", desc: "Teams from around the world carve 20-ton blocks of snow with hand tools only. Free viewing, and the sculptures are lit at night.", url: "https://www.gobreck.com" },
-  { name: "Frisco Gold Rush Nordic Race", month: "February", dates: "February (annual)", venue: "Frisco Adventure Park", desc: "Long-running cross-country ski and snowshoe race on the Frisco Peninsula. Citizens' classes alongside the competitive field.", url: "https://www.friscogov.com" },
-  { name: "Breckenridge Spring Massive", month: "April", dates: "April (annual)", venue: "Breckenridge Ski Resort", desc: "Multi-weekend end-of-season party with concerts, on-mountain events, and the closing-day costume scene.", url: "https://www.gobreck.com" },
-  { name: "Copper Mountain Sunsation", month: "April", dates: "April, closing weekend (annual)", venue: "Copper Mountain", desc: "Copper's closing celebration. Slopeside concerts, pond skim, and spring corn snow.", url: "https://www.coppercolorado.com" },
-  { name: "Arapahoe Basin Closing Day", month: "June", dates: "Late May or June (annual)", venue: "Arapahoe Basin", desc: "The last lift-served skiing in Colorado most years. Costumes, grills in the Beach parking lot, and a genuinely weird party.", url: "https://www.arapahoebasin.com" },
-  { name: "Breck Bike Week", month: "June", dates: "June (annual)", venue: "Breckenridge", desc: "Week of group rides, clinics, races, and parties celebrating the start of mountain bike season.", url: "https://www.gobreck.com" },
-  { name: "Frisco BBQ Challenge", month: "June", dates: "Father's Day weekend in June (annual)", venue: "Main Street Frisco", desc: "The county's biggest street festival. Sanctioned BBQ competition, free concerts, the Bacon Burner 6K, and a firefighter cook-off. Running for more than 25 years.", url: "https://www.friscobbq.com" },
-  { name: "Firecracker 50", month: "July", dates: "July 4 (annual)", venue: "Breckenridge", desc: "Fifty-mile mountain bike race that starts by riding straight down the Fourth of July parade route on Main Street.", url: "https://www.gobreck.com" },
-  { name: "Breckenridge Fourth of July Parade", month: "July", dates: "July 4 (annual)", venue: "Main Street Breckenridge", desc: "Small-town parade down Main Street followed by live music and fireworks. Free, and it fills the sidewalks early.", url: "https://www.gobreck.com" },
-  { name: "Dillon Fourth of July", month: "July", dates: "July 4 (annual)", venue: "Dillon Amphitheater and Marina", desc: "Free lakeside concert and fireworks over Dillon Reservoir. Arrive hours early for a parking spot.", url: "https://www.townofdillon.com" },
-  { name: "Breckenridge Music Festival", month: "June", dates: "June through August (annual)", venue: "Riverwalk Center, Breckenridge", desc: "Summer classical and popular music series in the tented Riverwalk Center on the Blue River.", url: "https://www.breckenridgemusicfestival.com" },
-  { name: "National Repertory Orchestra Summer Season", month: "June", dates: "June through August (annual)", venue: "Riverwalk Center, Breckenridge", desc: "Full symphony season performed by one of the country's top young-professional orchestras. Weekly concerts all summer.", url: "https://www.nromusic.com" },
-  { name: "Dillon Amphitheater Summer Concert Series", month: "June", dates: "June through September (annual)", venue: "Dillon Amphitheater", desc: "Free lakeside concerts most weeks plus ticketed national touring acts, all with the Tenmile Range as a backdrop.", url: "https://www.dillonamphitheater.com" },
-  { name: "Concerts in the Park, Frisco", month: "June", dates: "Summer Thursdays (annual)", venue: "Frisco Historic Park", desc: "Free outdoor concert series on the historic park lawn. Local bands, food trucks, and dogs everywhere.", url: "https://www.friscogov.com" },
-  { name: "Breckenridge Farmers Market", month: "June", dates: "Sundays, June through September (annual)", venue: "Main Street Breckenridge", desc: "Main Street closes for produce, prepared food, and Colorado makers every Sunday through the summer. Free to browse.", url: "https://www.gobreck.com" },
-  { name: "Dillon Farmers Market", month: "June", dates: "Friday mornings, June through September (annual)", venue: "Dillon town core", desc: "One of the largest farmers markets in the Colorado mountains. Produce, food trucks, and crafts near the marina.", url: "https://www.townofdillon.com" },
-  { name: "Dillon Open Regatta", month: "August", dates: "August (annual)", venue: "Dillon Marina", desc: "Sailboat regatta on Dillon Reservoir at 9,017 feet. Free to watch from the marina and the shoreline path.", url: "https://www.townofdillon.com/marina" },
-  { name: "Breck Epic", month: "August", dates: "August (annual)", venue: "Breckenridge", desc: "Six-day mountain bike stage race through the high country around Breckenridge. Spectating is free.", url: "https://www.breckepic.com" },
-  { name: "Breckenridge International Festival of Arts", month: "August", dates: "August (annual)", venue: "Breckenridge Arts District and town-wide", desc: "Ten days of outdoor performance, installations, music, and free public art from BreckCreate. Much of it costs nothing.", url: "https://www.breckcreate.org" },
-  { name: "Keystone Bluegrass & Beer Festival", month: "August", dates: "August (annual)", venue: "River Run Village, Keystone", desc: "Bluegrass bands and Colorado breweries in the Keystone base village. Family-friendly, day-ticket format.", url: "https://www.keystoneresort.com" },
-  { name: "Copper Country", month: "September", dates: "Labor Day weekend (annual)", venue: "Copper Mountain", desc: "Free country music festival in Copper's Center Village to close out the summer season.", url: "https://www.coppercolorado.com" },
-  { name: "Breckenridge Oktoberfest", month: "September", dates: "September (annual)", venue: "Main Street Breckenridge", desc: "One of the largest Oktoberfests in Colorado. Main Street closes for German beer, brats, stein-holding contests, and a Bavarian band. Free entry.", url: "https://www.gobreck.com" },
-  { name: "Breckenridge Wine Classic", month: "September", dates: "September (annual)", venue: "Breckenridge", desc: "Multi-day wine festival with grand tastings, seminars, winemaker dinners, and a Main Street stroll.", url: "https://www.breckenridgewineclassic.com" },
-  { name: "Breckenridge Film Festival", month: "September", dates: "September (annual)", venue: "Breckenridge", desc: "Long-running independent film festival with screenings, panels, and filmmaker Q&As around town.", url: "https://www.breckfilmfest.org" },
-  { name: "Frisco Fall Fest", month: "October", dates: "Early October (annual)", venue: "Main Street Frisco", desc: "Free street festival with beer, live music, vendors, and kids activities as the aspens turn.", url: "https://www.friscogov.com" },
-  { name: "Lighting of Breckenridge and Race of the Santas", month: "December", dates: "Early December (annual)", venue: "Main Street Breckenridge", desc: "Tree lighting, fireworks, and hundreds of people in Santa suits running down Main Street. Free to watch and free to enter the race.", url: "https://www.gobreck.com" },
-  { name: "Bonfire and New Year's Eve on Main Street", month: "December", dates: "December 31 (annual)", venue: "Main Street Breckenridge", desc: "Torchlight ski parade down Peak 8, fireworks, and a Main Street crowd. Free, dress for well below freezing.", url: "https://www.gobreck.com" }
+  { name: "Ullr Fest", month: "January", dates: "Mid-January (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", desc: "Breckenridge's tribute to the Norse god of snow. Viking helmets, the Ullr parade, a bonfire, and the Main Street shotski world-record attempt. Free to watch.", url: "https://www.gobreck.com" },
+  { name: "International Snow Sculpture Championships", month: "January", dates: "Late January (annual)", venue: "Riverwalk Center lawn, Breckenridge", neighborhood: "Breckenridge", desc: "Teams from around the world carve 20-ton blocks of snow with hand tools only. Free viewing, and the sculptures are lit at night.", url: "https://www.gobreck.com" },
+  { name: "Frisco Gold Rush Nordic Race", month: "February", dates: "February (annual)", venue: "Frisco Adventure Park", neighborhood: "Frisco", desc: "Long-running cross-country ski and snowshoe race on the Frisco Peninsula. Citizens' classes alongside the competitive field.", url: "https://www.friscogov.com" },
+  { name: "Breckenridge Spring Massive", month: "April", dates: "April (annual)", venue: "Breckenridge Ski Resort", neighborhood: "Breckenridge", desc: "Multi-weekend end-of-season party with concerts, on-mountain events, and the closing-day costume scene.", url: "https://www.gobreck.com" },
+  { name: "Copper Mountain Sunsation", month: "April", dates: "April, closing weekend (annual)", venue: "Copper Mountain", neighborhood: "Copper Mountain", desc: "Copper's closing celebration. Slopeside concerts, pond skim, and spring corn snow.", url: "https://www.coppercolorado.com" },
+  { name: "Arapahoe Basin Closing Day", month: "June", dates: "Late May or June (annual)", venue: "Arapahoe Basin", neighborhood: "Keystone", desc: "The last lift-served skiing in Colorado most years. Costumes, grills in the Beach parking lot, and a genuinely weird party.", url: "https://www.arapahoebasin.com" },
+  { name: "Breck Bike Week", month: "June", dates: "June (annual)", venue: "Breckenridge", neighborhood: "Breckenridge", desc: "Week of group rides, clinics, races, and parties celebrating the start of mountain bike season.", url: "https://www.gobreck.com" },
+  { name: "Frisco BBQ Challenge", month: "June", dates: "Father's Day weekend in June (annual)", venue: "Main Street Frisco", neighborhood: "Frisco", desc: "The county's biggest street festival. Sanctioned BBQ competition, free concerts, the Bacon Burner 6K, and a firefighter cook-off. Running for more than 25 years.", url: "https://www.friscobbq.com" },
+  { name: "Firecracker 50", month: "July", dates: "July 4 (annual)", venue: "Breckenridge", neighborhood: "Breckenridge", desc: "Fifty-mile mountain bike race that starts by riding straight down the Fourth of July parade route on Main Street.", url: "https://www.gobreck.com" },
+  { name: "Breckenridge Fourth of July Parade", month: "July", dates: "July 4 (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", desc: "Small-town parade down Main Street followed by live music and fireworks. Free, and it fills the sidewalks early.", url: "https://www.gobreck.com" },
+  { name: "Dillon Fourth of July", month: "July", dates: "July 4 (annual)", venue: "Dillon Amphitheater and Marina", neighborhood: "Dillon", desc: "Free lakeside concert and fireworks over Dillon Reservoir. Arrive hours early for a parking spot.", url: "https://www.townofdillon.com" },
+  { name: "Breckenridge Music Festival", month: "June", dates: "June through August (annual)", venue: "Riverwalk Center, Breckenridge", neighborhood: "Breckenridge", desc: "Summer classical and popular music series in the tented Riverwalk Center on the Blue River.", url: "https://www.breckenridgemusicfestival.com" },
+  { name: "National Repertory Orchestra Summer Season", month: "June", dates: "June through August (annual)", venue: "Riverwalk Center, Breckenridge", neighborhood: "Breckenridge", desc: "Full symphony season performed by one of the country's top young-professional orchestras. Weekly concerts all summer.", url: "https://www.nromusic.com" },
+  { name: "Dillon Amphitheater Summer Concert Series", month: "June", dates: "June through September (annual)", venue: "Dillon Amphitheater", neighborhood: "Dillon", desc: "Free lakeside concerts most weeks plus ticketed national touring acts, all with the Tenmile Range as a backdrop.", url: "https://www.dillonamphitheater.com" },
+  { name: "Concerts in the Park, Frisco", month: "June", dates: "Summer Thursdays (annual)", venue: "Frisco Historic Park", neighborhood: "Frisco", desc: "Free outdoor concert series on the historic park lawn. Local bands, food trucks, and dogs everywhere.", url: "https://www.friscogov.com" },
+  { name: "Breckenridge Farmers Market", month: "June", dates: "Sundays, June through September (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", desc: "Main Street closes for produce, prepared food, and Colorado makers every Sunday through the summer. Free to browse.", url: "https://www.gobreck.com" },
+  { name: "Dillon Farmers Market", month: "June", dates: "Friday mornings, June through September (annual)", venue: "Dillon town core", neighborhood: "Dillon", desc: "One of the largest farmers markets in the Colorado mountains. Produce, food trucks, and crafts near the marina.", url: "https://www.townofdillon.com" },
+  { name: "Dillon Open Regatta", month: "August", dates: "August (annual)", venue: "Dillon Marina", neighborhood: "Dillon", desc: "Sailboat regatta on Dillon Reservoir at 9,017 feet. Free to watch from the marina and the shoreline path.", url: "https://www.townofdillon.com/marina" },
+  { name: "Breck Epic", month: "August", dates: "August (annual)", venue: "Breckenridge", neighborhood: "Breckenridge", desc: "Six-day mountain bike stage race through the high country around Breckenridge. Spectating is free.", url: "https://www.breckepic.com" },
+  { name: "Breckenridge International Festival of Arts", month: "August", dates: "August (annual)", venue: "Breckenridge Arts District and town-wide", neighborhood: "Breckenridge", desc: "Ten days of outdoor performance, installations, music, and free public art from BreckCreate. Much of it costs nothing.", url: "https://www.breckcreate.org" },
+  { name: "Keystone Bluegrass & Beer Festival", month: "August", dates: "August (annual)", venue: "River Run Village, Keystone", neighborhood: "Keystone", desc: "Bluegrass bands and Colorado breweries in the Keystone base village. Family-friendly, day-ticket format.", url: "https://www.keystoneresort.com" },
+  { name: "Copper Country", month: "September", dates: "Labor Day weekend (annual)", venue: "Copper Mountain", neighborhood: "Copper Mountain", desc: "Free country music festival in Copper's Center Village to close out the summer season.", url: "https://www.coppercolorado.com" },
+  { name: "Breckenridge Oktoberfest", month: "September", dates: "September (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", desc: "One of the largest Oktoberfests in Colorado. Main Street closes for German beer, brats, stein-holding contests, and a Bavarian band. Free entry.", url: "https://www.gobreck.com" },
+  { name: "Breckenridge Wine Classic", month: "September", dates: "September (annual)", venue: "Breckenridge", neighborhood: "Breckenridge", desc: "Multi-day wine festival with grand tastings, seminars, winemaker dinners, and a Main Street stroll.", url: "https://www.breckenridgewineclassic.com" },
+  { name: "Breckenridge Film Festival", month: "September", dates: "September (annual)", venue: "Breckenridge", neighborhood: "Breckenridge", desc: "Long-running independent film festival with screenings, panels, and filmmaker Q&As around town.", url: "https://www.breckfilmfest.org" },
+  { name: "Frisco Fall Fest", month: "October", dates: "Early October (annual)", venue: "Main Street Frisco", neighborhood: "Frisco", desc: "Free street festival with beer, live music, vendors, and kids activities as the aspens turn.", url: "https://www.friscogov.com" },
+  { name: "Lighting of Breckenridge and Race of the Santas", month: "December", dates: "Early December (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", desc: "Tree lighting, fireworks, and hundreds of people in Santa suits running down Main Street. Free to watch and free to enter the race.", url: "https://www.gobreck.com" },
+  { name: "Bonfire and New Year's Eve on Main Street", month: "December", dates: "December 31 (annual)", venue: "Main Street Breckenridge", neighborhood: "Breckenridge", desc: "Torchlight ski parade down Peak 8, fireworks, and a Main Street crowd. Free, dress for well below freezing.", url: "https://www.gobreck.com" }
 ];
 
 function getMonthOrder(monthStr) {
@@ -7612,15 +7622,26 @@ async function showFestivals() {
     }, 5, renderLocalSources);
   }
 
-  // Sort curated by next occurrence and paginate. Chain via onComplete.
+  // Sort curated by next occurrence (date order matters more than distance for
+  // trip planning) and paginate. Chain via onComplete.
   const sorted = [...CURATED_SUMMIT_FESTIVALS].sort((a, b) => daysUntilFestival(a) - daysUntilFestival(b));
   paginateMessages(sorted, f => {
     const dateLabel = f.dates || f.month;
+    let dist = null;
+    let approx = false;
+    if (userLocation && f.coords) {
+      dist = haversineMiles(userLocation, f.coords);
+    }
+    if (dist == null && userLocation && f.neighborhood) {
+      const nb = neighborhoodCoords(f.neighborhood);
+      if (nb) { dist = haversineMiles(userLocation, nb); approx = true; }
+    }
+    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
     const star = renderSaveStar({ name: f.name, note: dateLabel, address: f.venue });
     const share = renderShareButton({ name: f.name, desc: `${dateLabel} - ${f.venue}`, url: f.url || '' });
     let html = `<div class="card">
       <div class="card-title">${star}${share}${f.name}</div>
-      <div class="card-meta">${dateLabel} · ${f.venue}</div>
+      <div class="card-meta">${dateLabel} · ${f.venue}${distStr}</div>
       <div class="card-desc">${f.desc}</div>`;
     if (f.url) html += `<a href="${f.url}" target="_blank" rel="noopener">Festival website</a>`;
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(f.venue + ' Summit County CO')}`;
@@ -8173,10 +8194,27 @@ async function showEvents() {
     }
   }
   addMessage("Here's what's happening around town. Showing 5 at a time:", 'bot');
-  paginateMessages(SUMMIT_DATA.events, e => {
+  // Compute distance with fallback: entry coords → neighborhood center.
+  let curatedEvents = SUMMIT_DATA.events.map(e => {
+    let dist = null;
+    let approx = false;
+    if (userLocation && e.coords) {
+      dist = haversineMiles(userLocation, e.coords);
+    }
+    if (dist == null && userLocation && e.neighborhood) {
+      const nb = neighborhoodCoords(e.neighborhood);
+      if (nb) { dist = haversineMiles(userLocation, nb); approx = true; }
+    }
+    return { item: e, dist, approx };
+  });
+  if (userLocation) {
+    curatedEvents.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
+  }
+  paginateMessages(curatedEvents, ({ item: e, dist, approx }) => {
+    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
     let html = `<div class="card">
       <div class="card-title">${e.name}</div>
-      <div class="card-meta">${e.date} · ${e.venue}</div>`;
+      <div class="card-meta">${e.date} · ${e.venue}${distStr}</div>`;
     if (e.url) html += `<a href="${e.url}" target="_blank">Tickets & info</a>`;
     html += `</div>`;
     return html;
