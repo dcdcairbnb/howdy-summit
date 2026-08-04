@@ -2683,6 +2683,12 @@ function routeIntent(text) {
     return;
   }
 
+  if (matches(lower, ['bike', 'biking', 'bikes', '🚲 bike trails', 'bike trails', 'mountain bike', 'mountain biking',
+                      'bike path', 'bike park', 'rec path', 'recpath', 'cycling', 'ride a bike', 'bike rental',
+                      'singletrack', 'vail pass', 'boreas pass', 'blue river bikeway'])) {
+    showBikeTrails();
+    return;
+  }
   if (matches(lower, ['hiking', 'hiking trails', '🥾 hiking trails', 'hike', 'hikes', 'trail', 'trails', 'trailhead',
                       'where to hike', 'best hikes', 'easy hike', 'hard hike', 'day hike', 'fourteener', '14er',
                       'quandary', 'mount royal', 'buffalo mountain', 'mayflower gulch', 'peaks trail'])) {
@@ -4050,6 +4056,7 @@ function showThingsToDoMenu(skipPush) {
     // it, so 10 curated hikes (Mohawk Lakes, McCullough Gulch, Continental
     // Falls) were reachable only by typing the word.
     '🥾 Hiking trails',
+    '🚲 Bike trails',
     '💦 Waterfalls & alpine lakes',
     '🛷 Sleigh rides & snowmobiles',
     'Free things to do',
@@ -4374,7 +4381,17 @@ function renderCuratedCard(s, label, liveMatch) {
       approx = true;
     }
   }
-  const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
+  // A town-centre approximation reads as "0 mi" when you are standing in that
+  // town, which looks broken. Say where you are instead, which is both true
+  // and more useful than a rounded zero.
+  let distStr = '';
+  if (dist != null) {
+    if (approx && dist < 1) {
+      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+    } else {
+      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+    }
+  }
   const ratingStr = liveMatch && liveMatch.rating ? `★ ${liveMatch.rating}` : '';
   const reviewStr = liveMatch && liveMatch.reviewCount ? ` (${liveMatch.reviewCount})` : '';
   const meta = [s.neighborhood || '', s.note ? '· ' + s.note : '', ratingStr + reviewStr + distStr].filter(x => x).join(' ');
@@ -4846,7 +4863,17 @@ function showMainStreetBars() {
       const nb = neighborhoodCoords(s.neighborhood);
       if (nb) { dist = haversineMiles(userLocation, nb); approx = true; }
     }
-    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
+    // A town-centre approximation reads as "0 mi" when you are standing in that
+  // town, which looks broken. Say where you are instead, which is both true
+  // and more useful than a rounded zero.
+  let distStr = '';
+  if (dist != null) {
+    if (approx && dist < 1) {
+      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+    } else {
+      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+    }
+  }
     const star = renderSaveStar({ name: s.name, note: s.desc || s.neighborhood, address: s.neighborhood });
     const share = renderShareButton({ name: s.name, desc: s.desc, url: s.url || '' });
     let html = `<div class="card">
@@ -5230,6 +5257,106 @@ function showCuratedListPaged(list, label, startIdx, pageContainer) {
 // Distances are round trip and approximate; trailhead signs and current
 // conditions always win. Every one of these is in or immediately around the
 // county, unlike the waterfall list below which includes some day trips.
+// Summit County biking: the paved recpath network, gravel passes, and
+// singletrack. Same badge fields as the hikes so the cards render identically.
+// The county recpath is roughly 55 paved miles and is genuinely one of the
+// best in the country, so it leads.
+const CURATED_BIKE_RIDES = [
+  // ---- Paved recpath, easy to moderate ----
+  { name: "Dillon Dam Road", neighborhood: "Dillon", difficulty: "Easy", miles: "3.5", oneWay: true, gain: "250", desc: "Paved path running along the top of the dam between Frisco and Dillon, with the reservoir on one side and the Gore Range straight ahead. The easiest big-view ride in the county." },
+  { name: "Frisco to Farmers Korner", neighborhood: "Frisco", difficulty: "Easy", miles: "4.5", oneWay: true, gain: "300", desc: "The gentlest stretch of the Blue River Bikeway heading south out of Frisco. Flat enough for kids and a good turnaround if the full Breckenridge ride is too much." },
+  { name: "Ten Mile Canyon Recpath", neighborhood: "Frisco", difficulty: "Moderate", miles: "7", oneWay: true, gain: "700", desc: "Frisco up to Copper Mountain through Ten Mile Canyon, following the creek and the old railroad grade with the Tenmile Range overhead. Steady climb out, fast coast back." },
+  { name: "Blue River Bikeway", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "9.5", oneWay: true, gain: "800", desc: "Frisco to Breckenridge entirely on paved path, climbing gently the whole way alongside the Blue River. Ride up and take the free Summit Stage back, which is the local move." },
+  { name: "Vail Pass from Copper", neighborhood: "Copper Mountain", difficulty: "Hard", miles: "8", oneWay: true, gain: "1300", desc: "The classic. Paved path from Copper to the 10,662-foot Vail Pass summit, car-free almost the entire way. Shuttle services will drop you at the top if you only want the descent." },
+
+  // ---- Gravel ----
+  { name: "Boreas Pass Road", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "13", desc: "Gravel. An old narrow-gauge railroad grade out of Breckenridge, so the climb never exceeds a steady 4 percent. Wildflowers in July, glowing aspens in late September, mining history the whole way." },
+  { name: "Sallie Barber Mine Road", neighborhood: "Breckenridge", difficulty: "Easy", miles: "5", gain: "600", desc: "Gravel. A wide, steady climb through French Gulch to a preserved mine site. A good first dirt ride and easy to shorten." },
+
+  // ---- Singletrack ----
+  { name: "Frisco Peninsula Trails", neighborhood: "Frisco", difficulty: "Easy", miles: "3-12", desc: "Singletrack. The county's beginner mountain bike hub: a flowy, well-signed network on the peninsula in Dillon Reservoir with almost no exposure. Rentals available in town." },
+  { name: "Keystone Bike Park", neighborhood: "Keystone", difficulty: "Moderate", miles: "varies", desc: "Lift-served downhill. Gondola to the top, ride down, repeat. Over 50 trails from green flow to expert jump lines, plus rentals and lessons at the base. Summer season only." },
+  { name: "Peaks Trail", neighborhood: "Frisco", difficulty: "Moderate", miles: "9", oneWay: true, gain: "1200", desc: "Singletrack. Rolling forest trail between Frisco and Breckenridge along the base of the Tenmile Range. Shared with hikers, so control your speed on blind corners." },
+  { name: "Colorado Trail from Copper", neighborhood: "Copper Mountain", difficulty: "Hard", miles: "8-16", desc: "Singletrack. Rugged, rooty, high-altitude riding on a national scenic trail. Ride out as far as you like and turn around. Not a beginner's trail." },
+  { name: "Gold Run Gulch", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "6-10", desc: "Singletrack. Aspen-lined loops in the French Gulch mining district on Breck's east side, connecting to a wide network so you can build your own ride." },
+  { name: "Soda Creek and Ptarmigan", neighborhood: "Silverthorne", difficulty: "Hard", miles: "7-12", desc: "Singletrack. Steep, quiet climbing above Silverthorne with big Gore Range views up top. Less crowded than the Breckenridge and Frisco networks." }
+];
+
+// ===== COMPACT TRAIL PICKER =====
+// Trail cards are tall: description, badges, and three buttons each. At five
+// per page the first card fills the screen and the list looks like it has one
+// entry. For hikes and rides you want to compare options at a glance and then
+// commit to one, so render a tight tappable row per trail and expand the full
+// card only for the one you pick.
+const _trailRegistry = {};
+
+function renderTrailPicker(list, label, key) {
+  _trailRegistry[key] = list;
+  const diffColors = {
+    'Easy':     { bg: '#dcfce7', fg: '#166534' },
+    'Moderate': { bg: '#fef3c7', fg: '#92400e' },
+    'Hard':     { bg: '#fee2e2', fg: '#991b1b' }
+  };
+  let html = '<div class="card" style="padding:6px 4px;">';
+  list.forEach((t, i) => {
+    const c = diffColors[t.difficulty] || { bg: '#e5e7eb', fg: '#374151' };
+    const lengthLabel = t.oneWay ? 'mi one way' : 'mi';
+    html += `<div style="border-bottom:1px solid #eee;">
+      <div onclick="toggleTrailDetail('${key}',${i})" style="padding:9px 10px;cursor:pointer;">
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <div style="flex:1;min-width:0;font-weight:700;color:#d62828;font-size:15px;line-height:1.25;">${t.name}</div>
+          <span id="${key}-chev-${i}" style="color:#bbb;font-size:11px;flex-shrink:0;">▾</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+          <span style="background:${c.bg};color:${c.fg};padding:1px 7px;border-radius:8px;font-size:11px;font-weight:700;">${t.difficulty || ''}</span>
+          <span style="font-size:12px;color:#075985;font-weight:600;">${t.miles} ${lengthLabel}</span>
+          <span style="font-size:12px;color:#999;">· ${t.neighborhood || ''}</span>
+        </div>
+      </div>
+      <div id="${key}-detail-${i}" style="display:none;padding:0 10px 12px;"></div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function toggleTrailDetail(key, i) {
+  const list = _trailRegistry[key];
+  if (!list) return;
+  const t = list[i];
+  const box = document.getElementById(`${key}-detail-${i}`);
+  const chev = document.getElementById(`${key}-chev-${i}`);
+  if (!box) return;
+  if (box.style.display === 'block') {
+    box.style.display = 'none';
+    if (chev) chev.textContent = '▾';
+    return;
+  }
+  if (!box.innerHTML) {
+    const safeName = jsAttr(t.name);
+    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(t.name + ' Summit County CO')}`;
+    box.innerHTML = `<div style="font-size:14px;line-height:1.5;color:#333;margin-bottom:8px;">${t.desc || ''}</div>`
+      + (t.gain ? `<div style="font-size:12px;color:#6b21a8;font-weight:600;margin-bottom:8px;">↑ ${t.gain} ft elevation gain</div>` : '')
+      + `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`
+      + `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
+  }
+  box.style.display = 'block';
+  if (chev) chev.textContent = '▴';
+}
+
+function showBikeTrails() {
+  addMessage("13 rides across the county, easiest first. Tap any one for details. The paved recpath alone is roughly 55 car-free miles connecting every town.", 'bot');
+  addMessage(renderTrailPicker(CURATED_BIKE_RIDES, 'bike rides', 'bike'), 'bot', true);
+  setTimeout(() => {
+    addMessage('<div class="card"><div class="card-title">🚲 Riding here</div>'
+      + '<div class="card-desc"><strong>Ride up, bus back.</strong> Every Summit Stage bus has a bike rack and the whole system is free. Climb to Breckenridge or Vail Pass, then ride the bus home instead of doubling the mileage.</div>'
+      + '<div class="card-desc"><strong>Altitude is the real climb.</strong> You will have noticeably less power at 9,000 feet than at home. Pick something shorter than you think on day one.</div>'
+      + '<div class="card-desc"><strong>Afternoon storms.</strong> Same rule as hiking: be off exposed high ground like Vail Pass and Boreas Pass by early afternoon in July and August.</div>'
+      + '<div class="card-desc"><strong>Season.</strong> Paved paths clear by late May. High singletrack and the bike park usually open mid-June and run into September.</div>'
+      + '</div>', 'bot', true);
+  }, 600);
+}
+
 const CURATED_HIKES = [
   // ---- Easy / family ----
   { name: "Sapphire Point Overlook", neighborhood: "Dillon", difficulty: "Easy", miles: "0.6", gain: "50", desc: "A gentle loop between Breckenridge and Keystone with the best view of Dillon Reservoir and the Tenmile Range behind it. The payoff comes almost immediately. Paved parking right off Swan Mountain Road." },
@@ -5257,8 +5384,8 @@ const CURATED_HIKES = [
 ];
 
 function showHikingTrails() {
-  addMessage("Hiking in Summit County, easiest first. Everything here is in or right around the county.", 'bot');
-  showCuratedThenLive(CURATED_HIKES, 'hiking trail trailhead', '', 'hiking trails');
+  addMessage("18 trails, easiest first. Tap any one for details. Everything here is in or right around the county.", 'bot');
+  addMessage(renderTrailPicker(CURATED_HIKES, 'hiking trails', 'hike'), 'bot', true);
   setTimeout(() => {
     addMessage('<div class="card"><div class="card-title">⛰️ Before you head out</div>'
       + '<div class="card-desc"><strong>Altitude first.</strong> These trails start at 9,000 feet and climb from there. Save the hard ones for day two or three, and drink far more water than feels necessary.</div>'
@@ -7860,7 +7987,17 @@ async function showFestivals() {
       const nb = neighborhoodCoords(f.neighborhood);
       if (nb) { dist = haversineMiles(userLocation, nb); approx = true; }
     }
-    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
+    // A town-centre approximation reads as "0 mi" when you are standing in that
+  // town, which looks broken. Say where you are instead, which is both true
+  // and more useful than a rounded zero.
+  let distStr = '';
+  if (dist != null) {
+    if (approx && dist < 1) {
+      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+    } else {
+      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+    }
+  }
     const star = renderSaveStar({ name: f.name, note: dateLabel, address: f.venue });
     const share = renderShareButton({ name: f.name, desc: `${dateLabel} - ${f.venue}`, url: f.url || '' });
     let html = `<div class="card">
@@ -8443,7 +8580,17 @@ async function showEvents() {
     curatedEvents.sort((a, b) => (a.dist ?? 9999) - (b.dist ?? 9999));
   }
   paginateMessages(curatedEvents, ({ item: e, dist, approx }) => {
-    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
+    // A town-centre approximation reads as "0 mi" when you are standing in that
+  // town, which looks broken. Say where you are instead, which is both true
+  // and more useful than a rounded zero.
+  let distStr = '';
+  if (dist != null) {
+    if (approx && dist < 1) {
+      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+    } else {
+      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+    }
+  }
     let html = `<div class="card">
       <div class="card-title">${e.name}</div>
       <div class="card-meta">${e.date} · ${e.venue}${distStr}</div>`;
@@ -8512,7 +8659,17 @@ async function showAttractions() {
 
   addMessage("Top Summit County attractions. Showing 5 at a time:", 'bot');
   paginateMessages(attractions, ({ item: a, match, dist, approx }) => {
-    const distStr = dist != null ? ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}` : '';
+    // A town-centre approximation reads as "0 mi" when you are standing in that
+  // town, which looks broken. Say where you are instead, which is both true
+  // and more useful than a rounded zero.
+  let distStr = '';
+  if (dist != null) {
+    if (approx && dist < 1) {
+      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+    } else {
+      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+    }
+  }
     const ratingStr = match && match.rating ? ` · ★ ${match.rating}` : '';
     const star = renderSaveStar({ name: a.name, note: a.type, address: match?.address || a.neighborhood || 'Summit County' });
     const share = renderShareButton({ name: a.name, desc: a.desc || a.type, url: a.url || '' });
