@@ -1,7 +1,7 @@
 // Weather.gov (US National Weather Service). Free, no API key required.
 // Returns forecast plus active alerts for the user's location.
 
-const UA = 'HowdyNash/1.0 (contact@howdynash.com)';
+const UA = 'HowdySummit/1.0 (contact@howdysummit.com)';
 
 async function fetchAlerts(lat, lng) {
   try {
@@ -30,7 +30,7 @@ async function fetchAlerts(lat, lng) {
 }
 
 export default async function handler(req, res) {
-  const { lat = 36.1627, lng = -86.7816 } = req.query;
+  const { lat = 39.5744, lng = -106.0975 } = req.query;
 
   try {
     const [pointsRes, alerts] = await Promise.all([
@@ -76,8 +76,8 @@ export default async function handler(req, res) {
     res.status(200).json({
       source: 'weather.gov',
       location: {
-        city: location?.city || 'Nashville',
-        state: location?.state || 'TN',
+        city: location?.city || 'Frisco',
+        state: location?.state || 'CO',
         lat: Number(lat),
         lng: Number(lng)
       },

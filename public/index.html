@@ -596,10 +596,6 @@
     background: #ff00bf;
     color: #fff;
   }
-  .waymo-btn {
-    background: #5f6df1;
-    color: #fff;
-  }
   .location-bar {
     display: flex;
     align-items: center;
@@ -814,7 +810,7 @@
     <p style="margin-bottom:16px;color:#555;">For best results in Summit County, share your spot. I will use it to:</p>
     <ul style="text-align:left;list-style:none;padding:0;margin-bottom:20px;">
       <li style="padding:6px 0;">🍽️ Show restaurants and bars nearest you</li>
-      <li style="padding:6px 0;">🚗 Set accurate pickup for Uber, Lyft, Waymo</li>
+      <li style="padding:6px 0;">🚗 Set accurate pickup for Uber and Lyft</li>
       <li style="padding:6px 0;">🎵 Sort events and concerts by distance</li>
       <li style="padding:6px 0;">🏨 Center hotel searches on your spot</li>
     </ul>
@@ -844,7 +840,7 @@
     <p><strong>You are responsible for who you share your group code with.</strong> Anyone with the code can see member locations during the session. Treat it like a temporary password and only share it with people you trust.</p>
 
     <h3>Booking & Transactions</h3>
-    <p>We do not process reservations, payments, or rides. All bookings happen on third-party platforms (OpenTable, Resy, Tock, Yelp, Uber, Lyft, Waymo, DoorDash, Uber Eats). Howdy Summit is not responsible for service quality, cancellations, refunds, or disputes with these providers.</p>
+    <p>We do not process reservations, payments, or rides. All bookings happen on third-party platforms (OpenTable, Resy, Tock, Yelp, Uber, Lyft, DoorDash, Uber Eats). Howdy Summit is not responsible for service quality, cancellations, refunds, or disputes with these providers.</p>
 
     <h3>Affiliate Disclosure</h3>
     <p>Some links on this site may be affiliate links. We may earn a commission at no extra cost to you when you book or sign up through these links.</p>
@@ -853,7 +849,7 @@
     <p>You must be 21 or older to purchase alcohol in Colorado. Drink responsibly. Do not drive under the influence, especially on mountain passes.</p>
 
     <h3>Trademarks</h3>
-    <p>Uber, Lyft, Waymo, DoorDash, Uber Eats, OpenTable, Resy, Tock, Yelp, Foursquare, Google, Ticketmaster, and SeatGeek are trademarks of their respective owners. Howdy Summit is not affiliated with, endorsed by, or sponsored by any of these companies.</p>
+    <p>Uber, Lyft, DoorDash, Uber Eats, OpenTable, Resy, Tock, Yelp, Foursquare, Google, Ticketmaster, and SeatGeek are trademarks of their respective owners. Howdy Summit is not affiliated with, endorsed by, or sponsored by any of these companies.</p>
 
     <h3>Limitation of Liability</h3>
     <p>This service is provided "as is" without warranties of any kind, express or implied. Howdy Summit is not liable for any damages, losses, injuries, or claims arising from your use of this site or the third-party services it links to. This includes but is not limited to:</p>
@@ -1374,17 +1370,6 @@ function buildLyftAppScheme(dropoffName) {
   return 'lyft://ridetype?' + params.join('&');
 }
 
-function buildWaymoLink(dropoffName) {
-  if (dropoffName) {
-    return 'https://waymo.com/waymo-one/?dest=' + encodeURIComponent(dropoffName + ' Summit County CO');
-  }
-  return 'https://waymo.com/waymo-one/';
-}
-
-function buildWaymoAppScheme(dropoffName) {
-  return 'waymo://';
-}
-
 function buildDoorDashLink(restaurantName) {
   if (restaurantName) {
     return 'https://www.doordash.com/search/store/' + encodeURIComponent(restaurantName + ' Summit County') + '/';
@@ -1439,8 +1424,6 @@ function rideClick(service, dropoffName, event) {
     openApp(buildUberAppScheme(dropoffName), buildUberLink(dropoffName));
   } else if (service === 'lyft') {
     openApp(buildLyftAppScheme(dropoffName), buildLyftLink(dropoffName));
-  } else if (service === 'waymo') {
-    openApp(buildWaymoAppScheme(dropoffName), buildWaymoLink(dropoffName));
   } else if (service === 'doordash') {
     openApp(buildDoorDashAppScheme(dropoffName), buildDoorDashLink(dropoffName));
   } else if (service === 'ubereats') {
@@ -2627,11 +2610,11 @@ function routeIntent(text) {
 
   if (matches(lower, ['share my location', 'share location', 'use my location', 'gps'])) {
     requestLocation();
-    addMessage("Tap allow on the location prompt and your pickup point will be set across Uber, Lyft, and Waymo.", 'bot');
+    addMessage("Tap allow on the location prompt and your pickup point will be set across Uber and Lyft.", 'bot');
     return;
   }
 
-  if (matches(lower, ['uber', 'lyft', 'waymo', 'ride', 'taxi', 'get a ride', 'rideshare'])) {
+  if (matches(lower, ['uber', 'lyft', 'ride', 'taxi', 'get a ride', 'rideshare'])) {
     showRideOptions();
     return;
   }
@@ -2802,7 +2785,6 @@ function buildAffiliatePanel(venues) {
     let buttons = `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;font-size:12px;padding:6px 10px;">Maps</a>`;
     buttons += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;color:#fff;font-size:12px;padding:6px 10px;">Uber</a>`;
     buttons += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;color:#fff;font-size:12px;padding:6px 10px;">Lyft</a>`;
-    buttons += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;color:#fff;font-size:12px;padding:6px 10px;">Waymo</a>`;
     if (v.type === 'hotel') {
       const expediaParams = new URLSearchParams();
       expediaParams.set('destination', v.name + ' Summit County CO');
@@ -4204,7 +4186,6 @@ function renderCuratedCard(s, label, liveMatch) {
   const safeName = s.name.replace(/'/g, "\\'");
   html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
   html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-  html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
   html += `</div>`;
   return html;
 }
@@ -4264,7 +4245,6 @@ async function showCuratedThenLive(curatedList, query, type, label) {
       if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
       html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
       html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-      html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
       html += `</div>`;
       return html;
     });
@@ -4639,7 +4619,6 @@ function showMainStreetBars() {
     const safeName = s.name.replace(/'/g, "\\'");
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-    html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
     return html;
   }, 5, () => {
@@ -6868,19 +6847,14 @@ function showLuggageStorage() {
   }
 }
 
-// Host's Pick card. Set HOST_PICK to a real Summit County listing to turn this
-// back on. Leaving it null renders nothing, which is intentional: the previous
-// listing here was from the previous city build and must not be shown to Summit County
-// visitors. Fill in name, area, details, image, and url to re-enable.
-const HOST_PICK = null;
-// Example shape:
-// const HOST_PICK = {
-//   name: "Blue River Condo",
-//   area: "Breckenridge · 2 bedroom · Sleeps 6 · Free parking",
-//   blurb: "Walk to Main Street. The Howdy Summit host's own rental. Booking through this listing supports the guide.",
-//   image: "/hostpick-hero.jpg",
-//   url: "https://www.airbnb.com/rooms/XXXXXXXX"
-// };
+// Host's Pick card. Dan's real Summit County listing.
+const HOST_PICK = {
+  name: "Dan's Summit County Getaway",
+  area: "Summit County, Colorado",
+  blurb: "The Howdy Summit host's own rental. Booking through this listing supports the guide.",
+  image: "",
+  url: "https://www.airbnb.com/rooms/1730217053317092168"
+};
 function renderHostPickCard(opts) {
   opts = opts || {};
   if (!HOST_PICK || !HOST_PICK.url) return '';
@@ -6930,22 +6904,6 @@ function showVacationRentals() {
     <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Parking, hot tub access, and whether the shuttle stops at the building matter more here than square footage. Check all three before booking.</div>
   </div>`;
   addMessage(backups, 'bot', true);
-
-  const bigGroup = `<div class="card" style="border:2px dashed #d62828;">
-    <div class="card-title">👯 Bigger bachelorette party? Try this large house</div>
-    <div class="card-desc"><strong>Sleeps a bigger crew · Bachelorette and bachelor party-friendly</strong></div>
-    <div class="card-desc">For groups that need more space than a 2BR. Same trusted local host network.</div>
-    <a href="https://www.airbnb.com/rooms/1219676997866845597" target="_blank" rel="noopener" style="background:#FF5A5F;">View on Airbnb</a>
-  </div>`;
-  addMessage(bigGroup, 'bot', true);
-
-  const coloradoTrip = `<div class="card" style="border:2px solid #c8a263;">
-    <div class="card-title">🏔️ Heading to Colorado next?</div>
-    <div class="card-desc"><strong>Same host · Mountain condo getaway</strong></div>
-    <div class="card-desc">Your Howdy Summit host also runs a Colorado mountain condo. Great for skiing, hiking, or a post-Summit County reset.</div>
-    <a href="https://www.airbnb.com/rooms/920827114586721400" target="_blank" rel="noopener" style="background:#FF5A5F;">View Colorado condo on Airbnb</a>
-  </div>`;
-  addMessage(coloradoTrip, 'bot', true);
 
   if (!userLocation) {
     addMessage("Want me to use your location? Tap 'Share my location' from the main menu.", 'bot');
@@ -7226,7 +7184,6 @@ async function showSports() {
       <a href="https://www.google.com/maps/search/${encodeURIComponent(team.venue)}+Colorado" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Venue on Maps</a>
       <a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber to venue</a>
       <a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft to venue</a>
-      <a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>
     </div>`;
     addMessage(html, 'bot', true);
   }
@@ -7412,7 +7369,6 @@ async function showHotels() {
           html += `<a href="${tripadvisorUrl}" target="_blank" rel="noopener" style="background:#34e0a1;color:#000;">Read Tripadvisor reviews</a>`;
           html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
           html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-          html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
           html += `</div>`;
           addMessage(html, 'bot', true);
         });
@@ -7487,7 +7443,6 @@ async function showStoreType(query, type, label) {
     if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-    html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
     return html;
   });
@@ -7679,7 +7634,6 @@ function showRideOptions() {
     <div class="card-desc">Rideshare coverage in Summit County thins out late at night and in storms. The free Summit Stage bus runs between every town, and Breckenridge runs the free Free Ride shuttle in town.</div>
     <a href="#" onclick="return rideClick('uber',null,event)" style="background:#000;">Open Uber</a>
     <a href="#" onclick="return rideClick('lyft',null,event)" style="background:#ff00bf;">Open Lyft</a>
-    <a href="#" onclick="return rideClick('waymo',null,event)" style="background:#5f6df1;">Open Waymo</a>
   </div>`;
   addMessage(html, 'bot', true);
   if (!userLocation) {
@@ -7730,7 +7684,6 @@ function renderRestaurantCard(r) {
   html += `<a class="ubereats-btn" href="#" onclick="return rideClick('ubereats','${safeName}',event)">Uber Eats</a>`;
   html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
   html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-  html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
   html += `</div>`;
   return html;
 }
@@ -8289,7 +8242,6 @@ async function showAttractions() {
     html += `<a href="${gygUrl}" target="_blank" rel="noopener" style="background:#ff8c00;color:#fff;">GetYourGuide tours</a>`;
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
-    html += `<a href="#" onclick="return rideClick('waymo','${safeName}',event)" style="background:#5f6df1;">Waymo</a>`;
     html += `</div>`;
     return html;
   }, 5, renderExtras);
