@@ -877,62 +877,36 @@ const SUMMIT_DATA = {
     { name: "Ski Tip Lodge", cuisine: "Tasting menu", neighborhood: "Keystone", price: "$$$$", vibe: "1800s stagecoach stop turned four-course fine dining inn. The county's most romantic room", booking: { opentable: "https://www.opentable.com/s?term=Ski%20Tip%20Lodge%20Keystone" } },
     { name: "Ten Mile Tavern", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Center Village slopeside tavern. Live music, big deck, apres crowd", booking: { walkin: true } },
     { name: "Briar Rose Chophouse & Saloon", cuisine: "Steakhouse", neighborhood: "Breckenridge", price: "$$$$", vibe: "Old mining-era saloon turned chophouse. Wild game, elk, prime steaks", booking: { opentable: "https://www.opentable.com/s?term=Briar%20Rose%20Chophouse%20Breckenridge" } },
-    { name: "Chimayo Grill", cuisine: "Mexican", neighborhood: "Dillon", price: "$", vibe: "Counter-service New Mexican in a Dillon strip mall. Green chile, fish tacos, cheap", booking: { walkin: true } },
+    { name: "Arapahoe Cafe & Pub", cuisine: "Breakfast", neighborhood: "Dillon", price: "$$", vibe: "1940s cabin moved from Old Dillon before the reservoir flooded it. Breakfast all day", booking: { walkin: true } },
     { name: "Sauce on the Blue", cuisine: "Italian", neighborhood: "Silverthorne", price: "$$$", vibe: "Wood-fired Italian on the Blue River. Patio over the water in summer", booking: { opentable: "https://www.opentable.com/s?term=Sauce%20on%20the%20Blue%20Silverthorne" } },
     { name: "Alpenglow Stube", cuisine: "Tasting menu", neighborhood: "Keystone", price: "$$$$", vibe: "Two gondolas up to 11,444 feet for a Bavarian-inspired tasting menu. Slippers at the door", booking: { opentable: "https://www.opentable.com/s?term=Alpenglow%20Stube%20Keystone" } },
     { name: "Jack's Slopeside Grill", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Ski-off-and-sit-down grill at the base of Center Village", booking: { walkin: true } },
     { name: "Modis", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Modern Main Street dining room, seasonal plates, strong cocktail list", booking: { opentable: "https://www.opentable.com/s?term=Modis%20Breckenridge" } },
     { name: "Kemosabe at Silverheels", cuisine: "American Sushi Grill", neighborhood: "Frisco", price: "$$$", vibe: "Southwestern bar and sushi bar combined into one Main Street spot. Rolls, tequila, and a long bar", booking: { opentable: "https://www.opentable.com/r/kemosabe-at-silverheels-frisco" } },
-    { name: "Red Mountain Grill", cuisine: "New American", neighborhood: "Dillon", price: "$$", vibe: "Big-portion American plates with Southwestern leanings and mountain views. Reliable family dinner", booking: { opentable: "https://www.opentable.com/r/red-mountain-grill-dillon" } },
+    { name: "Red Mountain Grill", cuisine: "New American", neighborhood: "Dillon", price: "$$", vibe: "Big-portion American plates with mountain views. Reliable family dinner", booking: { walkin: true } },
     { name: "Mint", cuisine: "Steakhouse", neighborhood: "Silverthorne", price: "$$", vibe: "Cook your own steak on a 700-degree stone. Historic building, loud and fun", booking: { walkin: true } },
     { name: "Der Fondue Chessel", cuisine: "Fondue", neighborhood: "Keystone", price: "$$$$", vibe: "Gondola-access fondue on North Peak with a Bavarian band. Book ahead", booking: { opentable: "https://www.opentable.com/s?term=Der%20Fondue%20Chessel%20Keystone" } },
-    { name: "Mulligan's Irish Pub", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Guinness and Colorado taps in the Lake building. Open latest of anything at Copper", booking: { walkin: true } },
+    { name: "Incline Bar & Grill", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Copper standby for burgers, wings, and a game on the screens", booking: { walkin: true } },
     { name: "Aurum Food & Wine", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Farm-to-table on the Blue River. Creekside patio in summer", booking: { opentable: "https://www.opentable.com/s?term=Aurum%20Food%20and%20Wine%20Breckenridge" } },
     { name: "Dillon Thai Restaurant", cuisine: "Thai", neighborhood: "Dillon", price: "$$", vibe: "Family-run Thai kitchen at Dillon Ridge Marketplace. Panang curry, pad thai, drunken noodles", booking: { walkin: true } },
     { name: "Sunshine Cafe", cuisine: "Breakfast", neighborhood: "Silverthorne", price: "$$", vibe: "Silverthorne breakfast-and-lunch standby. Big plates, fast turnover", booking: { walkin: true } },
     { name: "Keystone Ranch", cuisine: "New American", neighborhood: "Keystone", price: "$$$$", vibe: "1930s homestead ranch house. Six-course dinners by the fireplace, seasonal", booking: { opentable: "https://www.opentable.com/s?term=Keystone%20Ranch%20Restaurant" } },
-    { name: "Sauce on Copper", cuisine: "Italian", neighborhood: "Copper Mountain", price: "$$$", vibe: "Sister to Sauce on the Blue, at Passage Point. Pasta and pizza, dine-in or take back to the condo", booking: { walkin: true } },
-    { name: "Bagalis", cuisine: "Italian", neighborhood: "Frisco", price: "$$", vibe: "Neighborhood Italian on Frisco Main since the 90s. Pasta, veal, and a quiet patio", booking: { walkin: true } },
+    { name: "Endo's Adrenaline Cafe", cuisine: "Burgers", neighborhood: "Copper Mountain", price: "$$", vibe: "Bike-and-ski-themed burger joint in Center Village. Loud, casual, quick", booking: { walkin: true } },
+    { name: "Rootstalk", cuisine: "Tasting menu", neighborhood: "Breckenridge", price: "$$$$", vibe: "Chef-driven tasting menu in a tiny room. Book well ahead", note: "Small dining room. Reserve weeks out in ski season.", booking: { opentable: "https://www.opentable.com/s?term=Rootstalk%20Breckenridge" } },
+    { name: "Bagali's Italian Restaurant", cuisine: "Italian", neighborhood: "Frisco", price: "$$", vibe: "Neighborhood Italian on Frisco Main. Pasta, veal, and a quiet patio", booking: { walkin: true } },
     { name: "Old Dillon Inn", cuisine: "Mexican", neighborhood: "Silverthorne", price: "$$", vibe: "1800s bar hauled over from Old Dillon. Margaritas, Mexican plates, live country", booking: { walkin: true } },
     { name: "Kickapoo Tavern", cuisine: "Pub", neighborhood: "Keystone", price: "$$", vibe: "Steps from the River Run gondola. The default Keystone apres bar", booking: { walkin: true } },
-    { name: "El Zacatecano", cuisine: "Mexican", neighborhood: "Copper Mountain", price: "$$", vibe: "Village Square Mexican kitchen with big tables. Combo platters, margaritas, fried ice cream", booking: { walkin: true } },
+    { name: "Salsa Mountain Cantina", cuisine: "Mexican", neighborhood: "Copper Mountain", price: "$$", vibe: "Copper's Mexican kitchen. Margarita pitchers and a slopeside patio", booking: { walkin: true } },
     { name: "Twist", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Intimate neighborhood bistro just off Main Street", booking: { opentable: "https://www.opentable.com/s?term=Twist%20Breckenridge" } },
-    { name: "Rootstalk", cuisine: "Tasting menu", neighborhood: "Breckenridge", price: "$$$$", vibe: "Chef-driven tasting menu in a tiny room. Book well ahead", note: "Small dining room. Reserve weeks out in ski season.", booking: { opentable: "https://www.opentable.com/s?term=Rootstalk%20Breckenridge" } },
     { name: "Peppino's Pizza & Subs", cuisine: "Pizza", neighborhood: "Frisco", price: "$", vibe: "By-the-slice pizza and subs. The after-the-trail move", booking: { walkin: true } },
     { name: "Blue Moon Bakery", cuisine: "Cafe", neighborhood: "Silverthorne", price: "$", vibe: "Scratch bakery and deli. Breakfast burritos and sandwiches for the trailhead", booking: { walkin: true } },
     { name: "Bighorn Bistro & Bar", cuisine: "New American", neighborhood: "Keystone", price: "$$$", vibe: "Keystone Lodge dining room with lake views. Family-friendly and calm", booking: { walkin: true } },
     { name: "Camp Hale Coffee", cuisine: "Coffee", neighborhood: "Copper Mountain", price: "$", vibe: "Center Village coffee counter. Get there before the first chair rush", booking: { walkin: true } },
-    { name: "Kenosha Breck", cuisine: "Barbecue", neighborhood: "Breckenridge", price: "$$", vibe: "The old Kenosha Steakhouse, now burgers, smoked meat, and craft taps. Big patio on South Main", booking: { walkin: true } },
+    { name: "Kenosha Steakhouse", cuisine: "Steakhouse", neighborhood: "Breckenridge", price: "$$$", vibe: "Ski-town steakhouse with a big patio and an easy apres crowd", booking: { walkin: true } },
     { name: "The Lost Cajun", cuisine: "Cajun", neighborhood: "Frisco", price: "$$", vibe: "Gumbo, etouffee, and beignets in a mountain town. Free tasting of all five soups", booking: { walkin: true } },
+    { name: "Angry James Brewery", cuisine: "Brewpub", neighborhood: "Silverthorne", price: "$$", vibe: "Silverthorne taproom with a patio on the Blue River", booking: { walkin: true } },
     { name: "Inxpot", cuisine: "Coffee", neighborhood: "Keystone", price: "$", vibe: "Bookshelf-lined coffee shop in River Run. Espresso, bagels, first-chair fuel", booking: { walkin: true } },
-    { name: "Legends Steaks & Seafood", cuisine: "Steakhouse", neighborhood: "Breckenridge", price: "$$$$", vibe: "Ridge Street fine dining. Dry-aged ribeye, lobster tail, and a 3:30 happy hour most people miss", booking: { opentable: "https://www.opentable.com/r/legends-steaks-and-seafood-breckenridge" } },
-    { name: "5th Avenue Grille", cuisine: "Steakhouse", neighborhood: "Frisco", price: "$$$", vibe: "Chef-driven steaks and craft cocktails on Frisco Main. Best of Summit two years running", note: "Books through its own site, not OpenTable. Dinner only, from 3pm.", booking: { walkin: true } },
-    { name: "Cala Pub & Restaurant", cuisine: "Pub", neighborhood: "Dillon", price: "$$", vibe: "Small Irish pub locals treat as a living room. Shepherd's pie and a proper pour", booking: { walkin: true } },
-    { name: "Timberline Craft Kitchen & Cocktails", cuisine: "New American", neighborhood: "Silverthorne", price: "$$$", vibe: "Colorado ingredients, shareable plates, and the Tree Line bloody mary. Brunch daily from 11", booking: { opentable: "https://www.opentable.com/r/timberline-craft-kitchen-silverthorne" } },
-    { name: "Snake River Saloon", cuisine: "Steakhouse", neighborhood: "Keystone", price: "$$$", vibe: "Highway 6 steakhouse since 1974 that turns into a live-music bar after the plates clear", booking: { walkin: true } },
-    { name: "Sawmill Pizza & Taphouse", cuisine: "Pizza", neighborhood: "Copper Mountain", price: "$$", vibe: "Pizza and a taplist across from the American Eagle lift. The easy Copper family dinner", booking: { walkin: true } },
-    { name: "Blue Stag Saloon", cuisine: "Pub", neighborhood: "Breckenridge", price: "$$", vibe: "Wild game saloon on South Main. Elk, bison, rattlesnake sausage, wood-fired pizza, fire pits out back", booking: { walkin: true } },
-    { name: "Ein Prosit", cuisine: "German", neighborhood: "Frisco", price: "$$", vibe: "Colorado's only real beer hall, tucked inside a Main Street antique store. Imports and wild game sausage", booking: { walkin: true } },
-    { name: "Bistro North", cuisine: "New American", neighborhood: "Dillon", price: "$$$", vibe: "Small globally-minded kitchen with the best happy hour menu in Dillon", booking: { walkin: true } },
-    { name: "Nick-N-Willy's Pizza", cuisine: "Pizza", neighborhood: "Silverthorne", price: "$", vibe: "Take-and-bake or baked-for-you pizza. How families feed a condo full of people cheap", booking: { walkin: true } },
-    { name: "The Goat Soup & Whiskey Tavern", cuisine: "Pub", neighborhood: "Keystone", price: "$", vibe: "The lifties' bar on Highway 6. Cheap beer, whiskey, live music, no resort polish", booking: { walkin: true } },
-    { name: "Downhill Duke's", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Apres patio between the American Flyer and American Eagle. Dog-friendly, ski-off-and-sit", booking: { walkin: true } },
-    { name: "RMU Tavern", cuisine: "Pub", neighborhood: "Breckenridge", price: "$$", vibe: "Bar run by the Rocky Mountain Underground ski builders. Seasonal cocktails, porch music, dogs welcome", booking: { walkin: true } },
-    { name: "Himalayan Cuisine", cuisine: "Indian", neighborhood: "Frisco", price: "$$", vibe: "Nepalese and Indian kitchen on Summit Blvd. Momos, vindaloo, garlic naan, plenty for vegetarians", booking: { walkin: true } },
-    { name: "Last Chance Pizza", cuisine: "Pizza", neighborhood: "Dillon", price: "$$", vibe: "Longtime Dillon pizza counter sharing a room with the Cove & Craft beer bar", booking: { walkin: true } },
-    { name: "Dos Locos", cuisine: "Mexican", neighborhood: "Keystone", price: "$$", vibe: "Bright cantina off Highway 6. Fajitas, big margaritas, live music on summer Fridays", booking: { walkin: true } },
-    { name: "JJ's Tavern", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "East Village tavern at the base of Super Bee. The quiet side of Copper", booking: { walkin: true } },
-    { name: "Burke & Riley's Irish Pub", cuisine: "Pub", neighborhood: "Breckenridge", price: "$$", vibe: "Upstairs Irish pub with a balcony over Main Street. Whiskey list and the Ullr Fest parade seats", booking: { walkin: true } },
-    { name: "Bird Craft", cuisine: "Thai", neighborhood: "Frisco", price: "$$", vibe: "Thai counter inside the Outer Range taproom. Order food at one window, beer at the other", booking: { walkin: true } },
-    { name: "Nozawa Sushi & Teppanyaki", cuisine: "Sushi", neighborhood: "Dillon", price: "$$", vibe: "Sushi bar and teppanyaki tables at Dillon Ridge. Know what to order and the prices are a steal", booking: { walkin: true } },
-    { name: "Lime", cuisine: "Mexican", neighborhood: "Keystone", price: "$$", vibe: "River Run taco-and-margarita spot with a happy hour that fills up the second the gondola stops", booking: { walkin: true } },
-    { name: "Eagle BBQ", cuisine: "Barbecue", neighborhood: "Copper Mountain", price: "$$", vibe: "Brisket, pulled pork, and chili at Copper Junction. Counter service, ski boots fine", booking: { walkin: true } },
-    { name: "Traverse Restaurant & Bar", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Dining room up at the Lodge at Breckenridge with a full-width Tenmile Range view", booking: { opentable: "https://www.opentable.com/s?term=Traverse%20Breckenridge" } },
-    { name: "Cielo Oaxaca", cuisine: "Mexican", neighborhood: "Frisco", price: "$$", vibe: "Oaxacan cooking on Summit Blvd. Mole, quesabirria, and smothered burritos with green chile", booking: { walkin: true } },
-    { name: "STEEP Brewing Lakeside Tiki Bar", cuisine: "Brewpub", neighborhood: "Dillon", price: "$$", vibe: "Highest lakeside tiki bar in North America, on the Dillon Marina deck. Summer only, live music", booking: { walkin: true } },
-    { name: "Summit House", cuisine: "Cafeteria", neighborhood: "Keystone", price: "$$", vibe: "Top of the River Run gondola on Dercum Mountain. Burgers, sandwiches, and Friday night music", booking: { walkin: true } },
-    { name: "The Next Page Books & Nosh", cuisine: "Cafe", neighborhood: "Frisco", price: "$$", vibe: "Independent bookstore with a cafe and wine bar on Frisco Main. The most civilized drink in the county", booking: { walkin: true } },
-    { name: "Radicato", cuisine: "Italian", neighborhood: "Breckenridge", price: "$$$$", vibe: "Handmade pasta from James Beard winner Matt Vawter, in the old Relish space on Main", note: "Books through the restaurant, not OpenTable. Call ahead in ski season.", booking: { walkin: true } },
+    { name: "Relish", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Longtime Main Street favorite, contemporary mountain cooking", booking: { opentable: "https://www.opentable.com/s?term=Relish%20Breckenridge" } },
     { name: "Breckenridge Distillery Restaurant", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Restaurant inside the distillery. Whiskey pairings, tours next door", website: "https://breckenridgedistillery.com", booking: { opentable: "https://www.opentable.com/s?term=Breckenridge%20Distillery%20Restaurant" } },
     { name: "Food Hedz World Cafe", cuisine: "New American", neighborhood: "Frisco", price: "$$", vibe: "Chef-owned globally-minded cafe in a strip-mall storefront. Locals' pick", booking: { walkin: true } },
     { name: "Blue River Bistro", cuisine: "Italian", neighborhood: "Breckenridge", price: "$$", vibe: "Pasta, martinis, and live music most nights. Long-running local hang", booking: { walkin: true } },
@@ -4288,14 +4262,14 @@ const CURATED_APRES_BARS = [
   { name: "Snake River Saloon", neighborhood: "Keystone", desc: "Long-running steakhouse and late-night live music room on Highway 6.", url: null },
   { name: "Ten Mile Tavern", neighborhood: "Copper Mountain", desc: "Center Village slopeside tavern with live music, a big deck, and the Copper apres crowd.", url: null },
   { name: "Jack's Slopeside Grill", neighborhood: "Copper Mountain", desc: "Ski off American Flyer and sit down. Burgers, beer, and Center Village people-watching.", url: null },
-  { name: "High Rockies Whiskey and Wine Bar", neighborhood: "Copper Mountain", desc: "Whiskey, wine, and small plates near West Lake. Copper's cocktail option once the lifts stop spinning.", url: null },
-  { name: "Mulligan's Irish Pub", neighborhood: "Copper Mountain", desc: "Guinness and Colorado taps in the Lake building. Stays open later than anything else at Copper.", url: null },
+  { name: "Storm King Lounge", neighborhood: "Copper Mountain", desc: "Copper's cozy lounge for a cocktail once the lifts stop spinning.", url: null },
+  { name: "Incline Bar & Grill", neighborhood: "Copper Mountain", desc: "Casual Copper standby. Wings, screens, and a slopeside patio.", url: null },
   { name: "6th Alley Bar & Grill", neighborhood: "Keystone", desc: "Arapahoe Basin's base-area bar. Beers on the deck with a view straight up the East Wall.", url: "https://www.arapahoebasin.com" },
   { name: "The Beach at Arapahoe Basin", neighborhood: "Keystone", desc: "A-Basin's legendary parking-lot tailgate scene. Grills, lawn chairs, and spring corn snow. Free to join, bring your own.", url: "https://www.arapahoebasin.com" },
 
   // Breckenridge Main Street bars
   { name: "Gold Pan Saloon", neighborhood: "Breckenridge", desc: "One of the oldest continuously operating bars west of the Mississippi. Original back bar, burgers, late nights.", url: null },
-  { name: "Blue Stag Saloon", neighborhood: "Breckenridge", desc: "South Main saloon with wild game on the menu and fire pits on the patio. Elk, bison, and wood-fired pizza.", url: null },
+  { name: "Motherloaded Tavern", neighborhood: "Breckenridge", desc: "Comfort-food tavern with a wildly decorated dining room. Meatloaf, mac, and a full bar.", url: null },
   { name: "RMU Tavern", neighborhood: "Breckenridge", desc: "Rocky Mountain Underground's Main Street tavern. Craft beer, cocktails, dog-friendly, ski-brand roots.", url: null },
   { name: "Cecilia's Martini Bar", neighborhood: "Breckenridge", desc: "Late-night martini and dance bar on South Main. Open when almost everything else has closed.", url: null },
   { name: "Burke & Riley's Irish Pub", neighborhood: "Breckenridge", desc: "Upstairs Irish pub with a deck over Main Street. Guinness, whiskey, and a fireplace.", url: null },
@@ -4312,12 +4286,12 @@ const CURATED_APRES_BARS = [
   // Frisco, Dillon, Silverthorne
   { name: "Outer Range Brewing Co.", neighborhood: "Frisco", desc: "A-frame taproom pouring hazy IPAs and Belgian styles. The county's most-hyped brewery.", url: "https://www.outerrange.com" },
   { name: "Highside Brewing", neighborhood: "Frisco", desc: "Small Frisco taproom just off Main. Rotating taps, board games, dogs welcome.", url: null },
-  { name: "Ein Prosit", neighborhood: "Frisco", desc: "Colorado's only real beer hall, hidden inside a Main Street antique store. German imports and wild game sausage.", url: null },
-  { name: "Kemosabe at Silverheels", neighborhood: "Frisco", desc: "Long bar in the middle of Frisco Main Street. Southwestern plates and a good tequila list.", url: null },
+  { name: "Barkley's Margaritagrill", neighborhood: "Frisco", desc: "Frisco Main Street margarita bar with a patio and a steady local crowd.", url: null },
+  { name: "Silverheels Bar & Grill", neighborhood: "Frisco", desc: "Long bar in the middle of Frisco Main Street. Southwestern plates and a good tequila list.", url: null },
   { name: "Foundry Cinema + Bowl", neighborhood: "Frisco", desc: "Movie theater, bowling lanes, and a full bar under one roof. The storm-day plan B.", url: null },
   { name: "Dillon Dam Brewery", neighborhood: "Dillon", desc: "One of Colorado's largest brewpubs. House beer, huge menu, easy for big groups.", url: "https://www.dambrewery.com" },
-  { name: "STEEP Brewing Lakeside Tiki Bar", neighborhood: "Dillon", desc: "Open-air tiki bar right on Dillon Reservoir, run by STEEP Brewing since 2026. Best lake view in the county. Summer only.", url: "https://www.townofdillon.com/marina" },
-  { name: "Cala Pub & Restaurant", neighborhood: "Dillon", desc: "Tiny Irish pub that locals treat as a living room. Shepherd's pie and a properly poured pint.", url: null },
+  { name: "Island Grill at Dillon Marina", neighborhood: "Dillon", desc: "Open-air tiki bar right on Dillon Reservoir. Frozen drinks and the best lake view in the county. Summer only.", url: "https://www.townofdillon.com/marina" },
+  { name: "Arapahoe Cafe & Pub", neighborhood: "Dillon", desc: "1940s cabin relocated before Old Dillon was flooded. Cafe upstairs, pub downstairs.", url: null },
   { name: "Angry James Brewery", neighborhood: "Silverthorne", desc: "Silverthorne taproom with a patio right on the Blue River.", url: null },
   { name: "Old Dillon Inn", neighborhood: "Silverthorne", desc: "1800s bar hauled up from Old Dillon. Margaritas, Mexican plates, and live country on weekends.", url: null },
   { name: "Bluebird Market", neighborhood: "Silverthorne", desc: "Riverside food hall with a central bar. Multiple vendors, outdoor seating, family-friendly.", url: null },
@@ -4335,7 +4309,7 @@ const CURATED_ROOFTOPS = [
   { name: "Burke & Riley's Deck", neighborhood: "Breckenridge", desc: "Upstairs Irish pub balcony over Main Street. Great for watching the Ullr Fest parade.", url: null },
   { name: "Mi Casa Deck", neighborhood: "Breckenridge", desc: "Sun-soaked margarita deck at the south end of Main Street. Happy hour fills it fast.", url: null },
   { name: "Aurum Food & Wine Creekside Patio", neighborhood: "Breckenridge", desc: "Patio hanging over the Blue River. The quietest good drink in town on a summer evening.", url: null },
-  { name: "STEEP Brewing Lakeside Tiki Bar", neighborhood: "Dillon", desc: "Open-air deck on Dillon Reservoir. Boats coming in, Gore Range across the water. Summer only.", url: "https://www.townofdillon.com/marina" },
+  { name: "Island Grill at Dillon Marina", neighborhood: "Dillon", desc: "Open-air deck on Dillon Reservoir. Boats coming in, Gore Range across the water. Summer only.", url: "https://www.townofdillon.com/marina" },
   { name: "Dillon Dam Brewery Patio", neighborhood: "Dillon", desc: "Big brewpub patio with a mountain backdrop. Easy for large groups and kids.", url: "https://www.dambrewery.com" },
   { name: "Sauce on the Blue Riverside Patio", neighborhood: "Silverthorne", desc: "Patio right over the Blue River. Wood-fired Italian, wine list, and the sound of the water.", url: null },
   { name: "Angry James Riverside Patio", neighborhood: "Silverthorne", desc: "Beer on the Blue River with the Gore Range above you. Dog-friendly.", url: null },
@@ -4381,7 +4355,7 @@ const CURATED_BREWERIES = [
   { name: "Outer Range Brewing Co.", neighborhood: "Frisco", desc: "Striking A-frame taproom pouring hazy IPAs and Belgian styles. The most talked-about brewery in the county, with a patio facing Peak One.", url: "https://www.outerrange.com" },
   { name: "Dillon Dam Brewery", neighborhood: "Dillon", desc: "One of Colorado's largest brewpubs, open since 1997. House lagers and ales plus a full menu. Big tables, easy for groups and kids.", url: "https://www.dambrewery.com" },
   { name: "Breckenridge Brewery & Pub", neighborhood: "Breckenridge", desc: "The original 1990 South Main brewpub where Avalanche Ale started. Pub food and a patio a block off Main Street.", url: "https://www.breckbrew.com" },
-  { name: "Angry James Brewery", neighborhood: "Silverthorne", desc: "Silverthorne taproom with a patio right on the Blue River. No kitchen of their own; occasionally hosts a guest food vendor doing grilled cheese. Best to eat beforehand or bring your own snacks.", url: null },
+  { name: "Angry James Brewery", neighborhood: "Silverthorne", desc: "Silverthorne taproom with a patio right on the Blue River. Rotating taps, dog-friendly, food trucks in summer.", url: null },
   { name: "Broken Compass Brewing", neighborhood: "Breckenridge", desc: "Coconut porter and chili pepper pale ale in a taproom with a chairlift for a bench. Food trucks most days, plus a Main Street satellite taproom.", url: "https://brokencompassbrewing.com" },
   { name: "Steep Brewing & Coffee Co.", neighborhood: "Breckenridge", desc: "Coffee bar in the morning, brewery in the afternoon, with a deck above Main Street. The all-day option.", url: null },
   { name: "Highside Brewing", neighborhood: "Frisco", desc: "Small taproom just off Frisco Main Street. Rotating small-batch taps, board games, and a mellow local crowd.", url: null },
@@ -4408,11 +4382,11 @@ const CURATED_HOLIDAY_BRUNCH = {
       { name: "Briar Rose Chophouse & Saloon", neighborhood: "Breckenridge", desc: "Old mining-era saloon. Steak and eggs done properly.", reservation: "https://www.opentable.com/s?term=Briar%20Rose%20Chophouse%20Breckenridge" },
       { name: "Ski Tip Lodge", neighborhood: "Keystone", desc: "1800s stagecoach stop turned inn. The most romantic dining room in the county.", reservation: "https://www.opentable.com/s?term=Ski%20Tip%20Lodge%20Keystone" },
       { name: "Sauce on the Blue", neighborhood: "Silverthorne", desc: "Wood-fired Italian with a patio over the Blue River.", reservation: "https://www.opentable.com/s?term=Sauce%20on%20the%20Blue%20Silverthorne" },
-      { name: "Kemosabe at Silverheels", neighborhood: "Frisco", desc: "Southwestern plates in the middle of Frisco Main Street. Easy for a group.", reservation: "https://www.opentable.com/r/kemosabe-at-silverheels-frisco" },
+      { name: "Silverheels Bar & Grill", neighborhood: "Frisco", desc: "Southwestern plates in the middle of Frisco Main Street. Easy for a group.", reservation: "https://www.opentable.com/s?term=Silverheels%20Frisco%20Colorado" },
       { name: "Bighorn Bistro & Bar", neighborhood: "Keystone", desc: "Keystone Lodge dining room with lake views. Calm and family-friendly.", reservation: null },
       { name: "Butterhorn Bakery & Cafe", neighborhood: "Frisco", desc: "No reservations. The county's breakfast benchmark. Get there before 9am or wait.", reservation: null },
       { name: "Columbine Cafe", neighborhood: "Breckenridge", desc: "No reservations. Classic small-town breakfast counter on Main Street.", reservation: null },
-      { name: "Red Mountain Grill", neighborhood: "Dillon", desc: "Weekend brunch service with mountain views, and it actually takes reservations.", reservation: "https://www.opentable.com/r/red-mountain-grill-dillon" },
+      { name: "Arapahoe Cafe & Pub", neighborhood: "Dillon", desc: "No reservations. 1940s cabin saved from the reservoir. Breakfast served all day.", reservation: null },
       { name: "Sunshine Cafe", neighborhood: "Silverthorne", desc: "No reservations. Big plates, fast turnover, the Silverthorne standby.", reservation: null }
     ]
   }
@@ -4575,7 +4549,7 @@ const CURATED_FAMILY_FRIENDLY = [
 const CURATED_LOCAL_GEMS = [
   { name: "Sunshine Cafe", neighborhood: "Silverthorne", desc: "Where county workers eat breakfast. Big plates, fast service, no scene. Right off the highway in Silverthorne.", url: null },
   { name: "Old Dillon Inn", neighborhood: "Silverthorne", desc: "1800s bar hauled up from Old Dillon before the reservoir flooded it. Margaritas, Mexican plates, and live country on weekends.", url: null },
-  { name: "Chimayo Grill", neighborhood: "Dillon", desc: "Counter-service New Mexican in a Dillon strip mall. Green chile and fish tacos for less than anywhere else in the county.", url: null },
+  { name: "Arapahoe Cafe & Pub", neighborhood: "Dillon", desc: "Another building saved from the old town. Breakfast all day upstairs, a proper local pub downstairs.", url: null },
   { name: "Food Hedz World Cafe", neighborhood: "Frisco", desc: "Chef-owned, globally-minded cafe hiding in a Frisco strip mall. Locals send visitors here and visitors never find it on their own.", url: null },
   { name: "Cuppa Joe", neighborhood: "Breckenridge", desc: "Tiny coffee shop off Ridge Street where Breck locals actually get caffeine instead of standing in the Main Street line.", url: null },
   { name: "The Goat Soup & Whiskey Tavern", neighborhood: "Keystone", desc: "Cheap beer, whiskey, and live music on Highway 6. The Keystone lifties' bar, not the resort's.", url: null },
@@ -4592,7 +4566,7 @@ const CURATED_LOCAL_GEMS = [
 
 const CURATED_MAIN_STREET_BARS = [
   { name: "Gold Pan Saloon", neighborhood: "Breckenridge", desc: "One of the oldest continuously operating bars west of the Mississippi. Original back bar, burgers, and late nights.", url: null },
-  { name: "Blue Stag Saloon", neighborhood: "Breckenridge", desc: "South Main saloon serving elk, bison, and rattlesnake sausage alongside wood-fired pizza. Fire pits on the patio.", url: null },
+  { name: "Motherloaded Tavern", neighborhood: "Breckenridge", desc: "Comfort-food tavern with a wildly decorated room. Meatloaf, mac and cheese, and a full bar.", url: null },
   { name: "RMU Tavern", neighborhood: "Breckenridge", desc: "Rocky Mountain Underground's tavern. Craft beer, cocktails, dog-friendly, and ski-brand roots.", url: null },
   { name: "Cecilia's Martini Bar", neighborhood: "Breckenridge", desc: "Late-night martini and dance bar on South Main. Open when the kitchens have all closed.", url: null, hasFood: false },
   { name: "Burke & Riley's Irish Pub", neighborhood: "Breckenridge", desc: "Upstairs Irish pub with a balcony over Main Street. Guinness, whiskey, and a fireplace.", url: null },
@@ -4612,13 +4586,13 @@ const CURATED_MAIN_STREET_BARS = [
   { name: "Fatty's Pizzeria", neighborhood: "Breckenridge", desc: "Breck institution since 1975. Pizza, pitchers, and one of the best rooftop decks in town.", url: null },
   { name: "South Ridge Seafood Grill", neighborhood: "Breckenridge", desc: "Seafood at 9,600 feet plus a rooftop deck aimed straight at the Tenmile Range.", url: null },
   { name: "Mi Casa Mexican Restaurant & Cantina", neighborhood: "Breckenridge", desc: "Breck's margarita landmark since 1980. The deck fills up the moment the lifts close.", url: null },
-  { name: "Kenosha Breck", neighborhood: "Breckenridge", desc: "The old Kenosha Steakhouse, reworked around burgers, smoked meat, and craft taps. Big patio on South Main.", url: null },
+  { name: "Kenosha Steakhouse", neighborhood: "Breckenridge", desc: "Ski-town steakhouse with a big patio and an easy apres crowd out front.", url: null },
   { name: "Empire Burger", neighborhood: "Breckenridge", desc: "Big burgers, big beer list, and Main Street people-watching from the front windows.", url: null },
   { name: "Sancho Tacos & Tequila", neighborhood: "Breckenridge", desc: "Street tacos and a deep tequila list right on Main Street.", url: null },
   { name: "Giampietro Pasta & Pizzeria", neighborhood: "Breckenridge", desc: "Family-run red-sauce Italian and thin-crust pizza on North Main.", url: null },
   { name: "Crepes a la Cart", neighborhood: "Breckenridge", desc: "Walk-up crepe cart on Main Street. Open late and the best thing to eat on the walk home.", url: null },
   { name: "Modis", neighborhood: "Breckenridge", desc: "Modern Main Street dining room with a strong cocktail program at the bar.", url: null },
-  { name: "Radicato", neighborhood: "Breckenridge", desc: "Handmade pasta from James Beard winner Matt Vawter, in the old Relish space on Main Street.", url: null },
+  { name: "Relish", neighborhood: "Breckenridge", desc: "Longtime Main Street favorite. Contemporary mountain cooking and a quiet bar.", url: null },
   { name: "Briar Rose Chophouse & Saloon", neighborhood: "Breckenridge", desc: "Old mining-era saloon turned chophouse. Wild game, prime steaks, and a proper bar.", url: null },
   { name: "Quandary Grille", neighborhood: "Breckenridge", desc: "South Main pub with a sunny patio at the quiet end of the strip.", url: null }
 ];
@@ -4659,21 +4633,21 @@ const CURATED_COCKTAIL_BARS = [
   { name: "Briar Rose Chophouse & Saloon", neighborhood: "Breckenridge", desc: "Old mining saloon bar. Whiskey, a proper martini, and a room that has been serving drinks since the 1880s.", url: null },
   { name: "Hearthstone Restaurant", neighborhood: "Breckenridge", desc: "Bar in an 1886 Victorian with a porch aimed at the sunset. Best cocktail-with-a-view in Breckenridge.", url: null },
   { name: "RMU Tavern", neighborhood: "Breckenridge", desc: "Craft beer and cocktails from the Rocky Mountain Underground ski crew. Dog-friendly and laid back.", url: null },
-  { name: "Blue Stag Saloon", neighborhood: "Breckenridge", desc: "Full bar attached to a wild-game kitchen on South Main. Fire pits out back, strong pours.", url: null },
+  { name: "Motherloaded Tavern", neighborhood: "Breckenridge", desc: "Full bar attached to the best comfort-food kitchen on Main Street. Odd decor, strong pours.", url: null },
   { name: "The Crown", neighborhood: "Breckenridge", desc: "Coffee house that turns into a wine and beer bar at night. Big windows, easy conversation.", url: null },
   { name: "Blue River Bistro", neighborhood: "Breckenridge", desc: "Martini list and live music most nights. A Breck evening standby for two decades.", url: null },
   { name: "Burke & Riley's Irish Pub", neighborhood: "Breckenridge", desc: "Whiskey list and a balcony over Main Street. The parade-watching bar during Ullr Fest.", url: null },
   { name: "Twist", neighborhood: "Breckenridge", desc: "Intimate bistro bar just off Main. Small room, careful drinks, no crowd.", url: null },
 
   // Frisco
-  { name: "Kemosabe at Silverheels", neighborhood: "Frisco", desc: "Long bar in the middle of Frisco Main Street with a deep tequila and mezcal selection.", url: null },
-  { name: "5th Avenue Grille", neighborhood: "Frisco", desc: "Craft cocktail bar attached to Frisco's best steakhouse. High-tops in the tavern if you have not booked.", url: null },
+  { name: "Silverheels Bar & Grill", neighborhood: "Frisco", desc: "Long bar in the middle of Frisco Main Street with a deep tequila and mezcal selection.", url: null },
+  { name: "Barkley's Margaritagrill", neighborhood: "Frisco", desc: "Frisco margarita institution with a patio and a steady local crowd all year.", url: null },
   { name: "Outer Range Brewing Co.", neighborhood: "Frisco", desc: "Not a cocktail bar, but the beer program is the best in the county and the A-frame taproom is worth the stop.", url: "https://www.outerrange.com" },
   { name: "The Next Page Books & Nosh", neighborhood: "Frisco", desc: "Bookstore with a wine and beer bar. The most civilized drink in Summit County.", url: null },
   { name: "Foundry Cinema + Bowl", neighborhood: "Frisco", desc: "Full bar attached to a movie theater and bowling alley. Cocktails you can carry to your lane.", url: null },
 
   // Dillon and Silverthorne
-  { name: "STEEP Brewing Lakeside Tiki Bar", neighborhood: "Dillon", desc: "Open-air tiki bar on the reservoir. Frozen drinks with the Gore Range across the water. Summer only.", url: "https://www.townofdillon.com/marina" },
+  { name: "Island Grill at Dillon Marina", neighborhood: "Dillon", desc: "Open-air tiki bar on the reservoir. Frozen drinks with the Gore Range across the water. Summer only.", url: "https://www.townofdillon.com/marina" },
   { name: "Dillon Dam Brewery", neighborhood: "Dillon", desc: "Big brewpub bar with house beer and a full liquor list. The easy group option in Dillon.", url: "https://www.dambrewery.com" },
   { name: "Bluebird Market", neighborhood: "Silverthorne", desc: "Central bar inside the riverside food hall. Order drinks in one place, food from five vendors.", url: null },
   { name: "Sauce on the Blue", neighborhood: "Silverthorne", desc: "Italian wine list and aperitivo-style cocktails on a patio over the Blue River.", url: null },
@@ -4688,7 +4662,7 @@ const CURATED_COCKTAIL_BARS = [
   { name: "The Goat Soup & Whiskey Tavern", neighborhood: "Keystone", desc: "Whiskey, cheap beer, and live music. The bar Keystone employees drink at.", url: null },
   { name: "Kickapoo Tavern", neighborhood: "Keystone", desc: "Steps from the gondola. Big group tables and the default Keystone apres round.", url: null },
   { name: "Ten Mile Tavern", neighborhood: "Copper Mountain", desc: "Center Village tavern with live music and a slopeside deck.", url: null },
-  { name: "High Rockies Whiskey and Wine Bar", neighborhood: "Copper Mountain", desc: "Copper's quiet lounge for a proper cocktail once the lifts stop. Whiskey, wine, and small plates near West Lake.", url: null },
+  { name: "Storm King Lounge", neighborhood: "Copper Mountain", desc: "Copper's quiet lounge for a proper cocktail once the lifts stop.", url: null },
   { name: "6th Alley Bar & Grill", neighborhood: "Keystone", desc: "Arapahoe Basin's base bar. Beers on the deck at 10,780 feet with the East Wall overhead.", url: "https://www.arapahoebasin.com" }
 ];
 
@@ -5825,7 +5799,7 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
     shownGroupMilestones.add('h3');
     addMessage(`<div class="card" style="border:2px dashed #d62828;">
       <div class="card-title">🌄 Where to next?</div>
-      <div class="card-desc">Best decks and patios in the county. Fatty's and South Ridge rooftops in Breck, the STEEP tiki bar on Dillon Reservoir, Outer Range in Frisco.</div>
+      <div class="card-desc">Best decks and patios in the county. Fatty's and South Ridge rooftops in Breck, Island Grill on Dillon Reservoir, Outer Range in Frisco.</div>
       <a href="#" onclick="showRooftopBars();return false;" style="background:#d62828;color:#fff;">Show decks & patios</a>
       <a href="${viatorSearch('Summit County Colorado brewery tour')}" target="_blank" rel="noopener" style="background:#328e3a;color:#fff;">Brewery tours on Viator</a>
     </div>`, 'bot', true);
@@ -6565,7 +6539,7 @@ function showBachelorette(skipPush) {
     {
       title: '🍻 Main Street Bar Hop',
       neighborhood: 'Breckenridge',
-      desc: 'Gold Pan Saloon, Burke & Riley\'s, RMU Tavern, Blue Stag Saloon, Cecilia\'s. All walkable on Main Street, and Cecilia\'s stays open the latest.',
+      desc: 'Gold Pan Saloon, Burke & Riley\'s, RMU Tavern, Motherloaded, Cecilia\'s. All walkable on Main Street, and Cecilia\'s stays open the latest.',
       links: [
         { label: 'See all Main Street bars', url: '#', color: '#34a853', onclick: "navAction(showMainStreetBars, 'mainstreetbars', 'Bachelorette mode');return false;" },
         { label: 'See all apres-ski bars', url: '#', color: '#0a8754', onclick: "navAction(showApresBars, 'apres', 'Bachelorette mode');return false;" }
@@ -6592,7 +6566,7 @@ function showBachelorette(skipPush) {
     },
     {
       title: '🍳 Group Brunch Spots',
-      desc: 'Butterhorn Bakery in Frisco, Columbine Cafe in Breckenridge, Sunshine Cafe in Silverthorne, Amazing Grace in Breckenridge. None take reservations, so send one person ahead to put in the name.',
+      desc: 'Butterhorn Bakery in Frisco, Columbine Cafe in Breckenridge, Arapahoe Cafe in Dillon, Sunshine Cafe in Silverthorne. None take reservations, so send one person ahead to put in the name.',
       links: [
         { label: 'See all breakfast spots', url: '#', color: '#34a853', onclick: "navAction(() => showRestaurants(SUMMIT_DATA.restaurants.filter(r => /breakfast|cafe|coffee/i.test(r.cuisine)), 'Breakfast and brunch spots:'), 'brunch', 'Bachelorette mode');return false;" }
       ]
@@ -6754,7 +6728,7 @@ const CURATED_DAILY_TIPS = [
   "Arapahoe Basin routinely stays open into June, and has been known to spin lifts into July. It is usually the last resort open in Colorado.",
   "Dillon Reservoir holds about 257,000 acre-feet of water and belongs to Denver Water, which is why there is no swimming and no gas motors over a certain size.",
   "The town of Dillon has been moved twice. The current town is the third location. The second one is under the reservoir.",
-  "The Old Dillon Inn was physically hauled out of the old town before the water came in, which is why it looks older than the buildings around it.",
+  "Old Dillon Inn and Arapahoe Cafe were both physically hauled out of the old town before the water came in, which is why they look older than the buildings around them.",
   "Alcohol hits roughly twice as hard at 9,600 feet. Plan your first night accordingly.",
   "Drink two to three liters of water a day at altitude. Most 'altitude sickness' on a ski trip is straight dehydration.",
   "Breckenridge was founded in 1859 during the gold rush and has one of Colorado's largest National Historic Districts, with more than 250 preserved structures.",
@@ -8034,7 +8008,7 @@ async function showLiveMusic() {
     { name: "Cecilia's Martini Bar", neighborhood: "Breckenridge", desc: "DJs and a late-night dance floor on South Main. Open after everything else closes.", url: null },
     { name: "T-Bar at Peak 8", neighborhood: "Breckenridge", desc: "Slopeside apres with weekend DJs right at the base of Peak 8.", url: "https://www.breckenridge.com" },
     { name: "Outer Range Brewing Co.", neighborhood: "Frisco", desc: "A-frame taproom that regularly hosts local bands and events.", url: "https://www.outerrange.com" },
-    { name: "Kemosabe at Silverheels", neighborhood: "Frisco", desc: "Frisco Main Street bar with live sets and a long tequila list.", url: null },
+    { name: "Silverheels Bar & Grill", neighborhood: "Frisco", desc: "Frisco Main Street bar with live sets and a long tequila list.", url: null },
     { name: "Old Dillon Inn", neighborhood: "Silverthorne", desc: "Live country and a dance floor on weekends in an 1800s bar hauled up from Old Dillon.", url: null },
     { name: "Bluebird Market", neighborhood: "Silverthorne", desc: "Riverside food hall with live music on the outdoor stage in summer.", url: null },
     { name: "Silverthorne Performing Arts Center", neighborhood: "Silverthorne", desc: "Town theater and event space hosting concerts, film, and community productions.", url: "https://www.silverthorne.org" },
@@ -8308,7 +8282,7 @@ const NEIGHBORHOOD_GUIDES = [
     emoji: '⛵',
     vibe: 'Lakeside, marina, amphitheater, quiet nights',
     blurb: 'Built on the shore of Dillon Reservoir after the original town was flooded to make it. Home of the highest deepwater marina in North America, a lakeside amphitheater with free summer concerts, and the best water views in Summit County. Sleepy after dark, which some people want.',
-    highlights: 'Dillon Marina, Dillon Amphitheater, Dillon Dam Brewery, the STEEP lakeside tiki bar, Sapphire Point Overlook, Old Dillon Reservoir Trail, Friday farmers market.',
+    highlights: 'Dillon Marina, Dillon Amphitheater, Dillon Dam Brewery, Island Grill tiki bar, Arapahoe Cafe, Sapphire Point Overlook, Old Dillon Reservoir Trail, Friday farmers market.',
     sections: ['dillon-eats', 'lake', 'attractions']
   },
   {
