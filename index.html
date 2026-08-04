@@ -2683,6 +2683,17 @@ function routeIntent(text) {
     return;
   }
 
+  // 'ski' is a substring of 'ski shop' and 'ski rental', which should route
+  // to Shopping instead. Apres-ski is already matched earlier. Exclude the
+  // retail and rental phrasings so they fall through.
+  if (!/ski (shop|rental|rentals|hire)|rent (a )?ski|gear shop|boot fitting/.test(lower)
+      && matches(lower, ['ski', 'skiing', 'snowboard', 'snowboarding', '\u26f7\ufe0f skiing & snowboarding',
+                      'ski resort', 'ski resorts', 'ski area', 'lift ticket', 'lift tickets', 'epic pass',
+                      'ikon pass', 'breckenridge ski', 'keystone resort', 'copper mountain ski',
+                      'arapahoe basin', 'a-basin', 'loveland ski', 'where to ski', 'best mountain'])) {
+    showSkiResorts();
+    return;
+  }
   if (matches(lower, ['bike', 'biking', 'bikes', '🚲 bike trails', 'bike trails', 'mountain bike', 'mountain biking',
                       'bike path', 'bike park', 'rec path', 'recpath', 'cycling', 'ride a bike', 'bike rental',
                       'singletrack', 'vail pass', 'boreas pass', 'blue river bikeway'])) {
@@ -4043,32 +4054,67 @@ function showEatDrinkMenu(skipPush) {
   ]);
 }
 
+// Summit County's calendar is the product. Ski season runs roughly
+// November through April; the trails, reservoir and recpath are the draw
+// from May through October. A fixed menu is wrong half the year, so order
+// by season rather than hiding anything. Mud season (May, and Oct-Nov) is
+// genuinely quiet, and the labels tell people that rather than pretending
+// everything is open.
+function currentSeason(d) {
+  const m = (d || new Date()).getMonth(); // 0 = Jan
+  if (m >= 10 || m <= 3) return 'winter';   // Nov - Apr
+  if (m >= 5 && m <= 8) return 'summer';    // Jun - Sep
+  return 'shoulder';                        // May, Oct
+}
+
 function showThingsToDoMenu(skipPush) {
   if (!skipPush) pushMenu('do');
-  addMessage("Pick a vibe:", 'bot');
-  addQuickReplies([
+  const season = currentSeason();
+
+  const winterFirst = [
+    '\u26f7\ufe0f Skiing & snowboarding',
+    '\ud83d\udef7 Sleigh rides & snowmobiles',
+    '\ud83e\udd7e Hiking trails',
+    '\ud83d\udeb2 Bike trails'
+  ];
+  const summerFirst = [
+    '\ud83e\udd7e Hiking trails',
+    '\ud83d\udeb2 Bike trails',
+    '\ud83d\udca6 Waterfalls & alpine lakes',
+    '\ud83d\udef7 Sleigh rides & snowmobiles'
+  ];
+
+  const seasonal = season === 'winter' ? winterFirst : summerFirst;
+  const rest = [
     'Live music tonight',
     'Festivals',
     'What\'s happening',
     'Attractions',
     'Family friendly',
-    // The router has always accepted '💦 waterfalls' but no menu ever offered
-    // it, so 10 curated hikes (Mohawk Lakes, McCullough Gulch, Continental
-    // Falls) were reachable only by typing the word.
-    '🥾 Hiking trails',
-    '🚲 Bike trails',
-    '💦 Waterfalls & alpine lakes',
-    '🛷 Sleigh rides & snowmobiles',
     'Free things to do',
     'Sports',
     'Book a tour',
     'Photo spots',
-    '💧 Altitude & IV',
+    '\ud83d\udca7 Altitude & IV',
     'Shopping',
     'Spas & hot springs',
     'Fishing',
-    '← Main menu'
-  ]);
+    '\u2190 Main menu'
+  ];
+
+  // Waterfalls already lead the summer list, so avoid offering it twice.
+  const buttons = seasonal.concat(
+    season === 'winter' ? ['\ud83d\udca6 Waterfalls & alpine lakes'] : []
+  ).concat(rest);
+
+  const intro = {
+    winter: 'Pick a vibe. It is ski season, so the mountain stuff is up top.',
+    summer: 'Pick a vibe. Trails and the reservoir are the draw this time of year.',
+    shoulder: 'Pick a vibe. This is shoulder season, so call ahead: a lot of seasonal spots are closed between ski and summer.'
+  }[season];
+
+  addMessage(intro, 'bot');
+  addQuickReplies(buttons);
 }
 
 function showGetAroundMenu(skipPush) {
@@ -5320,6 +5366,55 @@ function showCuratedListPaged(list, label, startIdx, pageContainer) {
 // Distances are round trip and approximate; trailhead signs and current
 // conditions always win. Every one of these is in or immediately around the
 // county, unlike the waterfall list below which includes some day trips.
+// The five ski areas in and immediately around Summit County. Winter is the
+// county's whole economy and the app had no ski feature at all, so the winter
+// menu was pointing at apres-ski bars and sleigh rides with nothing about the
+// actual mountains. Acreage and vertical are the published resort figures.
+const CURATED_SKI_RESORTS = [
+  { name: "Breckenridge Ski Resort", neighborhood: "Breckenridge", pass: "Epic", acres: "2,908", summit: "12,998",
+    desc: "Five peaks, the largest terrain in the county, and a ski-in town at the base you can walk from your hotel. The Imperial Express is the highest chairlift in North America at 12,840 feet. Gets the biggest crowds because of that town access; ride early or head to Peak 6 and 7.",
+    url: "https://www.breckenridge.com" },
+  { name: "Keystone Resort", neighborhood: "Keystone", pass: "Epic", acres: "3,149", summit: "12,408",
+    desc: "The most skiable acreage in the county and the only night skiing in Summit, running until 8pm most of the season. Three mountains back to back, strong beginner and intermediate terrain, and famously family-friendly with Kidtopia programming.",
+    url: "https://www.keystoneresort.com" },
+  { name: "Copper Mountain", neighborhood: "Copper Mountain", pass: "Ikon", acres: "2,527", summit: "12,441",
+    desc: "Naturally divided terrain: greens on one side, blues in the middle, blacks on the other, so groups can split up and still meet for lunch. Right off I-70, which makes it the easiest drive from Denver.",
+    url: "https://www.coppercolorado.com" },
+  { name: "Arapahoe Basin", neighborhood: "Keystone", pass: "Ikon (limited)", acres: "1,428", summit: "13,050",
+    desc: "The Legend. Steep, high, and no-nonsense, with the longest season in Colorado, often spinning lifts into June. The East Wall and Montezuma Bowl are serious terrain. The Beach parking lot tailgate scene is an institution.",
+    url: "https://www.arapahoebasin.com" },
+  { name: "Loveland Ski Area", neighborhood: "Dillon", pass: "Independent", acres: "1,800", summit: "13,010",
+    desc: "Just over Loveland Pass and technically outside the county, but locals ski it constantly. Cheaper lift tickets, no resort village, free snowcat rides to the Ridge, and it usually opens first in Colorado. Go here when the Epic and Ikon crowds are deep.",
+    url: "https://skiloveland.com" }
+];
+
+function showSkiResorts() {
+  const season = currentSeason();
+  const openNote = season === 'summer'
+    ? 'Heads up: it is summer, so lifts are closed for skiing. Breckenridge and Keystone run summer operations, and Arapahoe Basin sometimes spins into June.'
+    : season === 'shoulder'
+      ? 'Heads up: this is shoulder season. Most areas are closed or on limited operations. Arapahoe Basin and Loveland run latest and open earliest.'
+      : 'Five mountains within about 30 minutes of each other.';
+  addMessage(openNote, 'bot');
+  addMessage(renderCompactList(CURATED_SKI_RESORTS, 'ski', r => {
+    const safeName = jsAttr(r.name);
+    let html = `<div style="font-size:14px;line-height:1.5;color:#333;margin-bottom:8px;">${r.desc}</div>`
+      + `<div style="font-size:12px;color:#6b21a8;font-weight:600;margin-bottom:8px;">Summit ${r.summit} ft \u00b7 ${r.acres} skiable acres \u00b7 ${r.pass} pass</div>`;
+    if (r.url) html += `<a href="${r.url}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Conditions & tickets</a>`;
+    html += `<a href="https://www.google.com/maps/search/${encodeURIComponent(r.name + ' Colorado')}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
+    html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
+    return html;
+  }, r => `${r.pass} pass \u00b7 ${r.acres} acres \u00b7 ${r.neighborhood}`), 'bot', true);
+
+  setTimeout(() => {
+    addMessage('<div class="card"><div class="card-title">\u26f7\ufe0f Which pass</div>'
+      + '<div class="card-desc"><strong>Epic</strong> covers Breckenridge and Keystone. <strong>Ikon</strong> covers Copper and Arapahoe Basin on limited days. <strong>Loveland</strong> is independent and sells cheaper day tickets.</div>'
+      + '<div class="card-desc"><strong>Parking fills early.</strong> Breckenridge and Copper require paid reservations on peak days. The free Summit Stage bus reaches every resort and skips the whole problem.</div>'
+      + '<div class="card-desc"><strong>Altitude.</strong> These bases sit near 10,000 feet and summits pass 13,000. Take your first day easy and drink more water than feels reasonable.</div>'
+      + '</div>', 'bot', true);
+  }, 600);
+}
+
 // Summit County biking: the paved recpath network, gravel passes, and
 // singletrack. Same badge fields as the hikes so the cards render identically.
 // The county recpath is roughly 55 paved miles and is genuinely one of the

@@ -387,6 +387,40 @@ async function fetchWithTimeout(url, options, timeoutMs = 15000) {
   }
 }
 
+// Summit County reads completely differently by month, and a model with a
+// training cutoff has no idea what today is. Without this it will happily
+// suggest a sleigh ride in July or lift tickets in mud season. Computed in
+// Mountain Time because that is where the user is standing.
+function seasonContext() {
+  const now = new Date();
+  const mt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
+  const month = mt.getMonth(); // 0 = Jan
+  const dateStr = mt.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Denver'
+  });
+
+  let season, guidance;
+  if (month >= 10 || month <= 3) {
+    season = 'winter (ski season)';
+    guidance = 'All five ski areas are open. Apres-ski, sleigh rides, snowmobiling, tubing, nordic and snowshoeing are all in season. Hiking trails are under snow. Summer-only spots like the STEEP tiki bar at Dillon Marina and the Dillon Amphitheater concerts are closed. Expect snow on the passes and tell people to check I-70 and Loveland Pass conditions.';
+  } else if (month >= 5 && month <= 8) {
+    season = 'summer';
+    guidance = 'Lifts are closed for skiing. Hiking, mountain biking, the paved recpath, Dillon Reservoir, paddleboarding, rafting and fishing are the draw. Dillon Amphitheater has concerts. Do NOT suggest skiing, sleigh rides or snowmobiling. High trails may still hold snow into early July. Afternoon thunderstorms build almost daily, so advise early starts.';
+  } else {
+    season = 'shoulder season (mud season)';
+    guidance = 'This is the quietest time of year. Many restaurants, shops and activities close entirely for a few weeks between ski and summer. Always tell people to call ahead and warn them that a lot is shut. Arapahoe Basin and Loveland run latest into spring and open earliest in fall.';
+  }
+
+  return `
+
+TODAY
+It is ${dateStr} in Summit County. The current season is ${season}.
+${guidance}
+Never recommend an activity that is out of season right now. If someone asks
+about one, say plainly that it is not running at this time of year and offer
+what is actually available today.`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'POST only' });
@@ -488,7 +522,7 @@ export default async function handler(req, res) {
   // location, tell Claude where they are so "near me" works without re-asking.
   // Also inject a curated list of REAL spots in that neighborhood as ground
   // truth so Claude does not invent which restaurants belong where.
-  let systemPrompt = SYSTEM_PROMPT + GROUND_TRUTH_BLOCK;
+  let systemPrompt = SYSTEM_PROMPT + GROUND_TRUTH_BLOCK + seasonContext();
   if (userNeighborhood) {
     if (userNeighborhood.name === 'outside Summit County') {
       systemPrompt += `\n\nUSER LOCATION
