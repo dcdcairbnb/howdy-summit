@@ -1534,13 +1534,13 @@ function showSavedSpots() {
   });
 }
 
-// Email signup modal. Three sources: cheatsheet, saved-spots, bachelorette, general.
+// Email signup modal. Three sources: cheatsheet, saved-spots, grouptrip, general.
 function openSignupModal(source) {
   if (document.getElementById('signupModal')) return;
   const sourceCopy = {
     'cheatsheet': { title: 'Get the free Summit County Cheat Sheet', sub: 'Our 3-day Summit County cheat sheet emailed to your inbox. Restaurants, trails, breweries, and the six towns, all in one PDF.' },
     'saved-spots': { title: 'Email me my saved spots', sub: 'We will email your starred list. Open it on any device, forward to friends.' },
-    'bachelorette': { title: 'Get the bachelorette planner', sub: 'Snow tours, sleigh rides, group dinners, photo spots, and an altitude packing list. The full Summit County group-trip guide emailed to you.' },
+    'grouptrip': { title: 'Get the group trip planner', sub: 'Snow tours, sleigh rides, group dinners, photo spots, and an altitude packing list. The full Summit County group-trip guide emailed to you.' },
     'general': { title: 'Get weekly Summit County picks', sub: 'A short Friday email with new restaurants, weekend events, hotel deals, and tour discounts. Unsubscribe anytime.' }
   }[source] || { title: 'Stay in the loop', sub: 'Weekly Summit County roundup straight to your inbox.' };
 
@@ -1635,7 +1635,7 @@ async function handleSignupSubmit(event, source) {
     // Remove any cheat sheet capture cards currently visible in the chat.
     document.querySelectorAll('.card').forEach(card => {
       const title = card.querySelector('.card-title');
-      if (title && /cheat sheet|email me|saved spots|bachelorette planner/i.test(title.innerText)) {
+      if (title && /cheat sheet|email me|saved spots|group trip planner/i.test(title.innerText)) {
         const wrapper = card.closest('.message') || card;
         wrapper.style.transition = 'opacity 0.4s ease';
         wrapper.style.opacity = '0';
@@ -2009,7 +2009,7 @@ function goBack() {
   else if (target === 'do') showThingsToDoMenu(true);
   else if (target === 'around') showGetAroundMenu(true);
   else if (target === 'essentials') showEssentialsMenu(true);
-  else if (target === 'bachelorette') showBachelorette(true);
+  else if (target === 'grouptrip') showGroupTrip(true);
   else if (target === 'family') showFamilyFriendly(true);
   else if (target === 'saved') showSavedSpots();
   else if (target === 'apres') showApresBars();
@@ -2057,7 +2057,7 @@ function navigateToSavedMenu(menuName) {
   else if (menuName === 'around') showGetAroundMenu(true);
   else if (menuName === 'essentials') showEssentialsMenu(true);
   else if (menuName === 'saved') showSavedSpots();
-  else if (menuName === 'bachelorette') showBachelorette(true);
+  else if (menuName === 'grouptrip') showGroupTrip(true);
   else if (menuName === 'family') showFamilyFriendly(true);
   else showMainMenu();
 }
@@ -2560,8 +2560,8 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['bachelorette', 'bachelor party', 'bach party', 'party bus', 'bach weekend', 'girls trip'])) {
-    showBachelorette();
+  if (matches(lower, ['group trip', 'girls trip', 'guys trip', 'bros trip', 'friends trip', 'bachelorette', 'bachelor party', 'bach party', 'party bus', 'bach weekend'])) {
+    showGroupTrip();
     return;
   }
 
@@ -2917,7 +2917,7 @@ function showMainMenu() {
     '🏘️ Towns',
     '🏨 Stay & Get Around',
     '👶 Family friendly',
-    '👰 Bachelorette',
+    '🎉 Group Trip',
     '👯 Group share',
     '💰 Split Costs',
     '🎯 Summit County Bingo',
@@ -3187,7 +3187,7 @@ function renderTripStartCard() {
     <div class="card-title">Start a new trip</div>
     <div class="card-desc" style="margin-bottom:10px;">Track group expenses and send each person their share at the end.</div>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <input id="tripNameInput" type="text" placeholder="Trip name (e.g., Sarah's Bachelorette)" maxlength="60" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <input id="tripNameInput" type="text" placeholder="Trip name (e.g., Colorado Crew 2026)" maxlength="60" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <input id="tripPayerName" type="text" placeholder="Your name" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <input id="tripPayerEmail" type="email" placeholder="Your email (for the summary)" maxlength="120" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
       <input id="tripPayerVenmo" type="text" placeholder="Your Venmo handle (optional, e.g., @yourname)" maxlength="40" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
@@ -4889,13 +4889,12 @@ function renderAmazonShopCard(category) {
       ]
     },
     bridesquad: {
-      title: '💍 Bride Squad Essentials (Amazon)',
-      desc: 'Order matching gear before you fly out. Beanies, tanks, sashes, banners, koozies, photo props.',
+      title: '🎉 Group Trip Essentials (Amazon)',
+      desc: 'Order matching gear before you fly out. Beanies, tanks, koozies, photo props.',
       items: [
         ['Matching beanies', 'matching beanies group set'],
-        ['Sash sets (Bride / Maid of Honor)', 'bachelorette sash set'],
-        ['Cups, koozies, straws', 'bachelorette party cups koozies straws'],
-        ['Photo props & decorations', 'bachelorette party decorations photo props'],
+        ['Cups, koozies, straws', 'party cups koozies straws'],
+        ['Photo props & decorations', 'group trip photo props decorations'],
         ['Altitude & hydration kit', 'electrolyte powder packets hydration']
       ]
     },
@@ -5349,7 +5348,7 @@ async function showFindGroup() {
   // + start card. We want the user to land at the top so they read top-down.
   scrollAnchor = null;
   suppressAutoScroll = true;
-  addGroupFlowMessage("Stay connected with your group. Live location sharing built for bachelorettes, family trips, and big nights out.", 'bot');
+  addGroupFlowMessage("Stay connected with your group. Live location sharing built for group trips, family trips, and big nights out.", 'bot');
   addGroupFlowMessage(renderGroupShareHowItWorksCard(), 'bot', true);
   const html = `<div class="card">
     <div class="card-title">👯 Group Location Sharing</div>
@@ -6501,9 +6500,9 @@ function resetGroupFlowState() {
   });
 }
 
-function showBachelorette(skipPush) {
-  if (!skipPush) pushMenu('bachelorette');
-  addMessage("Bachelorette mode activated. Breckenridge is one of Colorado's biggest group-trip and wedding towns. Here is everything you need.", 'bot');
+function showGroupTrip(skipPush) {
+  if (!skipPush) pushMenu('grouptrip');
+  addMessage("Group trip mode activated. Summit County is built for big groups, guys and girls alike. Here is everything you need.", 'bot');
 
   const viatorSearch = (q) => `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}&pid=${VIATOR_PID}`;
   const gygSearch = (q) => `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}&partner_id=${GETYOURGUIDE_PID}`;
@@ -6525,7 +6524,7 @@ function showBachelorette(skipPush) {
       desc: 'Book altitude support before anyone feels rough. Mobile IV comes to your condo, oxygen concentrators can be delivered same day, and both make a huge difference on night one at 9,600 feet.',
       links: [
         { label: '💧 Rocky Mountain IV Medics', url: 'https://rockymountainivmedics.com/locations/breckenridge-vail-co-iv-therapy/', color: '#34a853' },
-        { label: '💧 See all altitude & IV options', url: '#', color: '#0a8754', onclick: "navAction(showRehydration, 'rehydration', 'Bachelorette mode');return false;" }
+        { label: '💧 See all altitude & IV options', url: '#', color: '#0a8754', onclick: "navAction(showRehydration, 'rehydration', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6534,7 +6533,7 @@ function showBachelorette(skipPush) {
       desc: 'The signature Summit County group activity. Good Times Adventures runs both snowmobiling and dog sledding out of the Swan River Valley, and Nova Guides runs tours from historic Camp Hale.',
       links: [
         { label: 'Good Times Adventures', url: 'https://goodtimesadventures.com', color: '#d62828' },
-        { label: 'See all snow tours', url: '#', color: '#34a853', onclick: "navAction(showSnowTours, 'snowtours', 'Bachelorette mode');return false;" },
+        { label: 'See all snow tours', url: '#', color: '#34a853', onclick: "navAction(showSnowTours, 'snowtours', 'Group trip mode');return false;" },
         { label: 'Snowmobile tours on Viator', url: viatorSearch('Breckenridge snowmobile tour'), color: '#328e3a' }
       ]
     },
@@ -6552,7 +6551,7 @@ function showBachelorette(skipPush) {
       neighborhood: 'Frisco',
       desc: 'Outer Range and Highside in Frisco, Dillon Dam in Dillon, Angry James in Silverthorne, and Broken Compass, Steep, and Syndicate in Breckenridge. Ride the free Summit Stage between them so nobody drives.',
       links: [
-        { label: 'See all breweries', url: '#', color: '#34a853', onclick: "navAction(showBreweries, 'breweries', 'Bachelorette mode');return false;" },
+        { label: 'See all breweries', url: '#', color: '#34a853', onclick: "navAction(showBreweries, 'breweries', 'Group trip mode');return false;" },
         { label: 'Brewery tours on Viator', url: viatorSearch('Summit County Colorado brewery tour'), color: '#328e3a' }
       ]
     },
@@ -6562,7 +6561,7 @@ function showBachelorette(skipPush) {
       desc: 'Breckenridge Distillery calls itself the World\'s Highest Distillery and the tour is free. Mythology has a tasting room on North Main, and Continental Divide Winery makes wine at 9,600 feet.',
       links: [
         { label: 'Breckenridge Distillery', url: 'https://breckenridgedistillery.com', color: '#d62828' },
-        { label: 'See all distilleries', url: '#', color: '#34a853', onclick: "navAction(showDistilleries, 'distilleries', 'Bachelorette mode');return false;" }
+        { label: 'See all distilleries', url: '#', color: '#34a853', onclick: "navAction(showDistilleries, 'distilleries', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6570,8 +6569,8 @@ function showBachelorette(skipPush) {
       neighborhood: 'Breckenridge',
       desc: 'Gold Pan Saloon, Burke & Riley\'s, RMU Tavern, Blue Stag Saloon, Cecilia\'s. All walkable on Main Street, and Cecilia\'s stays open the latest.',
       links: [
-        { label: 'See all Main Street bars', url: '#', color: '#34a853', onclick: "navAction(showMainStreetBars, 'mainstreetbars', 'Bachelorette mode');return false;" },
-        { label: 'See all apres-ski bars', url: '#', color: '#0a8754', onclick: "navAction(showApresBars, 'apres', 'Bachelorette mode');return false;" }
+        { label: 'See all Main Street bars', url: '#', color: '#34a853', onclick: "navAction(showMainStreetBars, 'mainstreetbars', 'Group trip mode');return false;" },
+        { label: 'See all apres-ski bars', url: '#', color: '#0a8754', onclick: "navAction(showApresBars, 'apres', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6597,7 +6596,7 @@ function showBachelorette(skipPush) {
       title: '🍳 Group Brunch Spots',
       desc: 'Butterhorn Bakery in Frisco, Columbine Cafe in Breckenridge, Sunshine Cafe in Silverthorne, Amazing Grace in Breckenridge. None take reservations, so send one person ahead to put in the name.',
       links: [
-        { label: 'See all breakfast spots', url: '#', color: '#34a853', onclick: "navAction(() => showRestaurants(SUMMIT_DATA.restaurants.filter(r => /breakfast|cafe|coffee/i.test(r.cuisine)), 'Breakfast and brunch spots:'), 'brunch', 'Bachelorette mode');return false;" }
+        { label: 'See all breakfast spots', url: '#', color: '#34a853', onclick: "navAction(() => showRestaurants(SUMMIT_DATA.restaurants.filter(r => /breakfast|cafe|coffee/i.test(r.cuisine)), 'Breakfast and brunch spots:'), 'brunch', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6605,7 +6604,7 @@ function showBachelorette(skipPush) {
       neighborhood: 'Keystone',
       desc: 'Der Fondue Chessel and Alpenglow Stube are gondola-access dinners at Keystone. Mint in Silverthorne lets everyone cook their own steak on a hot stone. Ski Tip Lodge is the splurge.',
       links: [
-        { label: 'See all restaurants', url: '#', color: '#34a853', onclick: "navAction(showAllRestaurants, 'restaurants', 'Bachelorette mode');return false;" }
+        { label: 'See all restaurants', url: '#', color: '#34a853', onclick: "navAction(showAllRestaurants, 'restaurants', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6613,7 +6612,7 @@ function showBachelorette(skipPush) {
       neighborhood: 'Dillon',
       desc: 'Sapphire Point at sunset, the Blue River footbridge on Main Street Breckenridge, the top of the free BreckConnect gondola, and the Dillon Marina docks.',
       links: [
-        { label: 'See all photo spots', url: '#', color: '#34a853', onclick: "navAction(showPhotoSpots, 'photospots', 'Bachelorette mode');return false;" },
+        { label: 'See all photo spots', url: '#', color: '#34a853', onclick: "navAction(showPhotoSpots, 'photospots', 'Group trip mode');return false;" },
         { label: 'Photo tours on Viator', url: viatorSearch('Breckenridge photo tour'), color: '#328e3a' }
       ]
     },
@@ -6629,7 +6628,7 @@ function showBachelorette(skipPush) {
       title: '🧖 Spa Day & Hot Springs',
       desc: 'Resort spas at Grand Colorado, Beaver Run, and Keystone Lodge. Cheaper option: a day pass to the Breckenridge or Silverthorne rec center for the hot tub, sauna, and steam room.',
       links: [
-        { label: 'See all spas & hot springs', url: '#', color: '#34a853', onclick: "navAction(showSpas, 'spas', 'Bachelorette mode');return false;" }
+        { label: 'See all spas & hot springs', url: '#', color: '#34a853', onclick: "navAction(showSpas, 'spas', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6638,7 +6637,7 @@ function showBachelorette(skipPush) {
       desc: 'Ski Butlers and Black Tie deliver rentals to your condo and fit everyone the night before, which is far less painful than dragging a group through a rental shop at 8am.',
       links: [
         { label: 'Ski Butlers', url: 'https://www.skibutlers.com/snowboard-ski-rentals/breckenridge', color: '#0a8754' },
-        { label: 'See all gear delivery', url: '#', color: '#34a853', onclick: "navAction(showGearDelivery, 'geardelivery', 'Bachelorette mode');return false;" }
+        { label: 'See all gear delivery', url: '#', color: '#34a853', onclick: "navAction(showGearDelivery, 'geardelivery', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6646,7 +6645,7 @@ function showBachelorette(skipPush) {
       neighborhood: 'Frisco',
       desc: 'Foundry Cinema + Bowl in Frisco has bowling, movies, an arcade, and a full bar. Downstairs at Eric\'s in Breckenridge has arcade games and 100-plus beers.',
       links: [
-        { label: 'See all family & group spots', url: '#', color: '#34a853', onclick: "navAction(showFamilyFriendly, 'family', 'Bachelorette mode');return false;" }
+        { label: 'See all family & group spots', url: '#', color: '#34a853', onclick: "navAction(showFamilyFriendly, 'family', 'Group trip mode');return false;" }
       ]
     },
     {
@@ -6660,14 +6659,13 @@ function showBachelorette(skipPush) {
       ]
     },
     {
-      title: '💍 Bride Squad Essentials',
-      desc: 'Order matching gear before you fly out. Beanies, tanks, sashes, banners, koozies, photo props. Most ship in 2 to 3 days on Prime.',
+      title: '🎉 Group Trip Essentials',
+      desc: 'Order matching gear before you fly out. Beanies, tanks, banners, koozies, photo props. Most ship in 2 to 3 days on Prime.',
       links: [
         { label: 'Matching beanies', url: amazonSearchUrl('matching beanies group set'), color: '#ff9900', textColor: '#000' },
-        { label: 'Sash sets (Bride / Maid of Honor)', url: amazonSearchUrl('bachelorette sash set'), color: '#ff9900', textColor: '#000' },
-        { label: 'Cups, koozies, straws', url: amazonSearchUrl('bachelorette party cups koozies straws'), color: '#ff9900', textColor: '#000' },
-        { label: 'Photo props & decorations', url: amazonSearchUrl('bachelorette party decorations photo props'), color: '#ff9900', textColor: '#000' },
-        { label: 'Altitude & hangover kit', url: amazonSearchUrl('electrolyte powder packets hydration'), color: '#ff9900', textColor: '#000' }
+        { label: 'Cups, koozies, straws', url: amazonSearchUrl('party cups koozies straws'), color: '#ff9900', textColor: '#000' },
+        { label: 'Photo props & decorations', url: amazonSearchUrl('group trip photo props decorations'), color: '#ff9900', textColor: '#000' },
+        { label: 'Altitude & hydration kit', url: amazonSearchUrl('electrolyte powder packets hydration'), color: '#ff9900', textColor: '#000' }
       ]
     },
     {
@@ -6724,13 +6722,13 @@ function showBachelorette(skipPush) {
     html += `</div>`;
     return html;
   }, 5, () => {
-    // After all bachelorette cards have been paginated, show the closing
+    // After all group trip cards have been paginated, show the closing
     // pro tip and the email signup card.
     addMessage("Pro tip: book snowmobile tours, dinner sleigh rides, and any group dinner 4 to 6 weeks ahead for holiday weeks and spring break. They sell out.", 'bot');
     const card = `<div class="card" style="background:#fff5f5;border-left:3px solid #d62828;">
-      <div class="card-title">📧 Email me the full bachelorette planner</div>
+      <div class="card-title">📧 Email me the full group trip planner</div>
       <div class="card-desc">All of this in one PDF, plus an altitude packing list, group photo spots, and recovery brunch picks. Forward to your group.</div>
-      <button onclick="openSignupModal('bachelorette'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email me the planner</button>
+      <button onclick="openSignupModal('grouptrip'); return false;" style="background:#d62828;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Email me the planner</button>
     </div>`;
     addMessage(card, 'bot', true);
   });
