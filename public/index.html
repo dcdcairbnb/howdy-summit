@@ -1950,6 +1950,9 @@ if (document.readyState === 'loading') {
   });
 }
 
+// Initialize chat on page load
+document.addEventListener('DOMContentLoaded', showWelcome);
+
 async function startVoiceInputCapacitor() {
   const voiceBtn = document.getElementById('voiceBtn');
   const input = document.getElementById('userInput');
@@ -2141,7 +2144,7 @@ function goBack() {
   else if (target === 'rehydration') showRehydration();
   else if (target === 'photospots') showPhotoSpots(true);
   else if (target === 'freethings') showFreeThings(true);
-  else if (target === 'eastnashville') showEastSummit County(true);
+  else if (target === 'eastnashville') showEastSummitCounty(true);
   else if (target === 'linedancing') showLineDancing(true);
   else if (target === 'bingo') showBingo(true);
   else if (target === 'spas') showSpas();
@@ -2644,7 +2647,7 @@ function routeIntent(text) {
   }
 
   if (matches(lower, ['east nashville', 'hidden gems', 'where locals go', 'local spots', 'off broadway', 'five points', 'indie nashville', 'east nashville gems'])) {
-    showEastSummit County();
+    showEastSummitCounty();
     return;
   }
 
@@ -5212,7 +5215,7 @@ function showFreeThings(skipPush) {
   if (!skipPush) pushMenu('freethings');
   showCuratedThenLive(CURATED_FREE_THINGS, 'free park museum mural', 'tourist_attraction', 'free things to do');
 }
-function showEastSummit County(skipPush) {
+function showEastSummitCounty(skipPush) {
   if (!skipPush) pushMenu('eastnashville');
   showCuratedThenLive(CURATED_EAST_NASHVILLE_GEMS, 'East Summit County restaurant bar coffee', 'restaurant', 'East Summit County hidden gems');
 }
