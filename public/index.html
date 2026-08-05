@@ -5203,6 +5203,26 @@ function renderAmazonHomeCard() {
 // Tag is appended automatically via amazonSearch().
 function renderAmazonShopCard(category) {
   const sets = {
+    altitude: {
+      title: '💧 Altitude kit (Amazon)',
+      desc: 'The things that actually help on day one at 9,000+ feet. Hydrate harder than feels necessary.',
+      items: [
+        ['Electrolyte powder packets', 'electrolyte powder packets hydration'],
+        ['Pulse oximeter', 'fingertip pulse oximeter'],
+        ['Insulated water bottle', 'insulated water bottle 32 oz'],
+        ['Lip balm with SPF', 'spf lip balm sunscreen stick']
+      ]
+    },
+    hiking: {
+      title: '🥾 Trail kit (Amazon)',
+      desc: 'Afternoon storms build most summer days and snow lingers on high trails into July. Pack for both.',
+      items: [
+        ['Trekking poles', 'collapsible trekking poles'],
+        ['Microspikes for traction', 'microspikes traction cleats hiking'],
+        ['Packable rain shell', 'packable rain jacket hiking'],
+        ['Daypack with hydration', 'hiking daypack hydration bladder']
+      ]
+    },
     whiskey: {
       title: '🥃 Whiskey gear (Amazon)',
       desc: 'Bring the Breckenridge Distillery trip home. Glassware, decanters, and the books that win arguments.',
@@ -5473,6 +5493,7 @@ function showSkiResorts() {
       + '<div class="card-desc"><strong>Parking fills early.</strong> Breckenridge and Copper require paid reservations on peak days. The free Summit Stage bus reaches every resort and skips the whole problem.</div>'
       + '<div class="card-desc"><strong>Altitude.</strong> These bases sit near 10,000 feet and summits pass 13,000. Take your first day easy and drink more water than feels reasonable.</div>'
       + '</div>', 'bot', true);
+    setTimeout(() => addMessage(renderAmazonShopCard('cowgirl'), 'bot', true), 400);
   }, 600);
 }
 
@@ -5685,6 +5706,9 @@ function showHikingTrails() {
       + '<div class="card-desc"><strong>Snow lingers.</strong> High trails hold snow into July. Check conditions before counting on reaching a lake or summit.</div>'
       + '<div class="card-desc" style="font-size:12px;color:#777;">Distances and elevation are cross-checked against AllTrails where a matching route exists. Trailhead signs and current conditions always win.</div>'
       + '</div>', 'bot', true);
+    // Highest-intent moment for trail gear: they have just read about storms,
+    // lingering snow and 3,000 foot climbs.
+    setTimeout(() => addMessage(renderAmazonShopCard('hiking'), 'bot', true), 400);
   }, 600);
 }
 
@@ -5715,6 +5739,7 @@ function showRehydration() {
   // single valid type that covers IV bars, mobile services, and wellness clinics.
   showCuratedThenLive(CURATED_REHYDRATION, 'IV therapy oxygen altitude wellness', '', 'altitude, oxygen & IV options');
   setTimeout(() => {
+    addMessage(renderAmazonShopCard('altitude'), 'bot', true);
     addMessage('<div class="card"><div class="card-title">💡 Altitude tip</div><div class="card-desc">Most altitude sickness on a Summit County trip is dehydration. Drink 2-3 liters a day, go easy on alcohol night one, and plan an easy first day. If someone has a headache that will not quit, cannot sleep, or is short of breath at rest, get oxygen. If it gets worse, drive down to Denver or go to the ER in Frisco.</div></div>', 'bot', true);
   }, 600);
 }
