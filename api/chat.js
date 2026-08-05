@@ -406,56 +406,75 @@ async function fetchWithTimeout(url, options, timeoutMs = 15000) {
 // name businesses that appear in one of the two lists it is given. The fix for
 // missing coverage is a longer list, never a freer imagination.
 async function fetchLiveNearby(location) {
-  if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') return '';
-  if (!process.env.GOOGLE_PLACES_KEY) return '';
+  if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
+    console.log('[liveTier] skipped: no usable location');
+    return '';
+  }
+  if (!process.env.GOOGLE_PLACES_KEY) {
+    console.log('[liveTier] skipped: GOOGLE_PLACES_KEY not set');
+    return '';
+  }
   try {
-    const r = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+    // Deliberately mirrors searchGoogle() in api/restaurants/search.js. That
+    // call shape is known to work in production; my first attempt used
+    // places:searchNearby with a different body and returned nothing, and
+    // because every failure path returns '' it looked identical to "no
+    // results". Reuse the proven request rather than debug a second one.
+    const body = {
+      textQuery: 'restaurants in Summit County, CO',
+      includedType: 'restaurant',
+      maxResultCount: 20,
+      locationBias: {
+        circle: {
+          center: { latitude: Number(location.lat), longitude: Number(location.lng) },
+          radius: 16000
+        }
+      },
+      rankPreference: 'DISTANCE'
+    };
+    const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': process.env.GOOGLE_PLACES_KEY,
-        'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.primaryTypeDisplayName,places.formattedAddress'
+        'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.primaryTypeDisplayName'
       },
-      body: JSON.stringify({
-        includedTypes: ['restaurant', 'bar', 'cafe'],
-        maxResultCount: 20,
-        locationRestriction: {
-          circle: {
-            center: { latitude: location.lat, longitude: location.lng },
-            radius: 6000
-          }
-        },
-        rankPreference: 'DISTANCE'
-      })
+      body: JSON.stringify(body)
     });
-    if (!r.ok) return '';
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      console.log('[liveTier] Places API error', r.status, t.slice(0, 300));
+      return '';
+    }
     const data = await r.json();
     const rows = (data.places || [])
-      // Skip thinly-reviewed entries: a place with two ratings is as likely to
-      // be a food truck that has moved on as a real restaurant.
+      // Thinly-reviewed entries are as likely to be a food truck that has
+      // moved on as a real restaurant.
       .filter(p => (p.userRatingCount || 0) >= 15)
       .map(p => {
         const n = p.displayName?.text || '';
         const t = p.primaryTypeDisplayName?.text || '';
-        const rate = p.rating ? `${p.rating}star` : '';
-        return n ? `${n}${t ? ' (' + t + ')' : ''}${rate ? ' ' + rate : ''}` : '';
+        const rate = p.rating ? ` ${p.rating}star` : '';
+        return n ? `${n}${t ? ' (' + t + ')' : ''}${rate}` : '';
       })
       .filter(Boolean);
+    console.log('[liveTier] places:', (data.places || []).length, 'kept:', rows.length);
     if (!rows.length) return '';
     return `
 
-LIVE NEARBY RESULTS (second tier, from Google, currently open businesses)
+LIVE NEARBY RESULTS (second tier, from Google, currently operating)
 ${rows.join(', ')}
 
 How to use this second list:
 - Lead with the CONFIRMED list above. Those are hand-picked and you can
   describe what they are actually like.
-- You MAY also name anything from this live list, but say plainly that it is
-  a nearby option you have less detail on, and tell the user to check hours
+- You MAY also name anything from this live list, but say plainly it is a
+  nearby option you have less detail on, and tell the user to check hours
   before going. Do not invent a description for it.
-- If the user asks for something the confirmed list genuinely does not cover,
-  this list is the right place to look before saying no.`;
+- If the confirmed list genuinely does not cover what the user asked for,
+  look here before telling them there is nothing.`;
   } catch (e) {
+    console.log('[liveTier] threw:', e && e.message);
     return '';
   }
 }
@@ -592,6 +611,7 @@ export default async function handler(req, res) {
   // Also inject a curated list of REAL spots in that neighborhood as ground
   // truth so Claude does not invent which restaurants belong where.
   const liveTier = await fetchLiveNearby(location);
+  const liveTierChars = liveTier.length;
   let systemPrompt = SYSTEM_PROMPT + GROUND_TRUTH_BLOCK + liveTier + seasonContext();
   if (userNeighborhood) {
     if (userNeighborhood.name === 'outside Summit County') {
@@ -661,7 +681,10 @@ The user shared their location and is currently in ${userNeighborhood.name}. Whe
     res.setHeader('X-Cache', 'MISS');
     res.setHeader('X-Model', useSonnet ? 'sonnet' : 'haiku');
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+    // Surfaced so the live tier can be verified from the client instead of
+    // guessed at. Cheap, and it made a silent Places failure obvious.
     res.status(200).json({
+      liveTierChars,
       reply,
       stopReason: data.stop_reason,
       modelUsed: useSonnet ? 'sonnet' : 'haiku'
