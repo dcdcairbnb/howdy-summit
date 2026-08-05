@@ -3026,9 +3026,17 @@ function buildAffiliatePanel(venues) {
       const expediaUrl = `https://www.expedia.com/Hotel-Search?${expediaParams}`;
       buttons += `<a href="${expediaUrl}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;font-size:12px;padding:6px 10px;">Book on Expedia</a>`;
     }
-    if (v.type === 'tour' && typeof VIATOR_PID !== 'undefined') {
-      const viatorUrl = `https://www.viator.com/searchResults/all?text=${encodeURIComponent(v.name)}&pid=${VIATOR_PID}`;
-      buttons += `<a href="${viatorUrl}" target="_blank" rel="noopener" style="background:#328e3a;color:#fff;font-size:12px;padding:6px 10px;">Tour on Viator</a>`;
+    if (v.type === 'tour' && typeof EXPEDIA_CAMREF !== 'undefined') {
+      // Was Viator. Its Summit County inventory is not real: Frisco returns
+      // Coors Field tickets, Keystone a bowling lane, Silverthorne a jeep
+      // tour 200 miles away. It also strips pid= on redirect so it did not
+      // even track. Expedia's local inventory is genuine and keeps camref.
+      const tp = new URLSearchParams();
+      tp.set('location', 'Summit County, Colorado, United States');
+      tp.set('q', v.name);
+      if (EXPEDIA_CAMREF) { tp.set('camref', EXPEDIA_CAMREF); tp.set('tpid', EXPEDIA_TPID); }
+      const tourUrl = `https://www.expedia.com/things-to-do/search?${tp}`;
+      buttons += `<a href="${tourUrl}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;font-size:12px;padding:6px 10px;">Tours on Expedia</a>`;
     }
     if (v.type === 'restaurant') {
       buttons += `<a href="#" onclick="return rideClick('doordash','${safeName}',event)" style="background:#ff3008;color:#fff;font-size:12px;padding:6px 10px;">DoorDash</a>`;
@@ -6481,6 +6489,19 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
   const GYG_PID_LOCAL = (typeof GETYOURGUIDE_PID !== 'undefined' && GETYOURGUIDE_PID) ? GETYOURGUIDE_PID : '';
   const viatorSearch = (q) => `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}&pid=${VIATOR_PID_LOCAL}`;
   const gygSearch = (q) => `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}&partner_id=${GYG_PID_LOCAL}`;
+  // Local helper: the one in showGroupTrip is scoped to that function, and
+  // referencing it from here would throw. Same class of bug as the undefined
+  // proximity helpers, so defining it where it is used.
+  const expediaSearch = (q) => {
+    const pr = new URLSearchParams();
+    pr.set('location', 'Summit County, Colorado, United States');
+    pr.set('q', q);
+    if (typeof EXPEDIA_CAMREF !== 'undefined' && EXPEDIA_CAMREF) {
+      pr.set('camref', EXPEDIA_CAMREF);
+      pr.set('tpid', EXPEDIA_TPID);
+    }
+    return `https://www.expedia.com/things-to-do/search?${pr}`;
+  };
 
   // Hour 1: ride share for the group
   if (hoursElapsed >= 1 && !shownGroupMilestones.has('h1')) {
@@ -6500,7 +6521,7 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
       <div class="card-title">🌄 Where to next?</div>
       <div class="card-desc">Best decks and patios in the county. Fatty's and South Ridge rooftops in Breck, the STEEP tiki bar on Dillon Reservoir, Outer Range in Frisco.</div>
       <a href="#" onclick="showRooftopBars();return false;" style="background:#d62828;color:#fff;">Show decks & patios</a>
-      <a href="${viatorSearch('Summit County Colorado brewery tour')}" target="_blank" rel="noopener" style="background:#328e3a;color:#fff;">Brewery tours on Viator</a>
+      <a href="${expediaSearch('Breckenridge brewery distillery tour')}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;">Brewery tours on Expedia</a>
     </div>`, 'bot', true);
   }
 
@@ -6537,7 +6558,8 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
     addMessage(`<div class="card" style="border:2px dashed #7c3aed;">
       <div class="card-title">🎉 Plan another Summit County day?</div>
       <div class="card-desc">Snowmobile tours, dog sledding, and dinner sleigh rides sell out on holiday weeks. Browse before they go.</div>
-      <a href="${viatorSearch('Breckenridge snowmobile dog sledding tour')}" target="_blank" rel="noopener" style="background:#328e3a;color:#fff;">Snow tours on Viator</a>
+      <a href="https://summitpowersportsrentals.com" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Summit Powersports</a>
+      <a href="https://www.coloradosleighrides.com" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Golden Horseshoe sleighs</a>
       <a href="${gygSearch('breckenridge colorado tours')}" target="_blank" rel="noopener" style="background:#ff5533;color:#fff;">Tours on GetYourGuide</a>
     </div>`, 'bot', true);
   }
@@ -7205,7 +7227,7 @@ function showGroupTrip(skipPush) {
       links: [
         { label: 'Good Times Adventures', url: 'https://goodtimesadventures.com', color: '#d62828' },
         { label: 'See all snow tours', url: '#', color: '#34a853', onclick: "navAction(showSnowTours, 'snowtours', 'Group trip mode');return false;" },
-        { label: 'Snowmobile tours on Viator', url: viatorSearch('Breckenridge snowmobile tour'), color: '#328e3a' }
+        { label: 'Summit Powersports (snowmobiles)', url: 'https://summitpowersportsrentals.com', color: '#d62828' }
       ]
     },
     {
@@ -7223,7 +7245,7 @@ function showGroupTrip(skipPush) {
       desc: 'Outer Range and Highside in Frisco, Dillon Dam in Dillon, Angry James in Silverthorne, and Broken Compass, Steep, and Syndicate in Breckenridge. Ride the free Summit Stage between them so nobody drives.',
       links: [
         { label: 'See all breweries', url: '#', color: '#34a853', onclick: "navAction(showBreweries, 'breweries', 'Group trip mode');return false;" },
-        { label: 'Brewery tours on Viator', url: viatorSearch('Summit County Colorado brewery tour'), color: '#328e3a' }
+        { label: 'Brewery tours on Expedia', url: expediaSearch('Breckenridge brewery distillery tour'), color: '#FFC72C', textColor: '#1a1a1a' }
       ]
     },
     {
@@ -7250,8 +7272,7 @@ function showGroupTrip(skipPush) {
       desc: 'KODI Rafting runs out of Frisco, Performance Tours out of Breckenridge, and AVA Rafting & Zipline covers the Colorado and Clear Creek. Half-day trips work well for mixed-ability groups.',
       links: [
         { label: 'KODI Rafting', url: 'https://www.whitewatercolorado.com', color: '#d62828' },
-        { label: 'Rafting on Viator', url: viatorSearch('Colorado whitewater rafting Breckenridge'), color: '#328e3a' },
-        { label: 'Rafting on Expedia', url: expediaSearch('Summit County rafting'), color: '#fbcc09', textColor: '#1a1a1a' }
+                { label: 'Rafting on Expedia', url: expediaSearch('Summit County rafting'), color: '#fbcc09', textColor: '#1a1a1a' }
       ]
     },
     {
@@ -7284,7 +7305,7 @@ function showGroupTrip(skipPush) {
       desc: 'Sapphire Point at sunset, the Blue River footbridge on Main Street Breckenridge, the top of the free BreckConnect gondola, and the Dillon Marina docks.',
       links: [
         { label: 'See all photo spots', url: '#', color: '#34a853', onclick: "navAction(showPhotoSpots, 'photospots', 'Group trip mode');return false;" },
-        { label: 'Photo tours on Viator', url: viatorSearch('Breckenridge photo tour'), color: '#328e3a' }
+        { label: 'Photo tours on Expedia', url: expediaSearch('Breckenridge photography tour'), color: '#FFC72C', textColor: '#1a1a1a' }
       ]
     },
     {
@@ -7326,7 +7347,7 @@ function showGroupTrip(skipPush) {
       links: [
         { label: 'Epic Mountain Express', url: 'https://www.epicmountainexpress.com', color: '#0a8754' },
         { label: 'Summit Stage (free)', url: 'https://www.summitcountyco.gov/185/Summit-Stage', color: '#444' },
-        { label: 'Private transfers on Viator', url: viatorSearch('Denver airport to Breckenridge transfer'), color: '#328e3a' }
+        { label: 'Airport transfers on Expedia', url: expediaSearch('Denver airport to Breckenridge transfer'), color: '#FFC72C', textColor: '#1a1a1a' }
       ]
     },
     {
@@ -7480,7 +7501,11 @@ const AWIN_AIRBNB_MERCHANT_ID = '';
 const VRBO_AFFILIATE_TAG = '';
 // Amazon Associates tracking tag. Skimlinks does NOT cover amazon.com (Amazon
 // terms ban link aggregators), so Amazon URLs need this tag appended directly.
-const AMAZON_TAG = 'howdysummit-20';
+// Uses the registered Howdy Nash Associates tracking ID. 'howdysummit-20'
+// was invented during the city conversion and would only pay out if that
+// exact tracking ID had been created in Amazon Associates, which it was not.
+// A tag that does not exist earns nothing, silently.
+const AMAZON_TAG = 'howdynash-20';
 function amazonSearch(query) {
   return `https://www.amazon.com/s?k=${encodeURIComponent(query)}&tag=${AMAZON_TAG}`;
 }
@@ -7575,7 +7600,7 @@ function showVacationRentals() {
 }
 
 function showTours() {
-  addMessage("Tours and experiences. Compare prices across Viator, GetYourGuide, and Expedia. Same price either way.", 'bot');
+  addMessage("Tours and experiences. Expedia has the real Summit County inventory. Where no marketplace covers something, we link the local operator direct.", 'bot');
 
   function viatorSearch(query) {
     return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(query)}&pid=${VIATOR_PID}`;
