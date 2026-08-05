@@ -945,6 +945,29 @@
 const SUMMIT_DATA = {
   restaurants: [
     { name: "Hearthstone Restaurant", cuisine: "Steakhouse", neighborhood: "Breckenridge", price: "$$$$", vibe: "Historic 1886 Victorian house, Rocky Mountain fine dining, sunset views off the porch", booking: { opentable: "https://www.opentable.com/s?term=Hearthstone%20Restaurant%20Breckenridge" } },
+    { name: "Bird and Cow", cuisine: "American", neighborhood: "Breckenridge", price: "$$", vibe: "Chicken and beef done simply, on Main Street. Consistently well rated", booking: { walkin: true } },
+    { name: "The Gold Pan Saloon", cuisine: "Bar Food", neighborhood: "Breckenridge", price: "$$", vibe: "One of the oldest continuously operating bars west of the Mississippi, on North Main since the gold rush days. Burgers, whiskey, and a lot of history", booking: { walkin: true } },
+    { name: "Downstairs at Eric's", cuisine: "American", neighborhood: "Breckenridge", price: "$$", vibe: "Basement sports bar under Main Street with arcade games and a long beer list. The default with kids in tow", booking: { walkin: true } },
+    { name: "Aurum Breckenridge", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Riverside patio on the Blue River, upscale plates. One of the better-rated dinner rooms in town", booking: { walkin: true } },
+    { name: "Vue Rooftop", cuisine: "American", neighborhood: "Dillon", price: "$$$", vibe: "Rooftop over Dillon with reservoir and Gore Range views. Worth timing for sunset", booking: { walkin: true } },
+    { name: "Timberline Craft Kitchen & Cocktails", cuisine: "New American", neighborhood: "Silverthorne", price: "$$$", vibe: "Craft kitchen and cocktail bar in the Silverthorne performing arts district", booking: { walkin: true } },
+    { name: "ODI Old Dillon Inn", cuisine: "Mexican", neighborhood: "Silverthorne", price: "$$", vibe: "Local institution that moved from old Dillon when the reservoir flooded the town. Margaritas and a long bar", booking: { walkin: true } },
+    { name: "Kickapoo Tavern", cuisine: "Pub", neighborhood: "Keystone", price: "$$", vibe: "Slopeside in River Run Village. The obvious first stop when the lifts stop turning", booking: { walkin: true } },
+    { name: "Inxpot", cuisine: "Cafe", neighborhood: "Keystone", price: "$", vibe: "Coffee shop and bookstore in River Run. Early opening, good before first chair", booking: { walkin: true } },
+    { name: "JJ's Rocky Mountain Tavern", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Center Village mainstay at Copper, right at the base", booking: { walkin: true } },
+    { name: "Ten Mile Tavern", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Slopeside apres at Copper with a deck facing the mountain", booking: { walkin: true } },
+    { name: "Vinny's Euro American Cuisine", cuisine: "European", neighborhood: "Frisco", price: "$$$", vibe: "Upstairs on East Main. European-leaning menu and one of the higher-rated dinner rooms in town", booking: { walkin: true } },
+    { name: "Greco's Pastaria", cuisine: "Italian", neighborhood: "Frisco", price: "$$", vibe: "Pasta house on East Main, a block off the Butterhorn corner", booking: { walkin: true } },
+    { name: "Moose Jaw", cuisine: "Bar Food", neighborhood: "Frisco", price: "$", vibe: "The Frisco dive. Burgers, pool, and locals. Been on Main Street a long time", booking: { walkin: true } },
+    { name: "Back To Texas BBQ", cuisine: "BBQ", neighborhood: "Frisco", price: "$$", vibe: "Barbecue in the Prospector Marketplace food hall on East Main", booking: { walkin: true } },
+    { name: "Lazo Empanadas", cuisine: "Argentine", neighborhood: "Frisco", price: "$", vibe: "Empanadas in the Prospector Marketplace. Fast, cheap, and easy to eat on the go", booking: { walkin: true } },
+    { name: "Chimayo Grill", cuisine: "Southwestern", neighborhood: "Frisco", price: "$$", vibe: "New Mexican and southwestern plates in the Prospector Marketplace", booking: { walkin: true } },
+    { name: "Eclectic Kitchen and Bar", cuisine: "American", neighborhood: "Frisco", price: "$$$", vibe: "East Main kitchen and bar with a rotating, wide-ranging menu", booking: { walkin: true } },
+    { name: "India's Spice", cuisine: "Indian", neighborhood: "Frisco", price: "$$", vibe: "Indian cooking on the west end of Main Street", booking: { walkin: true } },
+    { name: "Ollie's Pub & Grub", cuisine: "Pub", neighborhood: "Frisco", price: "$$", vibe: "Neighborhood pub at the quieter east end of Main", booking: { walkin: true } },
+    { name: "Tavern West", cuisine: "American", neighborhood: "Frisco", price: "$$", vibe: "West Main tavern, away from the busier east-end blocks", booking: { walkin: true } },
+    { name: "Island Grill", cuisine: "American", neighborhood: "Frisco", price: "$$", vibe: "Out at the Frisco Bay Marina with water and Tenmile Range views. Summer season only", booking: { walkin: true } },
+    { name: "Nuevo Vallarta", cuisine: "Mexican", neighborhood: "Frisco", price: "$$", vibe: "Mexican on Summit Boulevard, near the highway rather than on Main", booking: { walkin: true } },
     { name: "Butterhorn Bakery & Cafe", cuisine: "Breakfast", neighborhood: "Frisco", price: "$$", vibe: "The county's breakfast benchmark. Pastries, huge omelets, weekend waits", booking: { walkin: true } },
     { name: "Dillon Dam Brewery", cuisine: "Brewpub", neighborhood: "Dillon", price: "$$", vibe: "One of Colorado's biggest brewpubs. Huge menu, house beer, family tables", website: "https://www.dambrewery.com", booking: { walkin: true } },
     { name: "Bluebird Market", cuisine: "Food hall", neighborhood: "Silverthorne", price: "$$", vibe: "Riverside food hall with multiple vendors, bar, and outdoor seating. Something for every picky eater", booking: { walkin: true } },
@@ -5384,19 +5407,19 @@ function showCuratedListPaged(list, label, startIdx, pageContainer) {
 // menu was pointing at apres-ski bars and sleigh rides with nothing about the
 // actual mountains. Acreage and vertical are the published resort figures.
 const CURATED_SKI_RESORTS = [
-  { name: "Breckenridge Ski Resort", neighborhood: "Breckenridge", pass: "Epic", acres: "2,908", summit: "12,998",
+  { name: "Breckenridge Ski Resort", coords: { lat: 39.4783, lng: -106.0669 }, neighborhood: "Breckenridge", pass: "Epic", acres: "2,908", summit: "12,998",
     desc: "Five peaks, the largest terrain in the county, and a ski-in town at the base you can walk from your hotel. The Imperial Express is the highest chairlift in North America at 12,840 feet. Gets the biggest crowds because of that town access; ride early or head to Peak 6 and 7.",
     url: "https://www.breckenridge.com" },
-  { name: "Keystone Resort", neighborhood: "Keystone", pass: "Epic", acres: "3,149", summit: "12,408",
+  { name: "Keystone Resort", coords: { lat: 39.6084, lng: -105.9437 }, neighborhood: "Keystone", pass: "Epic", acres: "3,149", summit: "12,408",
     desc: "The most skiable acreage in the county and the only night skiing in Summit, running until 8pm most of the season. Three mountains back to back, strong beginner and intermediate terrain, and famously family-friendly with Kidtopia programming.",
     url: "https://www.keystoneresort.com" },
-  { name: "Copper Mountain", neighborhood: "Copper Mountain", pass: "Ikon", acres: "2,527", summit: "12,441",
+  { name: "Copper Mountain", coords: { lat: 39.5022, lng: -106.1497 }, neighborhood: "Copper Mountain", pass: "Ikon", acres: "2,527", summit: "12,441",
     desc: "Naturally divided terrain: greens on one side, blues in the middle, blacks on the other, so groups can split up and still meet for lunch. Right off I-70, which makes it the easiest drive from Denver.",
     url: "https://www.coppercolorado.com" },
-  { name: "Arapahoe Basin", neighborhood: "Keystone", pass: "Ikon (limited)", acres: "1,428", summit: "13,050",
+  { name: "Arapahoe Basin", coords: { lat: 39.6425, lng: -105.8719 }, neighborhood: "Keystone", pass: "Ikon (limited)", acres: "1,428", summit: "13,050",
     desc: "The Legend. Steep, high, and no-nonsense, with the longest season in Colorado, often spinning lifts into June. The East Wall and Montezuma Bowl are serious terrain. The Beach parking lot tailgate scene is an institution.",
     url: "https://www.arapahoebasin.com" },
-  { name: "Loveland Ski Area", neighborhood: "Dillon", pass: "Independent", acres: "1,800", summit: "13,010",
+  { name: "Loveland Ski Area", coords: { lat: 39.6800, lng: -105.8979 }, neighborhood: "Dillon", pass: "Independent", acres: "1,800", summit: "13,010",
     desc: "Just over Loveland Pass and technically outside the county, but locals ski it constantly. Cheaper lift tickets, no resort village, free snowcat rides to the Ridge, and it usually opens first in Colorado. Go here when the Epic and Ikon crowds are deep.",
     url: "https://skiloveland.com" }
 ];
@@ -5409,7 +5432,10 @@ function showSkiResorts() {
       ? 'Heads up: this is shoulder season. Most areas are closed or on limited operations. Arapahoe Basin and Loveland run latest and open earliest.'
       : 'Five mountains within about 30 minutes of each other.';
   addMessage(openNote, 'bot');
-  addMessage(renderCompactList(CURATED_SKI_RESORTS, 'ski', r => {
+  // Sort by how close each mountain is, so someone standing in Keystone is not
+  // told about Breckenridge first just because it is first in the array.
+  const resorts = [...CURATED_SKI_RESORTS].sort((a, b) => proximityMiles(a) - proximityMiles(b));
+  addMessage(renderCompactList(resorts, 'ski', r => {
     const safeName = jsAttr(r.name);
     let html = `<div style="font-size:14px;line-height:1.5;color:#333;margin-bottom:8px;">${r.desc}</div>`
       + `<div style="font-size:12px;color:#6b21a8;font-weight:600;margin-bottom:8px;">Summit ${r.summit} ft \u00b7 ${r.acres} skiable acres \u00b7 ${r.pass} pass</div>`;
@@ -5417,7 +5443,10 @@ function showSkiResorts() {
     html += `<a href="https://www.google.com/maps/search/${encodeURIComponent(r.name + ' Colorado')}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     return html;
-  }, r => `${r.pass} pass \u00b7 ${r.acres} acres \u00b7 ${r.neighborhood}`), 'bot', true);
+  }, r => {
+    const near = proximityLabel(r);
+    return `${r.pass} pass \u00b7 ${r.acres} acres` + (near ? ` \u00b7 \ud83d\udccd ${near}` : ` \u00b7 ${r.neighborhood}`);
+  }), 'bot', true);
 
   setTimeout(() => {
     addMessage('<div class="card"><div class="card-title">\u26f7\ufe0f Which pass</div>'
@@ -5491,6 +5520,7 @@ function renderTrailPicker(list, label, key) {
           <span style="background:${c.bg};color:${c.fg};padding:1px 7px;border-radius:8px;font-size:11px;font-weight:700;">${t.difficulty || ''}</span>
           <span style="font-size:12px;color:#075985;font-weight:600;">${t.miles} ${lengthLabel}</span>
           <span style="font-size:12px;color:#999;">· ${t.neighborhood || ''}</span>
+          ${proximityLabel(t) ? `<span style="font-size:12px;color:#075985;">· 📍 ${proximityLabel(t)}</span>` : ''}
         </div>
       </div>
       <div id="${key}-detail-${i}" style="display:none;padding:0 10px 12px;"></div>
@@ -5713,22 +5743,22 @@ function showBingo(skipPush) {
   addMessage(`🎯 Summit County Bingo. Check off classic moments as you hit them. Built for Instagram stories and TikTok videos.`, 'bot');
   // The bingo grid as a single big card. CSS grid 5 columns, each square
   // is square-shaped via aspect-ratio. Tap to toggle. localStorage saves.
-  let html = `<div class="card" style="background:#fff;border:2px solid #d62828;padding:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+  let html = `<div class="card" style="background:#fff;border:2px solid #d62828;padding:10px;box-sizing:border-box;max-width:100%;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
       <div style="font-weight:700;color:#d62828;font-size:16px;">Summit County Bingo</div>
       <div style="font-size:13px;color:#666;font-weight:600;"><span id="bingoProgress">${done}</span> / ${total}</div>
     </div>
-    <div id="bingoGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">`;
+    <div id="bingoGrid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;width:100%;">`;
   SUMMIT_BINGO_SQUARES.forEach((sq, idx) => {
     const isDone = completed.has(idx) || sq.isFree;
     const bg = sq.isFree ? '#fff3cd' : (isDone ? '#d62828' : '#fff');
     const color = sq.isFree ? '#856404' : (isDone ? '#fff' : '#222');
     const border = sq.isFree ? '2px solid #f0c060' : (isDone ? '2px solid #b91c1c' : '1.5px solid #ddd');
     const checkOverlay = isDone && !sq.isFree ? '<div style="position:absolute;top:2px;right:4px;font-size:12px;">✓</div>' : '';
-    html += `<div data-bingo-idx="${idx}" style="position:relative;aspect-ratio:1/1;background:${bg};color:${color};border:${border};border-radius:8px;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;font-size:10px;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
+    html += `<div data-bingo-idx="${idx}" style="position:relative;aspect-ratio:1/1;min-width:0;overflow:hidden;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:8px;padding:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;font-size:10px;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
       ${checkOverlay}
-      <div style="font-size:22px;line-height:1;margin-bottom:3px;">${sq.emoji}</div>
-      <div style="font-size:9.5px;word-wrap:break-word;hyphens:auto;">${sq.label}</div>
+      <div style="font-size:19px;line-height:1;margin-bottom:2px;">${sq.emoji}</div>
+      <div style="font-size:9px;line-height:1.1;word-break:break-word;overflow-wrap:anywhere;hyphens:auto;max-width:100%;">${sq.label}</div>
     </div>`;
   });
   html += `</div>

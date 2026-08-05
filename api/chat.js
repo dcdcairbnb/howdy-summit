@@ -313,8 +313,8 @@ ${ALL_SPOTS_BY_TOWN}
 Blue River and Montezuma have no restaurants. Send people to Breckenridge and Keystone respectively.
 
 ANTI-HALLUCINATION RULE - THIS OVERRIDES EVERYTHING ELSE
-Never name a restaurant, bar, or brewery that does not appear in the list
-above. Do not guess, do not approximate, and do not invent plausible-sounding
+Never name a restaurant, bar, or brewery that does not appear in the confirmed
+list above OR in the LIVE NEARBY RESULTS list below, if one is present. Do not guess, do not approximate, and do not invent plausible-sounding
 local names. If nothing on the list fits what the user asked for, say so
 plainly and offer the closest options that ARE on the list, or tell them to
 tap Show all restaurants. Naming a business that does not exist is the single
@@ -391,6 +391,75 @@ async function fetchWithTimeout(url, options, timeoutMs = 15000) {
 // training cutoff has no idea what today is. Without this it will happily
 // suggest a sleigh ride in July or lift tickets in mud season. Computed in
 // Mountain Time because that is where the user is standing.
+// ===== LIVE NEARBY TIER =====
+// The curated roster is a deliberately small set of opinionated picks. It is
+// not, and should not try to be, a directory: an audit of the five towns found
+// 61 real restaurants it did not list, and hand-curation drifts further out of
+// date every season. Google already knows about all of them.
+//
+// So the model gets two tiers. Curated stays authoritative and is what it
+// leads with, because those entries carry real local knowledge. Live results
+// are offered as a clearly-labelled second tier so the app stops being blind
+// to anything that opened recently.
+//
+// This does NOT relax the anti-hallucination rule. The model may still only
+// name businesses that appear in one of the two lists it is given. The fix for
+// missing coverage is a longer list, never a freer imagination.
+async function fetchLiveNearby(location) {
+  if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') return '';
+  if (!process.env.GOOGLE_PLACES_KEY) return '';
+  try {
+    const r = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': process.env.GOOGLE_PLACES_KEY,
+        'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.primaryTypeDisplayName,places.formattedAddress'
+      },
+      body: JSON.stringify({
+        includedTypes: ['restaurant', 'bar', 'cafe'],
+        maxResultCount: 20,
+        locationRestriction: {
+          circle: {
+            center: { latitude: location.lat, longitude: location.lng },
+            radius: 6000
+          }
+        },
+        rankPreference: 'DISTANCE'
+      })
+    });
+    if (!r.ok) return '';
+    const data = await r.json();
+    const rows = (data.places || [])
+      // Skip thinly-reviewed entries: a place with two ratings is as likely to
+      // be a food truck that has moved on as a real restaurant.
+      .filter(p => (p.userRatingCount || 0) >= 15)
+      .map(p => {
+        const n = p.displayName?.text || '';
+        const t = p.primaryTypeDisplayName?.text || '';
+        const rate = p.rating ? `${p.rating}star` : '';
+        return n ? `${n}${t ? ' (' + t + ')' : ''}${rate ? ' ' + rate : ''}` : '';
+      })
+      .filter(Boolean);
+    if (!rows.length) return '';
+    return `
+
+LIVE NEARBY RESULTS (second tier, from Google, currently open businesses)
+${rows.join(', ')}
+
+How to use this second list:
+- Lead with the CONFIRMED list above. Those are hand-picked and you can
+  describe what they are actually like.
+- You MAY also name anything from this live list, but say plainly that it is
+  a nearby option you have less detail on, and tell the user to check hours
+  before going. Do not invent a description for it.
+- If the user asks for something the confirmed list genuinely does not cover,
+  this list is the right place to look before saying no.`;
+  } catch (e) {
+    return '';
+  }
+}
+
 function seasonContext() {
   const now = new Date();
   const mt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
@@ -522,7 +591,8 @@ export default async function handler(req, res) {
   // location, tell Claude where they are so "near me" works without re-asking.
   // Also inject a curated list of REAL spots in that neighborhood as ground
   // truth so Claude does not invent which restaurants belong where.
-  let systemPrompt = SYSTEM_PROMPT + GROUND_TRUTH_BLOCK + seasonContext();
+  const liveTier = await fetchLiveNearby(location);
+  let systemPrompt = SYSTEM_PROMPT + GROUND_TRUTH_BLOCK + liveTier + seasonContext();
   if (userNeighborhood) {
     if (userNeighborhood.name === 'outside Summit County') {
       systemPrompt += `\n\nUSER LOCATION
