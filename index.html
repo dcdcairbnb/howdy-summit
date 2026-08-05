@@ -2696,6 +2696,16 @@ function routeIntent(text) {
     return;
   }
 
+  // Checked before the sleigh-rides branch, which catches bare "snowmobile".
+  // Kept narrow so "Sleigh rides & snowmobiles" still reaches the operator
+  // list: that button answers "who do I book", this one "where do I ride".
+  if (matches(lower, ['🛷 snowmobile trails', 'snowmobile trail', 'snowmobile trails',
+                      'snowmobile area', 'snowmobile areas', 'where to snowmobile',
+                      'where can i snowmobile', 'vail pass', 'shrine bowl',
+                      'machinegun ridge', 'camp hale', 'snowmobile riding'])) {
+    showSnowmobileTrails();
+    return;
+  }
   if (matches(lower, ['🛷 sleigh rides & snowmobiles', 'sleigh ride', 'sleigh rides', 'snowmobile', 'snowmobiling', 'dog sled', 'dogsled', 'dog sledding', 'tubing', 'snowshoe', 'nordic', 'cross country ski'])) {
     showSnowTours();
     return;
@@ -2717,6 +2727,12 @@ function routeIntent(text) {
                       'ikon pass', 'breckenridge ski', 'keystone resort', 'copper mountain ski',
                       'arapahoe basin', 'a-basin', 'loveland ski', 'where to ski', 'best mountain'])) {
     showSkiResorts();
+    return;
+  }
+  if (matches(lower, ['jeep', 'jeep trail', 'jeep trails', 'jeep tour', '\ud83d\ude99 jeep & 4x4 trails',
+                      '4x4', '4wd', 'four wheel drive', 'off road', 'off-road', 'offroad', 'atv', 'utv',
+                      'mining road', 'red cone', 'webster pass', 'radical hill', 'georgia pass', 'shrine pass'])) {
+    showJeepTrails();
     return;
   }
   if (matches(lower, ['horseback', 'horse back', 'horse ride', 'horse rides', 'horseback riding',
@@ -4116,7 +4132,9 @@ function showThingsToDoMenu(skipPush) {
     '\ud83d\udef7 Sleigh rides & snowmobiles',
     '\ud83e\udd7e Hiking trails',
     '\ud83d\udeb2 Bike trails',
-    '\ud83d\udc0e Horseback riding'
+    '\ud83d\udc0e Horseback riding',
+    '\ud83d\ude99 Jeep & 4x4 trails',
+    '\ud83d\udef7 Snowmobile trails'
   ];
   // Skiing still appears in summer, just lower down. People plan winter trips
   // in August, and burying it entirely was the same "content with no button"
@@ -4126,6 +4144,8 @@ function showThingsToDoMenu(skipPush) {
     '\ud83d\udeb2 Bike trails',
     '\ud83d\udca6 Waterfalls & alpine lakes',
     '\ud83d\udc0e Horseback riding',
+    '\ud83d\ude99 Jeep & 4x4 trails',
+    '\ud83d\udef7 Snowmobile trails',
     '\ud83c\udfbf Ski & gear rentals',
     '\u26f7\ufe0f Skiing & snowboarding',
     '\ud83d\udef7 Sleigh rides & snowmobiles'
@@ -5555,6 +5575,108 @@ function showHorsebackRiding() {
       + '<div class="card-desc"><strong>Closed toe shoes.</strong> No sandals. Dress for weather that can change fast at 10,000 feet.</div>'
       + '<div class="card-desc"><strong>Storms stop rides.</strong> They operate in most conditions but not thunder and lightning, which build most July and August afternoons. Morning rides are the safer booking.</div>'
       + '<div class="card-desc"><strong>Wranglers work for tips.</strong> Worth budgeting for.</div>'
+      + '</div>', 'bot', true);
+  }, 600);
+}
+
+// Snowmobile riding areas. Verified against Summit County Powersports'
+// published trail list and USFS Vail Pass recreation area information, not
+// written from memory. The $10 per person day-use permit at Vail Pass is a
+// real gate people get caught by, so it is stated up front.
+const CURATED_SNOWMOBILE = [
+  { name: "Vail Pass Winter Recreation Area", neighborhood: "Copper Mountain", coords: { lat: 39.5296, lng: -106.2175 },
+    difficulty: "Easy", miles: "120+",
+    desc: "The main event. Roughly 55,000 acres and over 120 miles of trails, with groomed routes for beginners and open powder bowls for everyone else. Machinegun Ridge and Shrine Bowl are the landmarks. A USFS day-use permit costs $10 per person, bought from the shack at the parking lot entrance off I-70 exit 190." },
+  { name: "Shrine Pass Road and Shrine Bowl", neighborhood: "Copper Mountain", coords: { lat: 39.5445, lng: -106.2320 },
+    difficulty: "Easy", miles: "11",
+    desc: "The beginner run inside the Vail Pass area, along with Wilder Gulch. Wide and groomed. Ride Shrine Pass Road all the way down to Red Cliff and stop at Mango's for lunch, which is the classic full-day version." },
+  { name: "Camp Hale and Resolution Creek", neighborhood: "Copper Mountain", coords: { lat: 39.4283, lng: -106.3247 },
+    difficulty: "Moderate", miles: "20",
+    desc: "Resolution Creek Road and 4-Mile Road, ranging from beginner to moderate. Camp Hale is where the 10th Mountain Division trained for winter warfare in WWII, and the bunkers are still there. Trailheads sit off Highway 24 south of Red Cliff." },
+  { name: "Rabbit Ears Pass", neighborhood: "Silverthorne", difficulty: "Easy", miles: "varies",
+    desc: "A day trip rather than a local ride: 75 to 90 minutes north of Silverthorne, near Steamboat. Enormous terrain from open meadows to steep terrain, and worth the drive if you want a full day of it." },
+  { name: "Grand Lake", neighborhood: "Silverthorne", difficulty: "Easy", miles: "varies",
+    desc: "Also 75 to 90 minutes north. One of Colorado's better-known snowmobile towns, with trails leading toward the Never Summer range." }
+];
+
+function showSnowmobileTrails() {
+  const season = currentSeason();
+  if (season === 'summer') {
+    addMessage("Snowmobile season runs roughly December into April, so these are closed right now. The same operators rent ATVs and side-by-sides in summer, and Vail Pass is open to OHVs.", 'bot');
+  } else if (season === 'shoulder') {
+    addMessage("Shoulder season. Coverage is thin at either end, so call the rental shops for current conditions before driving out.", 'bot');
+  } else {
+    addMessage("Snowmobile riding areas around Summit County. The first three are local, the last two are day trips north.", 'bot');
+  }
+  addMessage(renderTrailPicker(CURATED_SNOWMOBILE, 'snowmobile areas', 'sled'), 'bot', true);
+  setTimeout(() => {
+    addMessage('<div class="card"><div class="card-title">\ud83d\udef7 Before you ride</div>'
+      + '<div class="card-desc"><strong>Vail Pass needs a permit.</strong> $10 per person for a USFS day-use pass, sold from the shack at the lot entrance. Easy to miss and they do check.</div>'
+      + '<div class="card-desc"><strong>Avalanche terrain is real here.</strong> Much of this riding is in and below avalanche paths. Check the CAIC forecast, carry a beacon, shovel and probe, and know how to use them. Guided tours handle this for you.</div>'
+      + '<div class="card-desc"><strong>Book ahead in peak weeks.</strong> Christmas through mid-March sells out, especially for guided trips.</div>'
+      + '<div class="card-desc"><strong>Dress for far colder than town.</strong> You are at 10,000 feet and moving fast. Most outfitters rent suits and boots for a reason.</div>'
+      + '</div>', 'bot', true);
+    addMessage('<div class="card"><div class="card-title">\ud83d\udd11 Rentals and guided tours</div>'
+      + '<a href="https://summitpowersportsrentals.com" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Summit Powersports</a>'
+      + '<a href="https://www.coloradosleighrides.com" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Golden Horseshoe</a>'
+      + '</div>', 'bot', true);
+  }, 600);
+}
+
+// Summit County 4x4 routes. These are historic mining roads over the
+// Continental Divide, and the difficulty spread is enormous: Boreas Pass is a
+// graded gravel road a Subaru handles, Red Cone is a one-way shelf descent
+// that rolls vehicles most summers. Ratings here are deliberately
+// conservative, because getting this wrong is not a bad hike, it is a
+// recovery bill or worse.
+//
+// Uses the same difficulty/miles fields as the hiking and biking pickers so
+// the compact rows render identically.
+const CURATED_JEEP_TRAILS = [
+  { name: "Boreas Pass Road", neighborhood: "Breckenridge", difficulty: "Easy", miles: "21", gain: "1938",
+    desc: "Graded dirt on an old railroad grade to the 11,481-foot pass. Any high-clearance vehicle handles it, and most cars manage in dry conditions. Mining history and huge views the whole way. Continues over to Como." },
+  { name: "Shrine Pass", neighborhood: "Copper Mountain", difficulty: "Easy", miles: "11",
+    desc: "Vail Pass over to Red Cliff on a wide dirt road. Wildflowers in July are the best in the county. Suitable for stock SUVs in dry weather." },
+  { name: "Peru Creek", neighborhood: "Keystone", difficulty: "Easy", miles: "9",
+    desc: "Up past Montezuma to the Pennsylvania Mine. Rocky in places but manageable in a stock 4x4. Good introduction to the area's mining roads." },
+  { name: "Saints John", neighborhood: "Keystone", difficulty: "Moderate", miles: "5",
+    desc: "Short, steep climb from Montezuma to an 1860s silver camp. Rutted and narrow with a couple of rocky steps. High clearance and 4WD genuinely needed." },
+  { name: "Georgia Pass", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "16",
+    desc: "Over the Divide to South Park at 11,585 feet. Rocky sections and a few off-camber spots, but a well-travelled route. Connects to the Colorado Trail." },
+  { name: "Middle Fork of the Swan", neighborhood: "Breckenridge", difficulty: "Moderate", miles: "12",
+    desc: "Through the old dredge workings toward Georgia Pass. Water crossings and loose rock. Popular, so expect company on summer weekends." },
+  { name: "Deer Creek", neighborhood: "Keystone", difficulty: "Hard", miles: "8",
+    desc: "Steep and rocky out of Montezuma, and the usual approach to Radical Hill. Lockers and skid plates recommended. Not a rental-Jeep route." },
+  { name: "Webster Pass", neighborhood: "Keystone", difficulty: "Moderate", miles: "14",
+    desc: "Rough but passable by most high-clearance 4WD vehicles taken carefully, and a common first mountain pass. There is real exposure in places and a snowdrift near the top that can linger into August. Do not confuse it with Red Cone, which shares the area and is far harder." },
+  { name: "Radical Hill", neighborhood: "Keystone", difficulty: "Hard", miles: "10",
+    desc: "Steep, loose, off-camber shelf above treeline with serious consequences either side. Regularly requires recovery gear. Do not attempt alone or in a stock vehicle." },
+  { name: "Red Cone", neighborhood: "Keystone", difficulty: "Hard", miles: "12",
+    desc: "One-way descent only, and one of Colorado's most infamous routes. A long steep loose shelf where you cannot back out once started. Vehicles roll here most summers. Go with someone who has driven it." }
+];
+
+function showJeepTrails() {
+  const season = currentSeason();
+  if (season === 'winter') {
+    addMessage("These are summer routes. Most stay under snow until late June or July, and the high passes close entirely in winter. Snowmobiles run the same terrain in the meantime.", 'bot');
+  } else if (season === 'shoulder') {
+    addMessage("Shoulder season, so check before committing. High passes hold snow into July and can close early in autumn.", 'bot');
+  } else {
+    addMessage("10 four-wheel-drive routes, easiest first. Tap any one for details.", 'bot');
+  }
+  addMessage(renderTrailPicker(CURATED_JEEP_TRAILS, '4x4 routes', 'jeep'), 'bot', true);
+  setTimeout(() => {
+    addMessage('<div class="card"><div class="card-title">\ud83d\ude99 Before you drive these</div>'
+      + '<div class="card-desc"><strong>Difficulty here is not like hiking.</strong> An easy route means a graded road. A hard one means genuine exposure and a real chance of vehicle damage or worse. Red Cone is one-way for a reason.</div>'
+      + '<div class="card-desc"><strong>Rental agreements usually forbid this.</strong> Most rental cars, and many rental Jeeps, are contractually not allowed off maintained roads. Check before you go; recovery out here is expensive.</div>'
+      + '<div class="card-desc"><strong>Snow lingers.</strong> High passes often do not open until late June or July. Webster Pass in particular holds a drift well into summer.</div>'
+      + '<div class="card-desc"><strong>Afternoon storms.</strong> You are above treeline in a metal box. Be off the high passes by early afternoon in July and August.</div>'
+      + '<div class="card-desc"><strong>Stay on the trail.</strong> This is fragile alpine tundra that takes decades to recover, and widening tracks is how routes get closed.</div>'
+      + '</div>', 'bot', true);
+    addMessage('<div class="card"><div class="card-title">\ud83d\udd11 Rentals and guided tours</div>'
+      + '<div class="card-desc">If you do not want to risk your own vehicle, these run guided trips or rent something built for it.</div>'
+      + '<a href="https://summitpowersportsrentals.com" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Summit Powersports</a>'
+      + '<a href="https://performancetours.com" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">Performance Tours</a>'
       + '</div>', 'bot', true);
   }, 600);
 }
