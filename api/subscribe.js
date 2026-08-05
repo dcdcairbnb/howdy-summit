@@ -108,7 +108,7 @@ function titleCase(s) {
 // Build pay-link buttons for one creditor with one debt amount. Returns a
 // span containing each available platform button. Used per-settlement.
 function buildPayButtonsForCreditor(creditor, amount, tripName) {
-  const note = encodeURIComponent(tripName || 'Nashville trip');
+  const note = encodeURIComponent(tripName || 'Summit County trip');
   const safeAmount = Math.max(0, Number(amount || 0)).toFixed(2);
   const buttons = [];
   if (creditor.venmo) {
@@ -195,7 +195,7 @@ ${outgoingSection}
   } else if (Number(memberOwed || 0) > 0.01) {
     incomingBlock = `<p style="margin:14px 0 8px;">You're owed <strong>$${Number(memberOwed).toFixed(2)}</strong> from the group. They each got an email with your payment links.</p>`;
   }
-  return `${updateBanner}<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Nashville trip')} summary</strong></p>
+  return `${updateBanner}<p style="margin:14px 0 8px;"><strong>${escapeHtml(tripName || 'Summit County trip')} summary</strong></p>
 ${settlementsBlock}
 ${incomingBlock}
 <p style="margin:14px 0 6px;font-weight:600;">Trip expenses:</p>
@@ -209,15 +209,15 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
   let savedSpotsBlock = '';
   if (savedSpots && savedSpots.length) {
     const items = savedSpots.map(s => `<li style="margin:6px 0;"><strong>${escapeHtml(s.name || '')}</strong>${s.note ? ' &mdash; ' + escapeHtml(s.note) : ''}${s.address ? '<br><span style="color:#666;font-size:13px;">' + escapeHtml(s.address) + '</span>' : ''}</li>`).join('');
-    savedSpotsBlock = `<h3 style="margin:24px 0 8px;">Your saved Nashville spots</h3><ul style="padding-left:18px;">${items}</ul>`;
+    savedSpotsBlock = `<h3 style="margin:24px 0 8px;">Your saved Summit County spots</h3><ul style="padding-left:18px;">${items}</ul>`;
   }
   const sourceBlurb = {
-    'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
+    'cheatsheet': 'Your free Summit County 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
-    'bachelorette': 'Thanks for signing up. We built a Nashville group trip planner page just for trips like yours.',
-    'trip-summary': tripData && tripData.isPayer ? `Here is the summary from your ${tripData.tripName || 'Nashville trip'}. Each person on the trip got their own email with what they owe.` : `Here is your share from the ${tripData && tripData.tripName || 'Nashville trip'}. Tap a payment button below to settle up in seconds.`,
-    'general': 'You are on the list. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.'
-  }[source] || 'Welcome to Howdy Summit. Once a week I send a quick Nashville roundup with new restaurants, weekend events, and deals.';
+    'bachelorette': 'Thanks for signing up. We built a Summit County group trip planner page just for trips like yours.',
+    'trip-summary': tripData && tripData.isPayer ? `Here is the summary from your ${tripData.tripName || 'Summit County trip'}. Each person on the trip got their own email with what they owe.` : `Here is your share from the ${tripData && tripData.tripName || 'Summit County trip'}. Tap a payment button below to settle up in seconds.`,
+    'general': 'You are on the list. Once a week I send a quick Summit County roundup with new restaurants, weekend events, and deals.'
+  }[source] || 'Welcome to Howdy Summit. Once a week I send a quick Summit County roundup with new restaurants, weekend events, and deals.';
 
   // Subtle branding (small logo) plus plain-text body. Logo helps the email
   // feel polished without triggering Gmail's Promotions classifier (no big CTA
@@ -234,9 +234,9 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
     ${source === 'bachelorette' ? buildBacheloretteBlock() : ''}
     ${source === 'trip-summary' ? buildTripSummaryBlock(tripData) : ''}
     ${savedSpotsBlock}
-    <p style="margin:18px 0 14px;">Reply anytime. We read every email and we are happy to point you to the right spot for whatever you are looking for in Nashville.</p>
+    <p style="margin:18px 0 14px;">Reply anytime. We read every email and we are happy to point you to the right spot for whatever you are looking for in Summit County.</p>
     <p style="margin:0 0 4px;">Howdy Summit</p>
-    <p style="margin:0;color:#666;font-size:14px;">Howdy Summit · Nashville's Free Travel Concierge</p>
+    <p style="margin:0;color:#666;font-size:14px;">Howdy Summit · Summit County's Free Travel Concierge</p>
     <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent because you signed up at howdysummitcounty.com. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
   </div>
 </body>
@@ -253,16 +253,26 @@ function escapeHtml(s) {
 // Or preview HTML with: POST { action: 'newsletter-preview' }
 
 async function fetchEaterOpenings() {
-  // Scrapes Eater Nashville (ATOM feed format) for restaurant opening articles.
+  // Restaurant and food news for the digest.
+  //
+  // This used to scrape nashville.eater.com, left over from the Howdy Nash
+  // conversion, so Summit County subscribers were being emailed Nashville
+  // restaurant openings. Eater has no Colorado mountain edition, so there is
+  // no like-for-like replacement: Summit Daily is the county's newspaper and
+  // covers local openings and closings.
+  //
+  // If this feed ever stops returning food items the digest simply omits the
+  // section, which is the correct behaviour: better an empty section than
+  // news about the wrong state.
   try {
-    const r = await fetch('https://nashville.eater.com/rss/index.xml', {
+    const r = await fetch('https://www.summitdaily.com/feed/', {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HowdySummit/1.0)' }
     });
     if (!r.ok) return [];
     const xml = await r.text();
     const cdata = (s) => (s || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim();
     const items = [];
-    // ATOM uses <entry> tags, RSS uses <item>. Eater Nashville uses ATOM.
+    // Handle both: ATOM uses <entry>, RSS uses <item>. Summit Daily is RSS.
     const entries = xml.match(/<entry[\s\S]*?<\/entry>/g) || xml.match(/<item>[\s\S]*?<\/item>/g) || [];
     for (const entry of entries.slice(0, 25)) {
       const title = cdata((entry.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1]);
@@ -277,7 +287,7 @@ async function fetchEaterOpenings() {
       if (/\b(open|opens|opening|debut|coming soon|first look|new\s|arrives|launches|launching|expands)/i.test(title)) {
         const isFood = /restaurant|cafe|coffee|bar|brewery|bakery|kitchen|grill|chicken|bbq|pizza|burger|taco|diner|cocktail|food|chef|eatery|deli|donut|ice cream/i.test(title);
         if (isFood && link) {
-          items.push({ name: title, url: link, source: 'eater' });
+          items.push({ name: title, url: link, source: 'summitdaily' });
         }
       }
     }
@@ -352,7 +362,7 @@ function buildNewsletterHTML(events, openings) {
   const festRows = events.map(e => `
     <tr><td style="padding:10px 0;border-bottom:1px solid #eee;">
       <strong style="color:#d62828;font-size:15px;">${(e.name || '').slice(0, 80)}</strong><br>
-      <span style="color:#666;font-size:13px;">${e.dates || e.date} · ${e.venue || e.neighborhood || 'Nashville'}</span>
+      <span style="color:#666;font-size:13px;">${e.dates || e.date} · ${e.venue || e.neighborhood || 'Summit County'}</span>
       ${e.url ? `<br><a href="${e.url}" style="color:#d62828;font-size:13px;">Details</a>` : ''}
     </td></tr>
   `).join('');
@@ -362,33 +372,33 @@ function buildNewsletterHTML(events, openings) {
       ${openings.map(o => `
         <tr><td style="padding:10px 0;border-bottom:1px solid #eee;">
           <strong style="color:#d62828;font-size:15px;">${(o.name || '').slice(0, 100)}</strong><br>
-          <a href="${o.url}" style="color:#d62828;font-size:13px;">Read on Eater Nashville</a>
+          <a href="${o.url}" style="color:#d62828;font-size:13px;">Read on Summit Daily</a>
         </td></tr>
       `).join('')}
     </table>
   ` : '';
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>This Weekend in Nashville</title></head>
+<html><head><meta charset="utf-8"><title>This Weekend in Summit County</title></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#222;">
   <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;">
     <div style="text-align:center;padding:16px 0;border-bottom:3px solid #d62828;">
       <div style="font-size:28px;font-weight:800;color:#d62828;">Howdy Summit</div>
-      <div style="font-size:13px;color:#666;margin-top:4px;">This Weekend in Nashville · ${today}</div>
+      <div style="font-size:13px;color:#666;margin-top:4px;">This Weekend in Summit County · ${today}</div>
     </div>
     <div style="padding:24px 0;line-height:1.6;font-size:16px;">
       <p style="margin:0 0 16px;">Howdy,</p>
-      <p style="margin:0 0 16px;">Here is what's happening in Nashville this week. Tap any event for tickets and details.</p>
+      <p style="margin:0 0 16px;">Here is what's happening in Summit County this week. Tap any event for tickets and details.</p>
       <h3 style="margin:24px 0 8px;color:#d62828;">🎵 Festivals & Events</h3>
       <table style="width:100%;border-collapse:collapse;">${festRows || '<tr><td style="padding:12px 0;color:#666;">No major festivals scheduled. Tap below for live music.</td></tr>'}</table>
       ${openingsBlock}
       <p style="margin:24px 0 12px;">For live music tonight, weekend brunch, hot chicken lines, and group location sharing, open the full guide:</p>
       <p style="margin:16px 0;text-align:center;"><a href="${SITE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Howdy Summit</a></p>
-      <p style="margin:24px 0 12px;font-size:14px;color:#666;">Heading to Nashville for a bachelorette? Reply to this email and tell me when. I will send you a personalized planner.</p>
+      <p style="margin:24px 0 12px;font-size:14px;color:#666;">Heading to Summit County for a bachelor or bachelorette weekend? Reply to this email and tell me when. I will send you a personalized planner.</p>
       <p style="margin:0;">Howdy,<br>Howdy Summit</p>
     </div>
     <div style="border-top:1px solid #eee;padding:16px 0;font-size:12px;color:#888;text-align:center;">
       <a href="${SITE_URL}" style="color:#d62828;text-decoration:none;">howdysummitcounty.com</a> &middot; <a href="{{UNSUB_URL}}" style="color:#888;text-decoration:underline;">Unsubscribe</a>
-      <div style="margin-top:8px;">You are receiving this because you signed up at howdysummitcounty.com. Restaurant news from Eater Nashville.</div>
+      <div style="margin-top:8px;">You are receiving this because you signed up at howdysummitcounty.com. Restaurant news from Summit Daily.</div>
     </div>
   </div>
 </body></html>`;
@@ -399,7 +409,7 @@ async function sendWeeklyNewsletter(resend) {
   const subs = await getPool().query(`SELECT email, name, unsubscribe_token FROM subscribers WHERE unsubscribed_at IS NULL`);
   const [events, openings] = await Promise.all([fetchThisWeekendEvents(), fetchEaterOpenings()]);
   const baseHtml = buildNewsletterHTML(events, openings);
-  const subject = `This Weekend in Nashville · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  const subject = `This Weekend in Summit County · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   let sent = 0, failed = 0;
   for (const row of subs.rows) {
     try {
@@ -467,13 +477,12 @@ export default async function handler(req, res) {
     return res.status(200).send(html);
   }
   if (body.action === 'eater-debug') {
-    // Test multiple Eater URL variants and Nashville Scene as fallback
+    // Diagnostic endpoint: try the Summit County food-news feeds and report
+    // which respond. Previously listed Eater Nashville and Nashville Scene.
     const urls = [
-      'https://nashville.eater.com/rss/index.xml',
-      'https://nashville.eater.com/rss/current.xml',
-      'https://www.eater.com/rss/region/nashville.xml',
-      'https://www.nashvillescene.com/feeds/news/rss.xml',
-      'https://www.nashvillescene.com/feeds/food-drink/rss.xml'
+      'https://www.summitdaily.com/feed/',
+      'https://www.summitdaily.com/news/feed/',
+      'https://www.summitdaily.com/entertainment/feed/'
     ];
     const results = [];
     for (const url of urls) {
@@ -580,7 +589,7 @@ export default async function handler(req, res) {
   if (source === 'trip-summary' && body.tripData && typeof body.tripData === 'object') {
     const t = body.tripData;
     tripData = {
-      tripName: String(t.tripName || 'Nashville trip').slice(0, 100),
+      tripName: String(t.tripName || 'Summit County trip').slice(0, 100),
       payerName: String(t.payerName || '').slice(0, 100),
       payerVenmo: String(t.payerVenmo || '').slice(0, 50),
       payerCashapp: String(t.payerCashapp || '').slice(0, 50),
@@ -657,10 +666,10 @@ export default async function handler(req, res) {
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     const subject = {
-      'cheatsheet': 'Your free Nashville 3-Day Cheat Sheet',
-      'saved-spots': 'Your Nashville saved spots',
-      'bachelorette': 'Your Nashville group trip planner',
-      'trip-summary': (tripData && tripData.isUpdate ? 'UPDATED: ' : '') + (tripData && tripData.isPayer ? `Your ${tripData.tripName || 'Nashville trip'} summary` : `Your share of the ${tripData && tripData.tripName || 'Nashville trip'}`),
+      'cheatsheet': 'Your free Summit County 3-Day Cheat Sheet',
+      'saved-spots': 'Your Summit County saved spots',
+      'bachelorette': 'Your Summit County group trip planner',
+      'trip-summary': (tripData && tripData.isUpdate ? 'UPDATED: ' : '') + (tripData && tripData.isPayer ? `Your ${tripData.tripName || 'Summit County trip'} summary` : `Your share of the ${tripData && tripData.tripName || 'Summit County trip'}`),
       'general': 'Welcome to Howdy Summit'
     }[source] || 'Welcome to Howdy Summit';
 
