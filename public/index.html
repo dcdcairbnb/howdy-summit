@@ -768,8 +768,34 @@
     document.head.appendChild(script);
   })();
 </script>
-<!-- Skimlinks: auto-affiliates the long tail (48,000+ merchants). Site ID 302647X1790652. Skips merchants Drive already covers. -->
-<script type="text/javascript" src="https://s.skimresources.com/js/302647X1790652.skimlinks.js"></script>
+<!-- Skimlinks: auto-affiliates the long tail (48,000+ merchants). Site ID
+     302647X1790652. Skips merchants Drive already covers.
+
+     Loaded on the WEB ONLY, never inside the Capacitor iOS app. Apple holds
+     the developer responsible for third-party code in the binary, and
+     Skimlinks does cross-site attribution, which would mean declaring
+     "used for tracking" in App Privacy and triggering an App Tracking
+     Transparency prompt on launch. It earns almost nothing in-app anyway:
+     the outbound links that matter there already carry our own affiliate
+     parameters (Expedia camref, GetYourGuide partner_id, Amazon tag, Awin),
+     and Skimlinks does not double-dip on already-affiliated links.
+
+     Injected at runtime rather than left as a static tag so the native
+     shell simply never fetches it. -->
+<script>
+  (function loadSkimlinksOnWebOnly() {
+    try {
+      var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+      var isLocalScheme = /^(capacitor|ionic|file):$/.test(window.location.protocol);
+      if (isNative || isLocalScheme) return;   // iOS app: skip entirely
+      var s = document.createElement('script');
+      s.type = 'text/javascript';
+      s.async = true;
+      s.src = 'https://s.skimresources.com/js/302647X1790652.skimlinks.js';
+      document.head.appendChild(s);
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <div class="music-note left" aria-hidden="true">🎵</div>
