@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Howdy Summit only uses your location while you are actively using the app, to show the closest restaurants, trailheads and apres-ski bars, set an accurate rideshare pickup, and place you on the map when you join a group. It never tracks you in the background.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Howdy Summit only uses your location while you are actively using the app. It never tracks you in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Howdy Summit uses your location to show the closest restaurants, apres-ski bars, and trailheads, set an accurate rideshare pickup, and place you on the map when you join a group.</string>
 	<key>NSMicrophoneUsageDescription</key>
