@@ -2719,6 +2719,12 @@ function routeIntent(text) {
     showSkiResorts();
     return;
   }
+  if (matches(lower, ['horseback', 'horse back', 'horse ride', 'horse rides', 'horseback riding',
+                      '\ud83d\udc0e horseback riding', 'trail ride', 'trail rides', 'stables', 'horses',
+                      'ride a horse', 'pony', 'breckenridge stables', 'keystone stables'])) {
+    showHorsebackRiding();
+    return;
+  }
   if (matches(lower, ['bike', 'biking', 'bikes', '🚲 bike trails', 'bike trails', 'mountain bike', 'mountain biking',
                       'bike path', 'bike park', 'rec path', 'recpath', 'cycling', 'ride a bike', 'bike rental',
                       'singletrack', 'vail pass', 'boreas pass', 'blue river bikeway'])) {
@@ -4101,7 +4107,8 @@ function showThingsToDoMenu(skipPush) {
     '\ud83c\udfbf Ski & gear rentals',
     '\ud83d\udef7 Sleigh rides & snowmobiles',
     '\ud83e\udd7e Hiking trails',
-    '\ud83d\udeb2 Bike trails'
+    '\ud83d\udeb2 Bike trails',
+    '\ud83d\udc0e Horseback riding'
   ];
   // Skiing still appears in summer, just lower down. People plan winter trips
   // in August, and burying it entirely was the same "content with no button"
@@ -4110,6 +4117,7 @@ function showThingsToDoMenu(skipPush) {
     '\ud83e\udd7e Hiking trails',
     '\ud83d\udeb2 Bike trails',
     '\ud83d\udca6 Waterfalls & alpine lakes',
+    '\ud83d\udc0e Horseback riding',
     '\ud83c\udfbf Ski & gear rentals',
     '\u26f7\ufe0f Skiing & snowboarding',
     '\ud83d\udef7 Sleigh rides & snowmobiles'
@@ -4844,7 +4852,7 @@ const CURATED_SNOW_TOURS = [
   { name: "Good Times Adventures", neighborhood: "Breckenridge", desc: "Snowmobile tours and dog sledding out of Swan River Valley just north of Breckenridge. The county's best-known operator for both. Summer ATV tours too.", url: "https://goodtimesadventures.com" },
   { name: "Two Below Zero Dinner Sleigh Rides", neighborhood: "Frisco", desc: "Horse-drawn sleigh out to a heated tent for a full dinner and live entertainment. Runs from Frisco Adventure Park. Book ahead, it sells out.", url: "https://www.twobelowzero.com" },
   { name: "Frisco Adventure Park sleigh rides", neighborhood: "Frisco", desc: "Scenic and dinner sleigh rides on the Frisco Peninsula, plus the tubing hill and Nordic center on the same property.", url: "https://www.friscogov.com/adventure-park" },
-  { name: "Breckenridge Stables", neighborhood: "Breckenridge", desc: "Sleigh rides and dinner rides in winter, horseback trail rides on Peak 8 in summer.", url: "https://www.breckenridgestables.com" },
+  { name: "Breckenridge Stables", neighborhood: "Breckenridge", desc: "Sleigh rides and dinner rides in winter, horseback trail rides on Peak 8 in summer.", url: "https://breckstables.com/trail-rides/" },
   { name: "Keystone Sleigh Rides", neighborhood: "Keystone", desc: "Sleigh ride out to a rustic cabin dinner in the Soda Creek valley. Family-friendly and a Keystone tradition.", url: "https://www.keystoneresort.com" },
   { name: "White Mountain Snowmobile Tours", neighborhood: "Frisco", desc: "Guided snowmobile tours on the Vail Pass side. Half-day and full-day options with gear included.", url: null },
   { name: "Nova Guides", neighborhood: "Copper Mountain", desc: "Snowmobile tours out of historic Camp Hale near Vail Pass. Also runs summer Jeep and ATV tours on the same terrain.", url: "https://www.novaguides.com" },
@@ -5448,6 +5456,41 @@ function showSkiResorts() {
       + '<div class="card-desc"><strong>Epic</strong> covers Breckenridge and Keystone. <strong>Ikon</strong> covers Copper and Arapahoe Basin on limited days. <strong>Loveland</strong> is independent and sells cheaper day tickets.</div>'
       + '<div class="card-desc"><strong>Parking fills early.</strong> Breckenridge and Copper require paid reservations on peak days. The free Summit Stage bus reaches every resort and skips the whole problem.</div>'
       + '<div class="card-desc"><strong>Altitude.</strong> These bases sit near 10,000 feet and summits pass 13,000. Take your first day easy and drink more water than feels reasonable.</div>'
+      + '</div>', 'bot', true);
+  }, 600);
+}
+
+// Horseback riding. Summer-season activity in Summit County, and one that
+// visitors ask about by name. Previously only reachable as a passing mention
+// inside a sleigh-ride entry.
+const CURATED_HORSEBACK = [
+  { name: "Breckenridge Stables", neighborhood: "Breckenridge", coords: { lat: 39.4783, lng: -106.0669 },
+    desc: "Breckenridge's only trail rides, on the Tenmile range between Peaks 9 and 10. About 90 minutes with river crossings, beaver ponds and Continental Divide views. Over 100 horses matched to rider ability, no weight limit, and every age welcome: staff lead the horse for 4 and 5 year olds, and 6 and up usually ride on their own. Breakfast and dinner rides too. Open May 1 to October 17. Reservations required.",
+    url: "https://breckstables.com/trail-rides/", phone: "(970) 453-4438" },
+  { name: "Keystone Stables", neighborhood: "Keystone", coords: { lat: 39.6069, lng: -105.9436 },
+    desc: "Trail rides out of the Keystone Ranch area on Soda Ridge Road, on the Dillon side of the resort. Strong ratings and quieter than the Breckenridge operation. Call ahead for the current season.",
+    url: null },
+  { name: "Golden Horseshoe Sleigh Rides", neighborhood: "Breckenridge", coords: { lat: 39.5117, lng: -106.0089 },
+    desc: "Out on Tiger Road in the Golden Horseshoe mining district. Sleigh rides are the winter draw here; ask about horse-drawn options in summer.",
+    url: null }
+];
+
+function showHorsebackRiding() {
+  const season = currentSeason();
+  if (season === 'winter') {
+    addMessage("Trail riding is a summer activity here. Breckenridge Stables runs May through mid-October, and switches to sleigh rides and dinner sleigh rides in winter.", 'bot');
+  } else if (season === 'shoulder') {
+    addMessage("Shoulder season, so call first. Breckenridge Stables runs May 1 to October 17 and the edges of that window can move with the weather.", 'bot');
+  } else {
+    addMessage("Horseback trail rides in Summit County.", 'bot');
+  }
+  showCuratedThenLive(CURATED_HORSEBACK, 'horseback riding stables trail rides', '', 'horseback riding');
+  setTimeout(() => {
+    addMessage('<div class="card"><div class="card-title">\ud83d\udc0e Before you book</div>'
+      + '<div class="card-desc"><strong>Reserve ahead.</strong> These are not walk-up activities, and summer weekends fill early.</div>'
+      + '<div class="card-desc"><strong>Closed toe shoes.</strong> No sandals. Dress for weather that can change fast at 10,000 feet.</div>'
+      + '<div class="card-desc"><strong>Storms stop rides.</strong> They operate in most conditions but not thunder and lightning, which build most July and August afternoons. Morning rides are the safer booking.</div>'
+      + '<div class="card-desc"><strong>Wranglers work for tips.</strong> Worth budgeting for.</div>'
       + '</div>', 'bot', true);
   }, 600);
 }
@@ -8889,10 +8932,16 @@ async function showAttractions() {
     if (a.url) html += `<a href="${a.url}" target="_blank">Learn more</a>`;
     const mapsUrl = match?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(a.name + ' Summit County CO')}`;
     html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
-    const tiqetsUrl = `https://www.tiqets.com/en/search?q=${encodeURIComponent(a.name + ' Summit County')}`;
-    const gygUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(a.name + ' Summit County')}`;
-    html += `<a href="${tiqetsUrl}" target="_blank" rel="noopener" style="background:#ff5722;color:#fff;">Book on Tiqets</a>`;
-    html += `<a href="${gygUrl}" target="_blank" rel="noopener" style="background:#ff8c00;color:#fff;">GetYourGuide tours</a>`;
+    // Every other GetYourGuide link in the app carries partner_id; this one did
+    // not, so all 38 attraction buttons were sending traffic and earning zero.
+    // GetYourGuide has no listing for most of these. Searching the attraction
+    // name returns a generic Colorado fallback: "Country Boy Mine" gave 402
+    // results and "Barney Ford House Museum" gave 401, the same broad list
+    // both times. Searching the TOWN returns genuinely relevant tours, and
+    // the label now says what the button actually does.
+    const gygTown = a.neighborhood || 'Summit County';
+    const gygUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(gygTown + ' Colorado')}&partner_id=${GETYOURGUIDE_PID}`;
+    html += `<a href="${gygUrl}" target="_blank" rel="noopener" style="background:#ff8c00;color:#fff;">Tours in ${gygTown}</a>`;
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
     html += `<a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft here</a>`;
     html += `</div>`;

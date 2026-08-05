@@ -28,6 +28,32 @@ function parseLatLng(rawLat, rawLng) {
   return (lat === null || lng === null) ? { lat: null, lng: null } : { lat, lng };
 }
 
+// Google's locationBias is a bias, not a restriction. For niche queries with
+// few local matches (sleigh rides, for one) it happily widens the net and
+// returns results from the Front Range. "Ken Caryl Sledding Hill" is in
+// Littleton, roughly 65 miles from Breckenridge, and it was showing up under
+// "More nearby" in the sleigh ride list.
+//
+// So restrict server-side. Anything beyond a sane day-trip radius of the
+// county is not what someone standing in Frisco means by "nearby".
+const SUMMIT_CENTER = { latitude: 39.5500, longitude: -106.0500 };
+const MAX_MILES_FROM_COUNTY = 35;
+
+// Places that are genuinely worth listing but sit just outside the county
+// line, so the radius alone would cut them.
+const ALLOWED_OUTSIDE = /loveland ski|arapahoe basin|a-basin|cataract|hanging lake|rifle falls|georgetown|idaho springs|kremmling|leadville|vail|minturn|red cliff/i;
+
+function withinSummitCounty(place) {
+  const addr = place.address || place.formattedAddress || '';
+  // Fast path: a Summit County town or ZIP in the address is proof enough.
+  if (/\b(breckenridge|frisco|dillon|silverthorne|keystone|copper mountain|blue river|montezuma|heeney)\b/i.test(addr)) return true;
+  if (/\b(80424|80443|80435|80498|80497)\b/.test(addr)) return true;
+  if (ALLOWED_OUTSIDE.test(addr) || ALLOWED_OUTSIDE.test(place.name || '')) return true;
+  const c = place.coords || place.location;
+  if (!c) return false; // no coordinates and no local address: drop it
+  return haversineMiles(SUMMIT_CENTER, c) <= MAX_MILES_FROM_COUNTY;
+}
+
 export default async function handler(req, res) {
   if (!process.env.GOOGLE_PLACES_KEY) {
     return res.status(503).json({ error: 'GOOGLE_PLACES_KEY not configured' });
@@ -95,15 +121,20 @@ export default async function handler(req, res) {
       website: p.websiteUri
     }));
 
+    // Drop anything Google returned from outside the county.
+    const localResults = results.filter(withinSummitCounty);
+    const dropped = results.length - localResults.length;
+    if (dropped) console.log(`[places_search] dropped ${dropped} out-of-county result(s) for "${q}"`);
+
     if (lat && lng) {
-      results.sort((a, b) => (a.distanceMiles ?? 9999) - (b.distanceMiles ?? 9999));
+      localResults.sort((a, b) => (a.distanceMiles ?? 9999) - (b.distanceMiles ?? 9999));
     }
 
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
     res.status(200).json({
       source: 'google',
       sortedBy: (lat && lng) ? 'distance' : 'relevance',
-      results
+      results: localResults
     });
   } catch (e) {
     console.error("[places_search] error", e); res.status(500).json({ error: "internal server error" });
