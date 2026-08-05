@@ -7594,136 +7594,154 @@ function showTours() {
     return `https://www.expedia.com/things-to-do/search?${params}`;
   }
 
+  // Expedia filters activities by date, so a summer search hides the winter
+  // catalogue and vice versa. Pass a window in the right season rather than
+  // letting it default to today.
+  function seasonDates(kind) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const inWinter = (m >= 10 || m <= 3);
+    if (kind === 'winter') {
+      const yr = inWinter ? y : y + (m > 3 ? 0 : 0);
+      return inWinter ? null : { start: `1/15/${yr + 1}`, end: `1/29/${yr + 1}` };
+    }
+    if (kind === 'summer') {
+      return inWinter ? { start: `7/15/${m >= 10 ? y + 1 : y}`, end: `7/29/${m >= 10 ? y + 1 : y}` } : null;
+    }
+    return null;
+  }
+  function expediaSeasonal(query, kind) {
+    let url = expediaActivitySearch(query);
+    const d = seasonDates(kind);
+    if (d) url += `&startDate=${encodeURIComponent(d.start)}&endDate=${encodeURIComponent(d.end)}`;
+    return url;
+  }
+
+  // Local operators, all verified against live Google Places with current
+  // ratings and real websites. These cover the categories no marketplace
+  // stocks for Summit County.
+  const OP = {
+    snowmobile:  { name: 'Summit Powersports', url: 'https://summitpowersportsrentals.com' },
+    dogsledA:    { name: 'Alpine Adventures', url: 'https://www.alpineadventuresdogsledding.com' },
+    dogsledB:    { name: 'Colorado Dog Sledding', url: 'https://coloradodogsledding.com' },
+    sleigh:      { name: 'Golden Horseshoe', url: 'https://www.coloradosleighrides.com' },
+    stables:     { name: 'Breckenridge Stables', url: 'https://breckstables.com/trail-rides/' },
+    raftPerf:    { name: 'Performance Tours', url: 'https://performancetours.com' },
+    raftBreck:   { name: 'Breckenridge Whitewater', url: 'https://www.breckenridgewhitewater.com' },
+    raftAva:     { name: 'AVA Rafting', url: 'https://www.coloradorafting.net' }
+  };
+
   const categories = [
     {
       title: '🌟 All Summit County tours',
-      desc: 'Browse every available tour, day trip, lift ticket, and experience.',
-      viator: viatorSearch('Breckenridge Colorado tours'),
-      gyg: gygSearch('breckenridge colorado'),
+      desc: 'Every guided tour, day trip and experience currently bookable in the county.',
       expedia: expediaActivitySearch('')
     },
     {
+      title: '🚵 Mountain biking and e-bike tours',
+      desc: 'Guided singletrack, e-bike tours of Breckenridge, and the Breck to Frisco recpath ride. One of the few categories the big marketplaces genuinely stock here.',
+      expedia: expediaSeasonal('Breckenridge mountain bike tour', 'summer'),
+      gyg: gygSearch('breckenridge mountain biking')
+    },
+    {
+      title: '🥾 Guided hikes and 14er ascents',
+      desc: 'Half-day scenic hikes, guided peak ascents, and Quandary Peak with a guide if you would rather not do your first fourteener alone.',
+      expedia: expediaSeasonal('Breckenridge guided hike peak ascent', 'summer')
+    },
+    {
+      title: '🍺 Brewery and distillery tours',
+      desc: 'Breckenridge Distillery is the big draw, and there is a fat-bike tour that strings together beer stops.',
+      expedia: expediaActivitySearch('Breckenridge brewery distillery tour'),
+      gyg: gygSearch('breckenridge brewery tour')
+    },
+    {
+      title: '👻 Ghost tours and history walks',
+      desc: 'Breckenridge has a real mining-camp history and two competing ghost tour outfits. Country Boy Mine runs a treasure hunt too.',
+      expedia: expediaActivitySearch('Breckenridge ghost tour history')
+    },
+    {
       title: '🛷 Snowmobile tours',
-      desc: 'Guided rides in the Swan River Valley, Vail Pass, and around Camp Hale. Half day and full day, gear included.',
-      viator: viatorSearch('Breckenridge snowmobile tour'),
-      gyg: gygSearch('colorado snowmobile tour breckenridge'),
-      expedia: expediaActivitySearch('Summit County snowmobile tour')
+      desc: 'Guided rides in the Swan River Valley, over Vail Pass and around Camp Hale. Half and full day, gear included.',
+      local: [OP.snowmobile],
+      localNote: 'No marketplace carries snowmobile tours here, so this books direct with the operator.'
     },
     {
       title: '🐕 Dog sledding',
-      desc: 'Mush a team through the woods outside Breckenridge. Popular with groups and kids, and it books out fast.',
-      viator: viatorSearch('Breckenridge dog sledding'),
-      gyg: gygSearch('colorado dog sledding'),
-      expedia: expediaActivitySearch('Summit County dog sledding')
+      desc: 'Real teams, real trails, and usually a chance to meet the dogs afterwards. Winter only and books out early over the holidays.',
+      local: [OP.dogsledA, OP.dogsledB],
+      localNote: 'Direct operators. GetYourGuide returns e-bike rentals for this search.'
     },
     {
       title: '🛻 Sleigh rides and dinner sleighs',
-      desc: 'Horse-drawn sleigh out to a heated tent or a backcountry cabin for dinner and live music.',
-      viator: viatorSearch('Breckenridge sleigh ride dinner'),
-      gyg: gygSearch('colorado sleigh ride dinner'),
-      expedia: expediaActivitySearch('Summit County sleigh ride')
+      desc: 'Horse-drawn sleigh out to a backcountry cabin, usually with dinner. The classic Breckenridge winter night out.',
+      local: [OP.sleigh, OP.stables],
+      localNote: 'Both are local operators. Breckenridge Stables switches from trail rides to sleighs in winter.'
     },
     {
-      title: '🎿 Lift tickets and ski lessons',
-      desc: 'Breckenridge, Keystone, Copper Mountain, and Arapahoe Basin. Always cheaper online than at the window.',
-      viator: viatorSearch('Colorado lift tickets ski lesson Breckenridge'),
-      gyg: gygSearch('breckenridge ski lesson'),
-      expedia: expediaActivitySearch('Breckenridge lift tickets')
+      title: '🚣 Whitewater rafting',
+      desc: 'Half-day floats on the Blue and Colorado, plus bigger water on Clear Creek and Browns Canyon. Peak flow is June into July.',
+      local: [OP.raftPerf, OP.raftBreck, OP.raftAva],
+      localNote: 'Rafting is sold direct here. Marketplace searches return trips near Colorado Springs, two hours away.'
     },
     {
-      title: '🥾 Snowshoe and Nordic tours',
-      desc: 'Guided snowshoe hikes and cross-country trips through the Tenmile Range and the Frisco Peninsula.',
-      viator: viatorSearch('Breckenridge snowshoe tour'),
-      gyg: gygSearch('colorado snowshoe tour'),
-      expedia: expediaActivitySearch('Summit County snowshoe tour')
+      title: '🎣 Fly fishing guides',
+      desc: 'The Blue River below Dillon Dam is Gold Medal water. Guides supply gear and know which stretch is fishing.',
+      expedia: expediaActivitySearch('Summit County Colorado fly fishing'),
+      localNote: 'Thin marketplace coverage. Tap Fishing on the main menu for local fly shops.'
     },
     {
-      title: '🏔️ Backcountry and avalanche courses',
-      desc: 'Guided backcountry skiing, ice climbing, and AIARE avalanche certification with local guide services.',
-      viator: viatorSearch('Colorado backcountry ski guide'),
-      gyg: gygSearch('colorado backcountry skiing guide'),
-      expedia: expediaActivitySearch('Summit County backcountry ski')
-    },
-    {
-      title: '🛶 Whitewater rafting',
-      desc: 'Summer trips on the Colorado, Blue, Arkansas, and Clear Creek. Mellow float trips through class IV.',
-      viator: viatorSearch('Colorado whitewater rafting Breckenridge'),
-      gyg: gygSearch('colorado whitewater rafting'),
-      expedia: expediaActivitySearch('Summit County whitewater rafting')
-    },
-    {
-      title: '🚵 Mountain biking and e-bike tours',
-      desc: 'Guided singletrack and lift-served downhill at Keystone Bike Park, plus mellow e-bike tours on the rec path.',
-      viator: viatorSearch('Breckenridge mountain bike tour'),
-      gyg: gygSearch('colorado mountain bike tour'),
-      expedia: expediaActivitySearch('Summit County mountain biking')
-    },
-    {
-      title: '🚙 Jeep and ATV tours',
-      desc: 'Old mining roads, alpine passes, and Camp Hale. Half-day trips that get you well above treeline.',
-      viator: viatorSearch('Breckenridge jeep tour'),
-      gyg: gygSearch('colorado jeep tour'),
-      expedia: expediaActivitySearch('Summit County jeep tour')
-    },
-    {
-      title: '⛏️ Gold mine tours and history walks',
-      desc: 'Country Boy Mine, the Breckenridge Historic District walking tour, and gold panning on the Blue River.',
-      viator: viatorSearch('Breckenridge gold mine tour'),
-      gyg: gygSearch('breckenridge historic walking tour'),
-      expedia: expediaActivitySearch('Breckenridge gold mine tour')
-    },
-    {
-      title: '🥃 Distillery, brewery, and winery tours',
-      desc: 'Breckenridge Distillery, Mythology, Continental Divide Winery, and the county brewery circuit with a driver.',
-      viator: viatorSearch('Breckenridge distillery brewery tour'),
-      gyg: gygSearch('colorado brewery distillery tour'),
-      expedia: expediaActivitySearch('Summit County brewery distillery tour')
-    },
-    {
-      title: '🎣 Guided fly fishing',
-      desc: 'Wade trips on the Blue River Gold Medal water and full-day floats on the Colorado. Gear and license help included.',
-      viator: viatorSearch('Colorado fly fishing guide Breckenridge'),
-      gyg: gygSearch('colorado fly fishing guided'),
-      expedia: expediaActivitySearch('Summit County fly fishing')
+      title: '❄️ Snowshoe, Nordic and backcountry',
+      desc: 'Guided snowshoe tours, backcountry ski touring and ice climbing near Breckenridge. Expedia stocks these, but only when you search winter dates.',
+      expedia: expediaSeasonal('Breckenridge snowshoe backcountry ski', 'winter')
     },
     {
       title: '🚐 Denver airport transfers',
-      desc: 'Shared shuttles and private transfers between DEN and Breckenridge, Keystone, Frisco, and Copper. About two hours each way.',
-      viator: viatorSearch('Denver airport to Breckenridge transfer'),
-      gyg: gygSearch('denver airport breckenridge transfer'),
-      expedia: expediaActivitySearch('Denver airport to Summit County transfer')
+      desc: 'Shared shuttle or private transfer for the roughly two hour drive from DEN. Book ahead on holiday weekends.',
+      expedia: expediaActivitySearch('Denver airport to Breckenridge transfer')
     },
     {
-      title: '♨️ Hot springs day trips',
-      desc: 'Indian Hot Springs in Idaho Springs, Hot Sulphur Springs, or the big Glenwood Springs pools. Easy recovery day.',
-      viator: viatorSearch('Colorado hot springs day trip from Denver'),
-      gyg: gygSearch('colorado hot springs day trip'),
-      expedia: expediaActivitySearch('Colorado hot springs')
-    },
-    {
-      title: '🏙️ Denver and Red Rocks day trip',
-      desc: 'Ninety minutes east on I-70. Red Rocks Amphitheatre, downtown Denver, and Coors Brewery in Golden.',
-      viator: viatorSearch('Red Rocks Denver tour'),
-      gyg: gygSearch('red rocks denver tour'),
-      expedia: expediaActivitySearch('Denver Red Rocks tour')
-    },
-    {
-      title: '🏔️ Rocky Mountain National Park day trip',
-      desc: 'About two hours north. Trail Ridge Road, Bear Lake, and elk in Estes Park. Timed-entry permits required in summer.',
-      viator: viatorSearch('Rocky Mountain National Park tour'),
-      gyg: gygSearch('rocky mountain national park tour'),
+      title: '🏔️ Rocky Mountain National Park day trips',
+      desc: 'Guided day trips over Trail Ridge Road. A long day from Summit County but a genuine bucket-list drive.',
       expedia: expediaActivitySearch('Rocky Mountain National Park tour')
     }
   ];
 
+  // Tested all three marketplaces against real Summit County searches.
+  //
+  // Expedia: every result genuinely local (Country Boy Mine, Breck ghost
+  //   tours, Silverthorne mountain biking, 14er ascents). Date-aware, so
+  //   winter searches surface snowshoe, backcountry ski and ice climbing.
+  //   Keeps our camref. This is the one worth sending people to.
+  // GetYourGuide: about six Breckenridge products total, and the same ones
+  //   come back for every query. "Dog sledding" returned e-bike rentals.
+  //   Only genuinely covers mountain biking and the fat-bike distillery tour.
+  // Viator: worse. Frisco returned Coors Field tickets and an alpaca
+  //   experience, Keystone a bowling lane, Silverthorne a Silverton jeep tour
+  //   and a float trip in the Canadian Rockies. It also strips our pid on
+  //   redirect, so it does not even track. Dropped.
+  //
+  // Some categories no marketplace carries at all here. Those are sold direct
+  // by local operators, so link the operator. A working link beats a
+  // commissionable one that sends people to bike rentals.
   paginateMessages(categories, c => {
-    return `<div class="card">
+    let html = `<div class="card">
       <div class="card-title">${c.title}</div>
-      <div class="card-desc">${c.desc}</div>
-      <a href="${c.viator}" target="_blank" rel="noopener" style="background:#328e3a;">Browse on Viator</a>
-      <a href="${c.gyg}" target="_blank" rel="noopener" style="background:#ff5533;">Browse on GetYourGuide</a>
-      <a href="${c.expedia}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;">Browse on Expedia</a>
-    </div>`;
+      <div class="card-desc">${c.desc}</div>`;
+    if (c.expedia) {
+      html += `<a href="${c.expedia}" target="_blank" rel="noopener" style="background:#FFC72C;color:#000;">Browse on Expedia</a>`;
+    }
+    if (c.gyg) {
+      html += `<a href="${c.gyg}" target="_blank" rel="noopener" style="background:#ff5533;">GetYourGuide</a>`;
+    }
+    (c.local || []).forEach(op => {
+      html += `<a href="${op.url}" target="_blank" rel="noopener" style="background:#d62828;color:#fff;">${op.name}</a>`;
+    });
+    if (c.localNote) {
+      html += `<div class="card-desc" style="font-size:12px;color:#777;margin-top:8px;">${c.localNote}</div>`;
+    }
+    html += `</div>`;
+    return html;
   });
 }
 
