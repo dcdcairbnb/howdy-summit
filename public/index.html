@@ -4474,7 +4474,11 @@ function renderCuratedCard(s, label, liveMatch) {
     if (approx && dist < 1) {
       distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
     } else {
-      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+      // Distance only means something once you are actually in the county.
+      // Planning from home, every card read "1068.5 mi (approx)", which is
+      // true and completely useless. Past 50 miles, show nothing and let the
+      // town name do the work.
+      distStr = dist > 50 ? '' : ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
     }
   }
   const ratingStr = liveMatch && liveMatch.rating ? `★ ${liveMatch.rating}` : '';
@@ -4956,7 +4960,11 @@ function showMainStreetBars() {
     if (approx && dist < 1) {
       distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
     } else {
-      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+      // Distance only means something once you are actually in the county.
+      // Planning from home, every card read "1068.5 mi (approx)", which is
+      // true and completely useless. Past 50 miles, show nothing and let the
+      // town name do the work.
+      distStr = dist > 50 ? '' : ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
     }
   }
     const star = renderSaveStar({ name: s.name, note: s.desc || s.neighborhood, address: s.neighborhood });
@@ -5458,6 +5466,33 @@ function showSkiResorts() {
       + '<div class="card-desc"><strong>Altitude.</strong> These bases sit near 10,000 feet and summits pass 13,000. Take your first day easy and drink more water than feels reasonable.</div>'
       + '</div>', 'bot', true);
   }, 600);
+}
+
+// How far something is from the user. Used by the trail picker and the ski
+// resort list; the curated lists compute their own distance inside
+// showCuratedThenLive.
+//
+// These were called before they were ever defined, which threw at runtime and
+// broke the ski resort list entirely. My verification only checked that the
+// string "proximityLabel" appeared in the page, which matched the call sites,
+// so the bug looked verified. Checking typeof in the live page caught it.
+function proximityMiles(item) {
+  if (!userLocation) return Infinity;
+  if (item.coords) return haversineMiles(userLocation, item.coords);
+  if (item.neighborhood) {
+    const nb = neighborhoodCoords(item.neighborhood);
+    if (nb) return haversineMiles(userLocation, nb);
+  }
+  return Infinity;
+}
+
+function proximityLabel(item) {
+  const d = proximityMiles(item);
+  if (!isFinite(d)) return '';
+  // Planning from out of state, every row read "1068 mi away", which is true
+  // and useless. Past 50 miles let the town name carry it instead.
+  if (d > 50) return '';
+  return d < 1 ? 'nearby' : `${d} mi away`;
 }
 
 // Horseback riding. Summer-season activity in Summit County, and one that
@@ -8244,7 +8279,11 @@ async function showFestivals() {
     if (approx && dist < 1) {
       distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
     } else {
-      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+      // Distance only means something once you are actually in the county.
+      // Planning from home, every card read "1068.5 mi (approx)", which is
+      // true and completely useless. Past 50 miles, show nothing and let the
+      // town name do the work.
+      distStr = dist > 50 ? '' : ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
     }
   }
     const star = renderSaveStar({ name: f.name, note: dateLabel, address: f.venue });
@@ -8839,7 +8878,11 @@ async function showEvents() {
     if (approx && dist < 1) {
       distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
     } else {
-      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+      // Distance only means something once you are actually in the county.
+      // Planning from home, every card read "1068.5 mi (approx)", which is
+      // true and completely useless. Past 50 miles, show nothing and let the
+      // town name do the work.
+      distStr = dist > 50 ? '' : ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
     }
   }
     let html = `<div class="card">
@@ -8918,7 +8961,11 @@ async function showAttractions() {
     if (approx && dist < 1) {
       distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
     } else {
-      distStr = ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
+      // Distance only means something once you are actually in the county.
+      // Planning from home, every card read "1068.5 mi (approx)", which is
+      // true and completely useless. Past 50 miles, show nothing and let the
+      // town name do the work.
+      distStr = dist > 50 ? '' : ` · 📍 ${dist} mi${approx ? ' (approx)' : ''}`;
     }
   }
     const ratingStr = match && match.rating ? ` · ★ ${match.rating}` : '';
