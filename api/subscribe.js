@@ -449,13 +449,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'POST only' });
   }
-  if (!process.env.RESEND_API_KEY) {
-    return res.status(503).json({ error: 'email service not configured' });
-  }
-  if (!process.env.POSTGRES_URL) {
-    return res.status(503).json({ error: 'database not configured' });
-  }
 
+  // Env guards used to sit here, ahead of body parsing, so every POST was
+  // rejected outright when either was missing. That made bug reports depend
+  // on a Postgres URL they never touch. The checks now happen after parsing,
+  // so an action can opt out of the ones it does not need. See report-issue.
   let body = req.body;
   if (typeof body === 'string') {
     // Cap body size at 100KB. Trip-summary payloads with expense lists are
@@ -467,6 +465,17 @@ export default async function handler(req, res) {
   }
   if (!body || typeof body !== 'object') {
     return res.status(400).json({ error: 'invalid body' });
+  }
+
+  // A bug report needs Resend but not Postgres, so it is checked separately
+  // below and skips this gate. Everything else here needs both.
+  if (body.action !== 'report-issue') {
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(503).json({ error: 'email service not configured' });
+    }
+    if (!process.env.POSTGRES_URL) {
+      return res.status(503).json({ error: 'database not configured' });
+    }
   }
 
   // Newsletter actions (admin only)
@@ -591,6 +600,15 @@ export default async function handler(req, res) {
     const validReplyTo = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(replyTo) ? replyTo : '';
     const pageUrl = String(body.url || '').slice(0, 500);
     const userAgent = String(req.headers['user-agent'] || '').slice(0, 300);
+
+    // No Resend key means no email is possible. Log the report to the Vercel
+    // function logs so it is not simply lost, and tell the client plainly so
+    // it can offer the mailto fallback instead of claiming success.
+    if (!process.env.RESEND_API_KEY) {
+      console.error('BUG REPORT (email not configured, logged only):',
+        JSON.stringify({ what, replyTo: validReplyTo, pageUrl, userAgent, ip: ipAddr }));
+      return res.status(503).json({ ok: false, error: 'email not configured, use the email link' });
+    }
 
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
