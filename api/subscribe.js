@@ -616,9 +616,17 @@ export default async function handler(req, res) {
       return res.status(503).json({ ok: false, error: 'email not configured, use the email link' });
     }
 
+    // The Resend SDK does NOT throw when the API rejects a send. It resolves
+    // with { data, error }. A try/catch alone therefore catches only network
+    // failures, and an API-level rejection (unverified sending domain being
+    // the common one) sails straight through and looks like success.
+    //
+    // That is precisely what happened here: the endpoint returned 200 and no
+    // mail was ever delivered. Check `error` explicitly, log the whole report
+    // when it fails so nothing is lost, and tell the client the truth.
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: FROM_EMAIL,
         to: ERROR_REPORTER_TO,
         ...(validReplyTo ? { reply_to: validReplyTo } : {}),
@@ -632,8 +640,18 @@ export default async function handler(req, res) {
           `IP: ${ipAddr}\n` +
           `Time: ${new Date().toISOString()}\n`
       });
+      if (error) {
+        console.error('BUG REPORT (Resend rejected, logged only):',
+          JSON.stringify({ resendError: error, what, replyTo: validReplyTo, pageUrl, ip: ipAddr }));
+        return res.status(502).json({
+          ok: false,
+          error: `could not send (${error.message || error.name || 'rejected'}), try the email link`
+        });
+      }
+      console.log('bug report sent, resend id', data && data.id);
     } catch (e) {
-      console.error('bug-report email failed', e.message);
+      console.error('BUG REPORT (network failure, logged only):',
+        JSON.stringify({ err: e.message, what, replyTo: validReplyTo, pageUrl, ip: ipAddr }));
       return res.status(502).json({ ok: false, error: 'could not send, try the email link' });
     }
     return res.status(200).json({ ok: true });
