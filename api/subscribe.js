@@ -566,6 +566,55 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // User-submitted bug report from the "Report issue" link in the footer.
+  //
+  // This used to be a bare `window.location.href = 'mailto:...'`, which does
+  // nothing at all on a browser with no mail handler registered: no error, no
+  // feedback, the click just dies. Most desktop Chrome installs are in that
+  // state. Reports now POST here instead, and the client keeps mailto only as
+  // an explicit fallback link the user can choose.
+  //
+  // Shares checkErrorRateLimit with log-error rather than adding another
+  // limiter. A person filing a genuine bug report will not hit it.
+  if (body.action === 'report-issue') {
+    const ipAddr = getClientIp(req);
+    if (!checkErrorRateLimit(ipAddr)) {
+      return res.status(429).json({ ok: false, error: 'too many reports, try again shortly' });
+    }
+    const what = String(body.what || '').trim().slice(0, 4000);
+    if (!what) {
+      return res.status(400).json({ ok: false, error: 'tell us what went wrong' });
+    }
+    // Reply-to is optional on purpose. Requiring an email would stop people
+    // reporting things, and an anonymous report still tells us what broke.
+    const replyTo = String(body.email || '').trim().slice(0, 200);
+    const validReplyTo = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(replyTo) ? replyTo : '';
+    const pageUrl = String(body.url || '').slice(0, 500);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 300);
+
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: ERROR_REPORTER_TO,
+        ...(validReplyTo ? { reply_to: validReplyTo } : {}),
+        subject: `Howdy Summit bug report: ${what.slice(0, 60).replace(/\s+/g, ' ')}`,
+        text: `Someone reported an issue on howdysummitcounty.com.\n\n` +
+          `${what}\n\n` +
+          `--- context ---\n` +
+          `Reply to: ${validReplyTo || '(not given)'}\n` +
+          `Page: ${pageUrl}\n` +
+          `Browser: ${userAgent}\n` +
+          `IP: ${ipAddr}\n` +
+          `Time: ${new Date().toISOString()}\n`
+      });
+    } catch (e) {
+      console.error('bug-report email failed', e.message);
+      return res.status(502).json({ ok: false, error: 'could not send, try the email link' });
+    }
+    return res.status(200).json({ ok: true });
+  }
+
   const ip = getClientIp(req);
   if (!checkRateLimit(ip)) {
     return res.status(429).json({ error: 'too many signups, try again later' });

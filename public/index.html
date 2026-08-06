@@ -877,6 +877,24 @@
     <button onclick="dismissLocationPrompt()" style="background:none;color:#666;border:none;padding:8px;cursor:pointer;font-size:14px;">Not right now</button>
   </div>
 </div>
+<div class="modal-overlay" id="reportIssueModal" onclick="if(event.target===this)closeReportIssue()" style="display:none;">
+  <div class="modal-box" style="max-width:460px;">
+    <button onclick="closeReportIssue()" aria-label="Close" style="position:absolute;top:12px;right:12px;background:#f0f0f0;border:none;width:36px;height:36px;border-radius:50%;font-size:22px;line-height:1;color:#666;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;">&times;</button>
+    <h2 style="margin-bottom:6px;">Report an issue</h2>
+    <p style="color:#555;margin-bottom:14px;font-size:14px;">Wrong hours? A place that closed? Something broken? Tell us and we will fix it.</p>
+
+    <label for="reportIssueText" style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">What went wrong</label>
+    <textarea id="reportIssueText" rows="5" placeholder="For example: the hours listed for Ollie's in Frisco are wrong, they close at 9 not 11." style="width:100%;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;outline:none;"></textarea>
+
+    <label for="reportIssueEmail" style="display:block;font-size:13px;font-weight:600;margin:12px 0 4px;">Your email <span style="font-weight:400;color:#888;">(optional, only so we can reply)</span></label>
+    <input id="reportIssueEmail" type="email" autocomplete="email" placeholder="you@example.com" style="width:100%;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;outline:none;">
+
+    <div id="reportIssueStatus" role="status" aria-live="polite" style="min-height:20px;font-size:13px;margin:10px 0 0;"></div>
+
+    <button id="reportIssueSend" onclick="submitReportIssue()" style="width:100%;background:#d62828;color:#fff;border:none;padding:12px;border-radius:24px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;">Send report</button>
+    <p style="font-size:12px;color:#888;text-align:center;margin-top:10px;">Prefer email? <a id="reportIssueMailto" href="mailto:howdy@howdysummitcounty.com?subject=Howdy%20Summit%20bug%20report" style="color:#d62828;">howdy@howdysummitcounty.com</a></p>
+  </div>
+</div>
 <div class="modal-overlay" id="disclaimerModal" onclick="if(event.target===this)closeDisclaimer()">
   <div class="modal-box">
     <button onclick="closeDisclaimer()" aria-label="Close" style="position:absolute;top:12px;right:12px;background:#f0f0f0;border:none;width:36px;height:36px;border-radius:50%;font-size:22px;line-height:1;color:#666;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;">&times;</button>
@@ -1906,21 +1924,103 @@ function renderSaveStar(spot) {
   return `<button class="save-btn" data-spot="${safePayload}" onclick="handleStarClick(this); return false;" style="background:none;border:none;cursor:pointer;font-size:18px;float:right;padding:0;color:${isSaved ? '#f59e0b' : '#999'};" aria-label="Save ${(spot.name || '').replace(/"/g, '&quot;')}">${isSaved ? '★' : '☆'}</button>`;
 }
 
+// Report an issue.
+//
+// This was a bare `window.location.href = 'mailto:...'`. That silently does
+// nothing on any browser without a mail handler registered, which is most
+// desktop Chrome installs: no error, no feedback, the click just dies. So
+// reports were being lost, and people had no way to tell.
+//
+// Now it opens a small form that POSTs to /api/subscribe with
+// action:'report-issue'. The mailto is still offered, but as a visible link
+// the user chooses, not as the only path.
 function reportIssue() {
-  const ua = encodeURIComponent(navigator.userAgent || 'unknown');
-  const url = encodeURIComponent(window.location.href);
-  const subject = encodeURIComponent('Howdy Summit bug report');
-  const body = encodeURIComponent(
-    `Tell me what went wrong. Be as specific as you can.\n\n` +
-    `What you were doing: \n\n` +
-    `What you expected: \n\n` +
-    `What actually happened: \n\n` +
-    `--- (do not edit below) ---\n` +
-    `URL: ${decodeURIComponent(url)}\n` +
-    `Browser: ${decodeURIComponent(ua)}\n` +
-    `Time: ${new Date().toISOString()}`
-  );
-  window.location.href = `mailto:howdy@howdysummitcounty.com?subject=${subject}&body=${body}`;
+  const modal = document.getElementById('reportIssueModal');
+  if (!modal) {
+    // Modal markup missing for some reason. Better a working mailto than nothing.
+    window.location.href = 'mailto:howdy@howdysummitcounty.com?subject=Howdy%20Summit%20bug%20report';
+    return;
+  }
+  const status = document.getElementById('reportIssueStatus');
+  const sendBtn = document.getElementById('reportIssueSend');
+  if (status) { status.textContent = ''; status.style.color = ''; }
+  if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send report'; sendBtn.style.opacity = '1'; }
+
+  // Prefill the mailto fallback with the same context the form sends, so
+  // someone who takes that route does not have to describe their setup.
+  const mailLink = document.getElementById('reportIssueMailto');
+  if (mailLink) {
+    const subject = encodeURIComponent('Howdy Summit bug report');
+    const body = encodeURIComponent(
+      `What went wrong:\n\n\n` +
+      `--- (do not edit below) ---\n` +
+      `Page: ${window.location.href}\n` +
+      `Browser: ${navigator.userAgent || 'unknown'}\n` +
+      `Time: ${new Date().toISOString()}`
+    );
+    mailLink.href = `mailto:howdy@howdysummitcounty.com?subject=${subject}&body=${body}`;
+  }
+
+  modal.style.display = 'flex';
+  // Do not autofocus on touch devices: the keyboard springing up covers the
+  // form and, in the Capacitor shell, shifts tap coordinates.
+  try {
+    if (!window.matchMedia('(pointer: coarse)').matches) {
+      const ta = document.getElementById('reportIssueText');
+      if (ta) ta.focus();
+    }
+  } catch (e) {}
+}
+
+function closeReportIssue() {
+  const modal = document.getElementById('reportIssueModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitReportIssue() {
+  const ta = document.getElementById('reportIssueText');
+  const emailEl = document.getElementById('reportIssueEmail');
+  const status = document.getElementById('reportIssueStatus');
+  const sendBtn = document.getElementById('reportIssueSend');
+  const what = (ta && ta.value || '').trim();
+
+  if (!what) {
+    if (status) { status.style.color = '#d62828'; status.textContent = 'Tell us what went wrong first.'; }
+    if (ta) ta.focus();
+    return;
+  }
+
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; sendBtn.style.opacity = '0.7'; }
+  if (status) { status.style.color = '#666'; status.textContent = ''; }
+
+  try {
+    const r = await fetch(`${API_BASE}/api/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'report-issue',
+        what: what,
+        email: (emailEl && emailEl.value || '').trim(),
+        url: window.location.href
+      })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.ok) {
+      if (status) { status.style.color = '#15803d'; status.textContent = 'Thanks. Report sent.'; }
+      if (ta) ta.value = '';
+      if (emailEl) emailEl.value = '';
+      if (sendBtn) { sendBtn.textContent = 'Sent'; }
+      setTimeout(closeReportIssue, 1400);
+      return;
+    }
+    throw new Error(data.error || `server returned ${r.status}`);
+  } catch (e) {
+    if (status) {
+      status.style.color = '#d62828';
+      status.textContent = 'Could not send. Use the email link below and we will still get it.';
+    }
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Try again'; sendBtn.style.opacity = '1'; }
+  }
 }
 
 function handleStarClick(btn) {
