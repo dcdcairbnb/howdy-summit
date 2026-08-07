@@ -20,4 +20,4 @@ Disallow: /preview.html
 Disallow: /uploads/
 
 # Sitemap location for fast discovery
-Sitemap: https://howdysummitcounty.com/sitemap.xml
+Sitemap: https://www.howdysummitcounty.com/sitemap.xml
