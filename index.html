@@ -2977,7 +2977,10 @@ function routeIntent(text) {
     'i-70', 'i70', 'is i 70', 'interstate 70', 'eisenhower tunnel',
     'loveland pass', 'vail pass', 'fremont pass',
     'chain law', 'traction law', 'cdot', 'cotrip', 'pass closed', 'highway closed'
-  ])) {
+  // The conditional main-menu pill is generated text ("🚧 I-70 CLOSED",
+  // "🚧 I-70 & CO-9 CLOSED"), so match the shape rather than listing every
+  // possible route combination.
+  ]) || /closed\b/.test(lower) && /🚧|i-?70|co-?9|loveland|fremont/.test(lower)) {
     showRoadConditions();
     return;
   }
@@ -3311,6 +3314,22 @@ function showMainMenu() {
   // Conditional holiday pill. Surfaces only the week of each holiday.
   const holiday = getActiveHoliday();
   if (holiday) replies.unshift(`${holiday.emoji} ${holiday.label}`);
+
+  // Conditional roads pill, same idea as the holiday one. Only appears while
+  // something is actually shut, so the main menu stays uncluttered the rest of
+  // the time. This is the way back if the banner was dismissed: it sits at the
+  // top of the main menu rather than two taps deep under Stay & Get Around,
+  // and it names the road so the pill itself carries the information.
+  if (cachedRoadData) {
+    const shut = (cachedRoadData.items || []).filter(i => i.severity === 'closed');
+    const chainLaw = (cachedRoadData.items || []).filter(i => i.severity === 'chains');
+    if (shut.length) {
+      const routes = [...new Set(shut.map(i => i.route))].join(' & ');
+      replies.unshift(`🚧 ${routes} CLOSED`);
+    } else if (chainLaw.length) {
+      replies.unshift('⛓️ Chain law in effect');
+    }
+  }
   addQuickReplies(replies);
 }
 
@@ -9994,7 +10013,20 @@ async function maybeShowRoadAlertBanner() {
     const worst = closures[0] || chains[0];
     const isClosure = !!closures.length;
     const dismissedKey = 'road-alert-dismissed-' + (worst.route || '') + (worst.startMile || '') + (worst.type || '');
-    if (sessionStorage.getItem(dismissedKey)) return;
+
+    // Dismissal expires after 30 minutes rather than lasting the whole session.
+    //
+    // A session-long dismissal means someone who swipes the banner away at
+    // breakfast never hears about the same closure again, even if the tunnel
+    // is still shut when they set off at five. For a safety alert that is the
+    // wrong default. Re-surfacing every half hour is a nudge, not a nag, and
+    // the alert still disappears the moment CDOT reopens the road.
+    const DISMISS_MINUTES = 30;
+    try {
+      const until = Number(sessionStorage.getItem(dismissedKey) || 0);
+      if (until && Date.now() < until) return;
+    } catch (e) { /* private browsing: just show it */ }
+    const dismissUntil = Date.now() + DISMISS_MINUTES * 60 * 1000;
 
     let banner = document.getElementById('roadAlertBanner');
     if (!banner) {
@@ -10029,7 +10061,7 @@ async function maybeShowRoadAlertBanner() {
         <div style="font-size:12px;font-weight:500;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${detail}</div>
       </div>
       <button onclick="event.stopPropagation(); showRoadConditions(); return false;" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;cursor:pointer;">Details</button>
-      <button onclick="event.stopPropagation(); sessionStorage.setItem('${dismissedKey}','1'); document.getElementById('roadAlertBanner').remove(); return false;" aria-label="Dismiss" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
+      <button onclick="event.stopPropagation(); try{sessionStorage.setItem('${dismissedKey}','${dismissUntil}');}catch(e){} document.getElementById('roadAlertBanner').remove(); document.body.style.paddingTop=(document.getElementById('weatherAlertBanner')?document.getElementById('weatherAlertBanner').offsetHeight+'px':''); return false;" aria-label="Dismiss for 30 minutes" title="Hide for 30 minutes" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
     `;
     banner.onclick = (e) => { if (e.target.closest('button')) return; showRoadConditions(); };
   } catch (e) {
