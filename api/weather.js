@@ -29,7 +29,164 @@ async function fetchAlerts(lat, lng) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// CDOT road conditions
+//
+// Lives in weather.js rather than api/roads.js on purpose. Vercel's Hobby plan
+// caps a project at 12 serverless functions and this project sits at exactly
+// 12, so a new file under api/ breaks the deploy outright. Road conditions are
+// the closest sibling to weather anyway: both answer "what is it like out
+// there right now".
+//
+// Reached at /api/weather?feed=roads
+// ---------------------------------------------------------------------------
+
+// Roads worth surfacing for Summit County. I-70 is the artery: close the
+// Eisenhower Tunnel and the county is effectively cut off from Denver. CO-9
+// links Frisco to Breckenridge and south to Fairplay. US-6 over Loveland Pass
+// matters because it is the detour when the tunnel shuts, and CO-91 over
+// Fremont Pass is the route to Leadville.
+const WATCHED_ROUTES = [
+  { match: /\bi[-\s]?70\b/i,            label: 'I-70',            primary: true },
+  { match: /\b(co|sh|hwy)[-\s]?9\b/i,   label: 'CO-9',            primary: true },
+  { match: /\bus[-\s]?6\b/i,            label: 'US-6 Loveland Pass', primary: false },
+  { match: /\b(co|sh|hwy)[-\s]?91\b/i,  label: 'CO-91 Fremont Pass', primary: false }
+];
+
+// Only the mountain corridor, not the whole 450 miles of I-70 across Colorado.
+// A closure in Kansas-adjacent Burlington is not a Summit County problem.
+// Mile markers: Floyd Hill ~247, Glenwood Springs ~116.
+const I70_MIN_MILE = 110;
+const I70_MAX_MILE = 260;
+
+function pickRoute(text) {
+  if (!text) return null;
+  for (const r of WATCHED_ROUTES) if (r.match.test(text)) return r;
+  return null;
+}
+
+// CDOT has shipped several response shapes over the years and the docs sit
+// behind a JavaScript wall, so read defensively: try the documented GeoJSON
+// FeatureCollection first, then a bare array, then a wrapped list.
+function extractFeatures(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.features)) return payload.features;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.items)) return payload.items;
+  return [];
+}
+
+function normalise(feature) {
+  const p = feature.properties || feature.attributes || feature || {};
+  const text = [
+    p.routeName, p.route, p.roadName, p.roadwayName,
+    p.travelerInformationMessage, p.description, p.headline, p.name
+  ].filter(Boolean).join(' ');
+
+  const route = pickRoute(text);
+  if (!route) return null;
+
+  const message = String(
+    p.travelerInformationMessage || p.description || p.headline || p.name || ''
+  ).trim();
+
+  const startMile = Number(p.startMarker ?? p.startMilepost ?? p.mileMarker ?? NaN);
+  if (route.label === 'I-70' && Number.isFinite(startMile)) {
+    if (startMile < I70_MIN_MILE || startMile > I70_MAX_MILE) return null;
+  }
+
+  const blob = `${message} ${p.type || ''} ${p.eventType || ''} ${p.impact || ''}`.toLowerCase();
+  const closed = /\bclosed\b|\bclosure\b|\bfull closure\b/.test(blob) && !/ramp closed/.test(blob);
+  const chains = /chain law|traction law|chains required|code \d/.test(blob);
+
+  return {
+    route: route.label,
+    primary: route.primary,
+    severity: closed ? 'closed' : chains ? 'chains' : 'info',
+    message: message.slice(0, 400),
+    direction: p.direction || p.directionOfTravel || '',
+    startMile: Number.isFinite(startMile) ? startMile : null,
+    type: p.type || p.eventType || '',
+    lastUpdated: p.lastUpdated || p.updated || p.modified || null
+  };
+}
+
+async function fetchCdot(path, key) {
+  const url = `https://data.cotrip.org/api/v1/${path}?apiKey=${encodeURIComponent(key)}`;
+  const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+  if (!r.ok) throw new Error(`${path} returned ${r.status}`);
+  return r.json();
+}
+
+async function roadConditions(req, res) {
+  const key = process.env.CDOT_API_KEY;
+  if (!key) {
+    return res.status(503).json({
+      ok: false,
+      error: 'CDOT_API_KEY not configured',
+      hint: 'Register free at https://manage-api.cotrip.org/ and add CDOT_API_KEY in Vercel.'
+    });
+  }
+
+  const debug = req.query.debug === '1';
+
+  try {
+    // Settled promises, not Promise.all: if one feed is down we still want the
+    // other. A partial answer beats a blank screen when I-70 is shut.
+    const [incidentsR, conditionsR] = await Promise.allSettled([
+      fetchCdot('incidents', key),
+      fetchCdot('roadConditions', key)
+    ]);
+
+    const raw = [];
+    const feedErrors = [];
+    for (const [name, r] of [['incidents', incidentsR], ['roadConditions', conditionsR]]) {
+      if (r.status === 'fulfilled') raw.push(...extractFeatures(r.value));
+      else feedErrors.push(`${name}: ${r.reason?.message || 'failed'}`);
+    }
+
+    if (!raw.length && feedErrors.length) {
+      console.error('[roads] both CDOT feeds failed:', feedErrors.join('; '));
+      return res.status(502).json({ ok: false, error: 'CDOT unavailable', feedErrors });
+    }
+
+    const items = raw.map(normalise).filter(Boolean);
+    const rank = { closed: 0, chains: 1, info: 2 };
+    items.sort((a, b) =>
+      (rank[a.severity] - rank[b.severity]) || (b.primary - a.primary)
+    );
+
+    const closures = items.filter(i => i.severity === 'closed');
+    const chainLaws = items.filter(i => i.severity === 'chains');
+    const i70Closed = closures.some(i => i.route === 'I-70');
+
+    res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
+    return res.status(200).json({
+      ok: true,
+      source: 'CDOT COtrip',
+      checkedAt: new Date().toISOString(),
+      i70Closed,
+      alert: i70Closed
+        ? 'I-70 is closed in the mountain corridor'
+        : chainLaws.length ? 'Chain or traction law in effect' : null,
+      counts: { closures: closures.length, chainLaws: chainLaws.length, total: items.length },
+      items: items.slice(0, 25),
+      feedErrors: feedErrors.length ? feedErrors : undefined,
+      // debug=1 returns untouched CDOT objects so the parser can be checked
+      // against reality instead of against an assumption about the schema.
+      debugRaw: debug ? raw.slice(0, 3) : undefined,
+      debugRawCount: debug ? raw.length : undefined
+    });
+  } catch (e) {
+    console.error('[roads] error', e);
+    return res.status(500).json({ ok: false, error: 'internal server error' });
+  }
+}
+
 export default async function handler(req, res) {
+  if (req.query.feed === 'roads') return roadConditions(req, res);
+
   const { lat = 39.5744, lng = -106.0975 } = req.query;
 
   try {
