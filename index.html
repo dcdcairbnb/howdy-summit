@@ -2968,6 +2968,20 @@ function routeIntent(text) {
   }
 
 
+  // Roads must be tested before the gas-station branch. "is i70 open" contains
+  // no gas keywords, but keeping road matching high in the router means a
+  // closure question never falls through to something less useful. Deliberately
+  // narrow triggers so ordinary travel chat does not hijack it.
+  if (matches(lower, [
+    'road condition', 'road closure', 'roads closed', 'road closed',
+    'i-70', 'i70', 'is i 70', 'interstate 70', 'eisenhower tunnel',
+    'loveland pass', 'vail pass', 'fremont pass',
+    'chain law', 'traction law', 'cdot', 'cotrip', 'pass closed', 'highway closed'
+  ])) {
+    showRoadConditions();
+    return;
+  }
+
   if (matches(lower, ['gas station', 'gas', 'fuel', 'fill up'])) {
     showGasStations();
     return;
@@ -4325,6 +4339,7 @@ function showGetAroundMenu(skipPush) {
   if (!skipPush) pushMenu('around');
   addMessage("Where are you headed?", 'bot');
   addQuickReplies([
+    '🚧 Road conditions',
     'Hotels nearby',
     'Vacation rentals',
     'Get a ride',
@@ -9816,6 +9831,12 @@ setTimeout(() => {
   setTimeout(() => maybeShowWeatherAlertBanner(), 1200);
   // Refresh alerts every 5 minutes while the page is open.
   setInterval(() => maybeShowWeatherAlertBanner(), 5 * 60 * 1000);
+  // CDOT road closures. Fires slightly after the weather banner so it can
+  // measure that banner's height and stack beneath it rather than overlap.
+  // Refreshed more often than weather: a tunnel closure changes on the scale
+  // of minutes and people check right before setting off.
+  setTimeout(() => maybeShowRoadAlertBanner(), 1800);
+  setInterval(() => maybeShowRoadAlertBanner(), 3 * 60 * 1000);
   // Auto-resume group share session if one is active.
   setTimeout(() => maybeResumeGroupSession(), 800);
 }, 300);
@@ -9928,6 +9949,142 @@ async function maybeShowWeatherAlertBanner() {
   } catch (e) {
     // Silent fail. No alert shown.
   }
+}
+
+// ---------------------------------------------------------------------------
+// Road conditions (CDOT via /api/weather?feed=roads)
+//
+// I-70 is the artery. Close the Eisenhower Tunnel and Summit County is cut off
+// from Denver, so a closure is the single most disruptive thing that can
+// happen to someone's day here. It gets a banner, not just a menu item.
+//
+// Stacks below the weather banner rather than fighting it for the top slot:
+// both can legitimately be active at once, and usually are, since the thing
+// that closes I-70 is generally the same storm the NWS is warning about.
+// ---------------------------------------------------------------------------
+
+let cachedRoadData = null;
+
+async function fetchRoadConditions() {
+  const r = await fetch(`${API_BASE}/api/weather?feed=roads`, { signal: AbortSignal.timeout(9000) });
+  if (!r.ok) throw new Error(`roads ${r.status}`);
+  const data = await r.json();
+  if (!data.ok) throw new Error(data.error || 'roads unavailable');
+  cachedRoadData = data;
+  return data;
+}
+
+// CDOT returns housekeeping rows with no traveler message, things like
+// "MEXL Open" (express lane status). Useful to CDOT, noise to a visitor.
+function meaningfulRoadItems(items) {
+  return (items || []).filter(i => i.severity !== 'info' || (i.message || '').trim().length > 20);
+}
+
+async function maybeShowRoadAlertBanner() {
+  try {
+    const data = await fetchRoadConditions();
+    const closures = (data.items || []).filter(i => i.severity === 'closed');
+    const chains = (data.items || []).filter(i => i.severity === 'chains');
+    if (!closures.length && !chains.length) {
+      const existing = document.getElementById('roadAlertBanner');
+      if (existing) existing.remove();
+      return;
+    }
+
+    const worst = closures[0] || chains[0];
+    const isClosure = !!closures.length;
+    const dismissedKey = 'road-alert-dismissed-' + (worst.route || '') + (worst.startMile || '') + (worst.type || '');
+    if (sessionStorage.getItem(dismissedKey)) return;
+
+    let banner = document.getElementById('roadAlertBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'roadAlertBanner';
+      banner.style.cssText = 'position:fixed;left:0;right:0;z-index:9998;display:flex;align-items:center;gap:10px;padding:12px 14px;color:#fff;font-size:14px;font-weight:600;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,0.18);cursor:pointer;';
+      document.body.appendChild(banner);
+    }
+    banner.style.background = isClosure ? '#a4161a' : '#b45309';
+
+    // Sit directly under the weather banner if one is showing, otherwise at the
+    // top with the notch inset applied here instead.
+    const wx = document.getElementById('weatherAlertBanner');
+    requestAnimationFrame(() => {
+      const wxH = wx ? wx.offsetHeight : 0;
+      banner.style.top = wxH + 'px';
+      if (!wx) banner.style.paddingTop = 'calc(12px + env(safe-area-inset-top, 0px))';
+      const total = wxH + (banner.offsetHeight || 48);
+      document.body.style.paddingTop = total + 'px';
+    });
+
+    const routes = [...new Set(closures.map(c => c.route))].join(', ');
+    const headline = isClosure
+      ? `${routes} closed`
+      : 'Chain or traction law in effect';
+    const detail = (worst.message || '').slice(0, 120).replace(/</g, '&lt;');
+
+    banner.innerHTML = `
+      <span style="font-size:18px;line-height:1;">🚧</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;">${headline.replace(/</g, '&lt;')}</div>
+        <div style="font-size:12px;font-weight:500;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${detail}</div>
+      </div>
+      <button onclick="event.stopPropagation(); showRoadConditions(); return false;" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;cursor:pointer;">Details</button>
+      <button onclick="event.stopPropagation(); sessionStorage.setItem('${dismissedKey}','1'); document.getElementById('roadAlertBanner').remove(); return false;" aria-label="Dismiss" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
+    `;
+    banner.onclick = (e) => { if (e.target.closest('button')) return; showRoadConditions(); };
+  } catch (e) {
+    // Silent. A road banner that cannot load should never block the app.
+  }
+}
+
+async function showRoadConditions() {
+  addMessage('🚧 Checking CDOT road conditions...', 'bot');
+  let data;
+  try {
+    data = cachedRoadData || await fetchRoadConditions();
+  } catch (e) {
+    addMessage(
+      `Could not reach CDOT just now. Check <a href="https://maps.cotrip.org/" target="_blank" rel="noopener">COtrip.org</a> or call 511.`,
+      'bot'
+    );
+    return;
+  }
+
+  const items = meaningfulRoadItems(data.items);
+  const closures = items.filter(i => i.severity === 'closed');
+  const chains = items.filter(i => i.severity === 'chains');
+  const other = items.filter(i => i.severity === 'info');
+
+  if (!closures.length && !chains.length) {
+    addMessage('✅ No closures or chain laws on I-70, CO-9, Loveland Pass or Fremont Pass right now.', 'bot');
+  }
+
+  const block = (title, list, color) => {
+    if (!list.length) return '';
+    const rows = list.slice(0, 8).map(i => {
+      const where = i.startMile != null
+        ? `MM ${i.startMile}${i.endMile != null && i.endMile !== i.startMile ? `–${i.endMile}` : ''}`
+        : '';
+      const dir = i.direction ? ` ${i.direction}bound` : '';
+      const msg = (i.message || i.type || '').slice(0, 220).replace(/</g, '&lt;');
+      return `<div style="padding:8px 0;border-bottom:1px solid #eee;">
+        <div style="font-weight:700;color:${color};">${i.route}${dir} ${where}</div>
+        <div style="font-size:13px;color:#444;margin-top:2px;">${msg}</div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-top:10px;"><div style="font-weight:700;margin-bottom:2px;">${title}</div>${rows}</div>`;
+  };
+
+  const html = `
+    ${block('🛑 Closures', closures, '#a4161a')}
+    ${block('⛓️ Chain / traction laws', chains, '#b45309')}
+    ${block('ℹ️ Other activity', other, '#555')}
+    <div style="margin-top:12px;font-size:12px;color:#888;">
+      Source: CDOT COtrip, checked ${new Date(data.checkedAt).toLocaleTimeString()}.
+      Conditions change fast up here, confirm at
+      <a href="https://maps.cotrip.org/" target="_blank" rel="noopener">COtrip.org</a> or call 511 before driving.
+    </div>`;
+  addMessage(html, 'bot');
 }
 
 // Open the weather details panel (called by banner clicks). Keeps the banner pinned.
