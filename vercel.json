@@ -21,6 +21,10 @@
     {
       "source": "/support",
       "destination": "/support.html"
+    },
+    {
+      "source": "/denver-to-breckenridge",
+      "destination": "/denver-to-breckenridge.html"
     }
   ],
   "headers": [
