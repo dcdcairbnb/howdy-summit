@@ -2980,7 +2980,8 @@ function routeIntent(text) {
   // The conditional main-menu pill is generated text ("🚧 I-70 CLOSED",
   // "🚧 I-70 & CO-9 CLOSED"), so match the shape rather than listing every
   // possible route combination.
-  ]) || /closed\b/.test(lower) && /🚧|i-?70|co-?9|loveland|fremont/.test(lower)) {
+  ]) || lower.trim() === 'roads' || lower.includes('🚧') || lower.includes('⛓')
+     || (/closed\b/.test(lower) && /i-?70|co-?9|loveland|fremont/.test(lower))) {
     showRoadConditions();
     return;
   }
@@ -3315,21 +3316,28 @@ function showMainMenu() {
   const holiday = getActiveHoliday();
   if (holiday) replies.unshift(`${holiday.emoji} ${holiday.label}`);
 
-  // Conditional roads pill, same idea as the holiday one. Only appears while
-  // something is actually shut, so the main menu stays uncluttered the rest of
-  // the time. This is the way back if the banner was dismissed: it sits at the
-  // top of the main menu rather than two taps deep under Stay & Get Around,
-  // and it names the road so the pill itself carries the information.
+  // Roads pill. ALWAYS present, never conditional.
+  //
+  // The first version only added this when cachedRoadData showed a closure,
+  // which failed in the exact situation it existed for: the main menu renders
+  // immediately on load but the CDOT fetch does not land until ~1.8s later, so
+  // the pill was missing from the menu the user was actually looking at. If
+  // they had also dismissed the banner, there was no visible way back at all.
+  //
+  // A permanent entry costs one pill and removes every timing dependency. The
+  // label still upgrades itself once data arrives, so it doubles as an
+  // at-a-glance status: you can see I-70 is shut without tapping anything.
+  let roadLabel = '🚧 Roads';
   if (cachedRoadData) {
     const shut = (cachedRoadData.items || []).filter(i => i.severity === 'closed');
     const chainLaw = (cachedRoadData.items || []).filter(i => i.severity === 'chains');
     if (shut.length) {
-      const routes = [...new Set(shut.map(i => i.route))].join(' & ');
-      replies.unshift(`🚧 ${routes} CLOSED`);
+      roadLabel = `🚧 ${[...new Set(shut.map(i => i.route))].join(' & ')} CLOSED`;
     } else if (chainLaw.length) {
-      replies.unshift('⛓️ Chain law in effect');
+      roadLabel = '⛓️ Chain law';
     }
   }
+  replies.unshift(roadLabel);
   addQuickReplies(replies);
 }
 
@@ -9989,8 +9997,35 @@ async function fetchRoadConditions() {
   if (!r.ok) throw new Error(`roads ${r.status}`);
   const data = await r.json();
   if (!data.ok) throw new Error(data.error || 'roads unavailable');
+  const hadData = !!cachedRoadData;
   cachedRoadData = data;
+  // The main menu is drawn before this fetch resolves, so on first load its
+  // roads pill says the generic "Roads". Once real data lands, upgrade the
+  // label in place to "I-70 CLOSED" rather than making the user navigate away
+  // and back to see it.
+  if (!hadData) refreshRoadPillLabel();
   return data;
+}
+
+// Rewrites the roads pill text in whatever menu is currently on screen.
+// Deliberately a text swap rather than a menu re-render: re-rendering would
+// wipe the conversation the user is reading.
+function refreshRoadPillLabel() {
+  try {
+    if (!cachedRoadData) return;
+    const shut = (cachedRoadData.items || []).filter(i => i.severity === 'closed');
+    const chainLaw = (cachedRoadData.items || []).filter(i => i.severity === 'chains');
+    let label = '🚧 Roads';
+    if (shut.length) label = `🚧 ${[...new Set(shut.map(i => i.route))].join(' & ')} CLOSED`;
+    else if (chainLaw.length) label = '⛓️ Chain law';
+
+    document.querySelectorAll('.quick-reply, .quick-replies button, button').forEach(el => {
+      const t = (el.textContent || '').trim();
+      if (t === '🚧 Roads' || /^🚧 .*CLOSED$/.test(t) || t === '⛓️ Chain law') {
+        if (t !== label) el.textContent = label;
+      }
+    });
+  } catch (e) { /* cosmetic only */ }
 }
 
 // CDOT returns housekeeping rows with no traveler message, things like
