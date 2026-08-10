@@ -10043,9 +10043,11 @@ async function showRoadConditions() {
   try {
     data = cachedRoadData || await fetchRoadConditions();
   } catch (e) {
+    // Third arg true: addMessage defaults to textContent, so rich replies must
+    // opt in to innerHTML explicitly.
     addMessage(
       `Could not reach CDOT just now. Check <a href="https://maps.cotrip.org/" target="_blank" rel="noopener">COtrip.org</a> or call 511.`,
-      'bot'
+      'bot', true
     );
     return;
   }
@@ -10084,7 +10086,7 @@ async function showRoadConditions() {
       Conditions change fast up here, confirm at
       <a href="https://maps.cotrip.org/" target="_blank" rel="noopener">COtrip.org</a> or call 511 before driving.
     </div>`;
-  addMessage(html, 'bot');
+  addMessage(html, 'bot', true);
 }
 
 // Open the weather details panel (called by banner clicks). Keeps the banner pinned.
