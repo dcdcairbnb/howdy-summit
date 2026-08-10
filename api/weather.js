@@ -46,11 +46,20 @@ async function fetchAlerts(lat, lng) {
 // links Frisco to Breckenridge and south to Fairplay. US-6 over Loveland Pass
 // matters because it is the detour when the tunnel shuts, and CO-91 over
 // Fremont Pass is the route to Leadville.
+// Matched against CDOT's `routeName` field ONLY, never the message text.
+//
+// routeName looks like "I-70W", "US-50E", "CO-9N": route plus an optional
+// single-letter direction. Anchoring both ends matters. "CO-9" unanchored also
+// matches "CO-91", and matching against the message text is what produced the
+// first version's bug: two I-70 closures were labelled CO-9 because their
+// traveler messages named "CO 9 (Silverthorne)" as a landmark. The result was
+// i70Closed:false while I-70 was actually shut, which is the worst possible
+// way for this feature to fail.
 const WATCHED_ROUTES = [
-  { match: /\bi[-\s]?70\b/i,            label: 'I-70',            primary: true },
-  { match: /\b(co|sh|hwy)[-\s]?9\b/i,   label: 'CO-9',            primary: true },
-  { match: /\bus[-\s]?6\b/i,            label: 'US-6 Loveland Pass', primary: false },
-  { match: /\b(co|sh|hwy)[-\s]?91\b/i,  label: 'CO-91 Fremont Pass', primary: false }
+  { match: /^I-70[NSEW]?$/i,  label: 'I-70',               primary: true },
+  { match: /^CO-9[NSEW]?$/i,  label: 'CO-9',               primary: true },
+  { match: /^US-6[NSEW]?$/i,  label: 'US-6 Loveland Pass', primary: true },
+  { match: /^CO-91[NSEW]?$/i, label: 'CO-91 Fremont Pass', primary: false }
 ];
 
 // Only the mountain corridor, not the whole 450 miles of I-70 across Colorado.
@@ -79,36 +88,44 @@ function extractFeatures(payload) {
 
 function normalise(feature) {
   const p = feature.properties || feature.attributes || feature || {};
-  const text = [
-    p.routeName, p.route, p.roadName, p.roadwayName,
-    p.travelerInformationMessage, p.description, p.headline, p.name
-  ].filter(Boolean).join(' ');
 
-  const route = pickRoute(text);
+  // routeName only. See the comment on WATCHED_ROUTES for why the message text
+  // must not be used to decide which road an incident is on.
+  const route = pickRoute(String(p.routeName || '').trim());
   if (!route) return null;
 
-  const message = String(
-    p.travelerInformationMessage || p.description || p.headline || p.name || ''
-  ).trim();
+  // CDOT keeps cleared events in the feed. Reporting a crash that was tidied
+  // up an hour ago as a live closure would be worse than silence.
+  const status = String(p.status || '').toLowerCase();
+  if (status.includes('cleared')) return null;
 
-  const startMile = Number(p.startMarker ?? p.startMilepost ?? p.mileMarker ?? NaN);
+  const message = String(p.travelerInformationMessage || p.description || '').trim();
+
+  const startMile = Number(p.startMarker ?? NaN);
   if (route.label === 'I-70' && Number.isFinite(startMile)) {
     if (startMile < I70_MIN_MILE || startMile > I70_MAX_MILE) return null;
   }
 
-  const blob = `${message} ${p.type || ''} ${p.eventType || ''} ${p.impact || ''}`.toLowerCase();
-  const closed = /\bclosed\b|\bclosure\b|\bfull closure\b/.test(blob) && !/ramp closed/.test(blob);
+  // "Road closed" in the traveler message is CDOT's own wording for a full
+  // closure. Exclude ramp-only closures, which do not strand anyone.
+  const blob = `${message} ${p.type || ''} ${p.category || ''}`.toLowerCase();
+  const closed = /\broad closed\b|\bfull closure\b|\bclosure\b/.test(blob)
+    && !/ramp closed|ramp closure/.test(blob);
   const chains = /chain law|traction law|chains required|code \d/.test(blob);
 
   return {
     route: route.label,
+    routeName: p.routeName || '',
     primary: route.primary,
     severity: closed ? 'closed' : chains ? 'chains' : 'info',
+    cdotSeverity: p.severity || '',
     message: message.slice(0, 400),
-    direction: p.direction || p.directionOfTravel || '',
+    direction: p.direction || '',
     startMile: Number.isFinite(startMile) ? startMile : null,
-    type: p.type || p.eventType || '',
-    lastUpdated: p.lastUpdated || p.updated || p.modified || null
+    endMile: Number.isFinite(Number(p.endMarker)) ? Number(p.endMarker) : null,
+    type: p.type || '',
+    category: p.category || '',
+    lastUpdated: p.lastUpdated || null
   };
 }
 
