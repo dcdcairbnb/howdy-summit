@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       return res.status(404).send(renderPage('Not found', '<h1>Already unsubscribed</h1><p>This email is not on our active list. You are good. No more emails from us.</p>'));
     }
     res.setHeader('Content-Type', 'text/html');
-    return res.status(200).send(renderPage('Unsubscribed', `<h1>You are unsubscribed</h1><p>Removed <strong>${escapeHtml(result.rows[0].email)}</strong> from the Howdy Summit list.</p><p>Sorry to see you go. Howdynash.com is always free to use without email.</p>`));
+    return res.status(200).send(renderPage('Unsubscribed', `<h1>You are unsubscribed</h1><p>Removed <strong>${escapeHtml(result.rows[0].email)}</strong> from the Howdy Summit list.</p><p>Sorry to see you go. Howdysummitcounty.com is always free to use without email.</p>`));
   } catch (e) {
     console.error('unsubscribe error:', e.message);
     res.setHeader('Content-Type', 'text/html');

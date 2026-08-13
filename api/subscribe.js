@@ -322,7 +322,9 @@ async function fetchThisWeekendEvents() {
     }
   } catch (e) { /* keep going */ }
 
-  // 2) Visit Music City scraper (community festivals not in your curated list)
+  // 2) Visit Music City scraper. Nashville-only source left over from the
+  // conversion. api/festivals.js no longer serves it for Summit, so this
+  // call returns nothing, but the label was misleading when reading the code.
   let vmcFestivals = [];
   try {
     const r = await fetch(`${SITE_URL}/api/festivals?source=visitmusiccity`);
@@ -397,7 +399,7 @@ function buildNewsletterHTML(events, openings) {
       <h3 style="margin:24px 0 8px;color:#d62828;">🎵 Festivals & Events</h3>
       <table style="width:100%;border-collapse:collapse;">${festRows || '<tr><td style="padding:12px 0;color:#666;">No major festivals scheduled. Tap below for live music.</td></tr>'}</table>
       ${openingsBlock}
-      <p style="margin:24px 0 12px;">For live music tonight, weekend brunch, hot chicken lines, and group location sharing, open the full guide:</p>
+      <p style="margin:24px 0 12px;">For live music tonight, weekend brunch, trail conditions, and group location sharing, open the full guide:</p>
       <p style="margin:16px 0;text-align:center;"><a href="${SITE_URL}" style="display:inline-block;background:#d62828;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Howdy Summit</a></p>
       <p style="margin:24px 0 12px;font-size:14px;color:#666;">Heading to Summit County for a bachelor or bachelorette weekend? Reply to this email and tell me when. I will send you a personalized planner.</p>
       <p style="margin:0;">Howdy,<br>Howdy Summit</p>
@@ -421,10 +423,19 @@ async function sendWeeklyNewsletter(resend) {
     try {
       const unsubUrl = `${SITE_URL}/api/unsubscribe?token=${row.unsubscribe_token}`;
       const html = baseHtml.replace('{{UNSUB_URL}}', unsubUrl);
-      await resend.emails.send({ from: FROM_EMAIL, to: row.email, subject, html });
-      sent++;
+      // The Resend SDK resolves with { data, error } instead of throwing on an
+      // API rejection, so a bare await counted rejected sends as successes and
+      // the newsletter reported a clean run while delivering nothing.
+      const { error } = await resend.emails.send({ from: FROM_EMAIL, to: row.email, subject, html });
+      if (error) {
+        failed++;
+        console.error('[newsletter] rejected for', row.email, error.message || error.name || error);
+      } else {
+        sent++;
+      }
     } catch (e) {
       failed++;
+      console.error('[newsletter] network failure for', row.email, e.message);
     }
   }
   return { sent, failed, total: subs.rows.length };
@@ -562,7 +573,7 @@ export default async function handler(req, res) {
 
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: FROM_EMAIL,
         to: ERROR_REPORTER_TO,
         subject: `Howdy Summit JS error: ${errMsg.slice(0, 80)}`,
@@ -575,6 +586,9 @@ export default async function handler(req, res) {
           `Stack trace:\n${errStack}\n\n` +
           `This is the first occurrence in the last hour. Repeats are silenced.`
       });
+      // Without this the error reporter fails silently, which is a particularly
+      // unhelpful thing for an error reporter to do.
+      if (sendError) console.error('error-report email rejected:', sendError.message || sendError.name || sendError);
     } catch (e) {
       console.error('error-report email failed', e.message);
     }
@@ -764,7 +778,7 @@ export default async function handler(req, res) {
       'general': 'Welcome to Howdy Summit'
     }[source] || 'Welcome to Howdy Summit';
 
-    await resend.emails.send({
+    const { error: welcomeError } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject,
@@ -775,7 +789,20 @@ export default async function handler(req, res) {
       }
     });
 
-    res.status(200).json({ ok: true, message: 'check your inbox' });
+    // Previously this returned "check your inbox" whatever Resend said, so a
+    // rejected send looked identical to a successful one. The subscriber is
+    // already saved to Postgres at this point, so the signup itself stands;
+    // only the email failed, and the response now says so.
+    if (welcomeError) {
+      console.error('[subscribe] welcome email rejected for', email, welcomeError.message || welcomeError.name || welcomeError);
+      return res.status(200).json({
+        ok: true,
+        emailSent: false,
+        message: "you're signed up, but the welcome email could not be sent"
+      });
+    }
+
+    res.status(200).json({ ok: true, emailSent: true, message: 'check your inbox' });
   } catch (e) {
     console.error('subscribe error:', e.message);
     res.status(500).json({ error: 'signup failed, try again' });
