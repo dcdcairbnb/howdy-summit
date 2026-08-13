@@ -3,7 +3,7 @@
 // Storage: Vercel KV (Upstash Redis) with TTL-based auto-expiry.
 //
 // Actions (POST body { action, ... }):
-//   create   { durationHours: 6|12|24, leaderName?: string }
+//   create   { durationHours: 8|12|24, leaderName?: string }
 //             -> { code, expiresAt }
 //   update   { code, memberId, name, lat, lng }
 //             -> { ok, members }
@@ -25,13 +25,67 @@ const kv = new Redis({
 
 const ALLOWED_DURATIONS = [8, 12, 24];
 const STALE_AFTER_MS = 60 * 1000; // member pin disappears if not updated in 60s
-const CODE_LEN = 4;
+
+// Code length went 4 -> 6.
+//
+// The alphabet has 32 characters, so 4 gave about a million combinations. The
+// `get` action returns every member's name and live latitude and longitude for
+// any valid code, with no membership check, which is by design because that is
+// how someone joins from a text message. But a million is a small number for a
+// script, and there was no rate limiting, so codes could be enumerated until
+// one hit and a stranger's live position came back.
+//
+// Six characters is roughly a billion, and combined with the limiter below it
+// makes enumeration impractical. Existing 4-character codes keep working
+// because lookup never checks length, and they all expire within 24 hours.
+const CODE_LEN = 6;
 
 function randomCode() {
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,1,0 to avoid confusion
   let c = '';
   for (let i = 0; i < CODE_LEN; i++) c += letters[Math.floor(Math.random() * letters.length)];
   return c;
+}
+
+// In-memory limiter, per warm function instance. Not a distributed lock, and
+// Vercel may run several instances, so treat it as a speed bump rather than a
+// wall. It still turns enumeration from minutes into an implausible amount of
+// time, and it costs no extra Redis round trips.
+//
+// Misses are tracked separately from ordinary traffic: a real group polls a
+// code it already has and gets hits, whereas a scanner produces almost nothing
+// but 404s. Tripping on misses catches scanning without ever penalising a
+// legitimate group that happens to poll often.
+const ipHits = new Map();
+const ipMisses = new Map();
+const WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_MIN = 120;   // a 5s poll from a big group stays well under
+const MAX_MISSES_PER_MIN = 10;      // fat-fingering a code a few times is fine
+
+function bump(store, ip) {
+  const now = Date.now();
+  const rec = store.get(ip);
+  if (!rec || now - rec.start > WINDOW_MS) {
+    store.set(ip, { start: now, count: 1 });
+    return 1;
+  }
+  rec.count += 1;
+  return rec.count;
+}
+
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (fwd) return String(fwd).split(',')[0].trim();
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
+}
+
+// Keep the maps from growing without bound on a long-lived instance.
+function sweep() {
+  const now = Date.now();
+  for (const store of [ipHits, ipMisses]) {
+    if (store.size < 5000) continue;
+    for (const [k, v] of store) if (now - v.start > WINDOW_MS) store.delete(k);
+  }
 }
 
 function pruneStale(members) {
@@ -65,11 +119,23 @@ export default async function handler(req, res) {
   const { action, code: rawCode } = req.body || {};
   const code = (rawCode || '').toUpperCase();
 
+  sweep();
+  const ip = clientIp(req);
+  if (bump(ipHits, ip) > MAX_REQUESTS_PER_MIN) {
+    return bad(res, 429, 'Too many requests. Slow down and try again in a minute.');
+  }
+  // A client that keeps asking for codes that do not exist is scanning, not
+  // using the app. Cut it off before it finds a real one.
+  const missRec = ipMisses.get(ip);
+  if (missRec && Date.now() - missRec.start <= WINDOW_MS && missRec.count > MAX_MISSES_PER_MIN) {
+    return bad(res, 429, 'Too many invalid codes. Try again in a minute.');
+  }
+
   try {
     if (action === 'create') {
       const dur = Number(req.body.durationHours);
       if (!ALLOWED_DURATIONS.includes(dur)) {
-        return bad(res, 400, 'Duration must be 6, 12, or 24 hours');
+        return bad(res, 400, 'Duration must be 8, 12, or 24 hours');
       }
       // Pick a code that isn't already taken
       let newCode = '';
@@ -114,7 +180,7 @@ export default async function handler(req, res) {
       // shares location, a follow-up update fills in the coords.
       const hasCoords = typeof lat === 'number' && typeof lng === 'number';
       const group = await kv.get(`group:${code}`);
-      if (!group) return bad(res, 404, 'Group not found or expired');
+      if (!group) { bump(ipMisses, ip); return bad(res, 404, 'Group not found or expired'); }
       if (group.ended) return bad(res, 410, 'Group ended');
 
       const now = Date.now();
@@ -155,7 +221,7 @@ export default async function handler(req, res) {
     if (action === 'get') {
       if (!code) return bad(res, 400, 'Missing code');
       const group = await kv.get(`group:${code}`);
-      if (!group) return res.status(404).json({ error: 'Group not found or expired', expired: true });
+      if (!group) { bump(ipMisses, ip); return res.status(404).json({ error: 'Group not found or expired', expired: true }); }
       // If the leader requested an end and the grace period has elapsed with
       // nobody claiming leadership, finalize the end now so the next poll
       // notifies everyone.
@@ -212,7 +278,7 @@ export default async function handler(req, res) {
       const { memberId } = req.body || {};
       if (!code || !memberId) return bad(res, 400, 'code and memberId required');
       const group = await kv.get(`group:${code}`);
-      if (!group) return bad(res, 404, 'Group not found or expired');
+      if (!group) { bump(ipMisses, ip); return bad(res, 404, 'Group not found or expired'); }
       if (group.leaderId !== memberId) return bad(res, 403, 'Only the leader can cancel');
       group.endingAt = null;
       const ttlSec = Math.max(60, Math.round((group.expiresAt - Date.now()) / 1000));
@@ -224,7 +290,7 @@ export default async function handler(req, res) {
       const { memberId } = req.body || {};
       if (!code || !memberId) return bad(res, 400, 'code and memberId required');
       const group = await kv.get(`group:${code}`);
-      if (!group) return bad(res, 404, 'Group not found or expired');
+      if (!group) { bump(ipMisses, ip); return bad(res, 404, 'Group not found or expired'); }
       if (group.ended) return bad(res, 410, 'Group already ended');
       if (!group.endingAt || group.endingAt <= Date.now()) {
         return bad(res, 409, 'No pending end to claim');
@@ -244,7 +310,7 @@ export default async function handler(req, res) {
       const { memberId, newLeaderId } = req.body || {};
       if (!code || !memberId || !newLeaderId) return bad(res, 400, 'code, memberId, and newLeaderId required');
       const group = await kv.get(`group:${code}`);
-      if (!group) return bad(res, 404, 'Group not found or expired');
+      if (!group) { bump(ipMisses, ip); return bad(res, 404, 'Group not found or expired'); }
       if (group.leaderId !== memberId) return bad(res, 403, 'Only the current leader can transfer leadership');
       const newLeader = group.members.find(m => m.id === newLeaderId);
       if (!newLeader) return bad(res, 404, 'New leader is not a member of this group');
