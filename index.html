@@ -7003,6 +7003,40 @@ function ensureLeafletLoaded() {
 
 let groupMapInstance = null;
 let groupMapMarkers = [];
+let groupPisteLayer = null;
+let groupMapAttribution = null;
+
+// The four mountains worth drawing runs for. Boxes are deliberately generous
+// so someone standing in a base-area lift line still counts as on the hill.
+// Loveland sits in Clear Creek County and Vail in Eagle County, so neither is
+// here; add them the same way if that ever changes.
+// Breckenridge's east edge stops at -106.050 on purpose. Main Street sits
+// around -106.038, and treating town as on-mountain would paint ski runs over
+// the shops. The boxes are also kept from touching each other so a point never
+// matches two resorts.
+const SKI_RESORT_BOUNDS = [
+  { name: 'Keystone',        south: 39.565, north: 39.625, west: -105.995, east: -105.905 },
+  { name: 'Arapahoe Basin',  south: 39.626, north: 39.655, west: -105.900, east: -105.840 },
+  { name: 'Breckenridge',    south: 39.435, north: 39.515, west: -106.108, east: -106.050 },
+  { name: 'Copper Mountain', south: 39.465, north: 39.525, west: -106.185, east: -106.112 }
+];
+
+function resortForCoords(lat, lng) {
+  if (lat == null || lng == null) return null;
+  return SKI_RESORT_BOUNDS.find(r =>
+    lat >= r.south && lat <= r.north && lng >= r.west && lng <= r.east
+  ) || null;
+}
+
+// One member on the hill is enough to switch the map. If half the group is
+// still at the condo, the skiers are the ones who need to be found.
+function resortForGroup(members) {
+  for (const m of (members || [])) {
+    const hit = resortForCoords(m.lat, m.lng);
+    if (hit) return hit;
+  }
+  return null;
+}
 
 async function renderGroupLiveMap(members) {
   const mapDiv = document.getElementById('group-live-map');
@@ -7019,6 +7053,9 @@ async function renderGroupLiveMap(members) {
     mapDiv.innerHTML = '<div style="padding:14px;color:#888;text-align:center;">No members have shared location yet.</div>';
     return;
   }
+  // If anyone in the group is on a mountain, switch to trail view.
+  const resort = resortForGroup(withCoords);
+
   // Init or re-use map
   if (!groupMapInstance) {
     // Reset placeholder styles so Leaflet can render properly
@@ -7034,7 +7071,7 @@ async function renderGroupLiveMap(members) {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(groupMapInstance);
-      L.control.attribution({ prefix: false })
+      groupMapAttribution = L.control.attribution({ prefix: false })
         .addAttribution('© OpenStreetMap')
         .addTo(groupMapInstance);
     } catch (e) {
@@ -7042,6 +7079,24 @@ async function renderGroupLiveMap(members) {
       mapDiv.innerHTML = '<div style="padding:14px;color:#d62828;">Map failed to load. Refresh the page.</div>';
       return;
     }
+  }
+
+  // Piste overlay. Added when the group is on a mountain, removed when they
+  // come down, so Main Street does not get ski runs drawn over it.
+  try {
+    if (resort && !groupPisteLayer) {
+      groupPisteLayer = L.tileLayer('https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        opacity: 0.9
+      }).addTo(groupMapInstance);
+      if (groupMapAttribution) groupMapAttribution.addAttribution('© OpenSnowMap');
+    } else if (!resort && groupPisteLayer) {
+      groupMapInstance.removeLayer(groupPisteLayer);
+      groupPisteLayer = null;
+      if (groupMapAttribution) groupMapAttribution.removeAttribution('© OpenSnowMap');
+    }
+  } catch (e) {
+    console.warn('[group map] piste layer failed:', e);
   }
   // Clear old markers
   groupMapMarkers.forEach(m => groupMapInstance.removeLayer(m));
@@ -7103,10 +7158,15 @@ async function renderGroupLiveMap(members) {
   // Fit map to all markers. maxZoom:14 keeps close pins from looking far
   // apart due to GPS error - at zoom 16 a 50m drift looks like opposite
   // sides of a block, at zoom 14 it looks like the same neighborhood.
+  // On a mountain the clamp works against us. Run labels do not render until
+  // zoom 16, and knowing someone is on Dercum's Dash rather than somewhere in
+  // that quadrant is the entire point, so trail view zooms in two steps
+  // further. In town, 14 still stops GPS drift from looking like real distance.
+  const closeZoom = resort ? 16 : 14;
   if (bounds.length === 1) {
-    groupMapInstance.setView(bounds[0], 14);
+    groupMapInstance.setView(bounds[0], closeZoom);
   } else if (bounds.length > 1) {
-    groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    groupMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: closeZoom });
   }
 }
 
