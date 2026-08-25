@@ -6159,17 +6159,21 @@ function showBingo(skipPush) {
       <div style="font-weight:700;color:#d62828;font-size:16px;">Summit County Bingo</div>
       <div style="font-size:13px;color:#666;font-weight:600;"><span id="bingoProgress">${done}</span> / ${total}</div>
     </div>
-    <div id="bingoGrid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;width:100%;">`;
+    <div id="bingoGrid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:100%;">`;
   SUMMIT_BINGO_SQUARES.forEach((sq, idx) => {
     const isDone = completed.has(idx) || sq.isFree;
     const bg = sq.isFree ? '#fff3cd' : (isDone ? '#d62828' : '#fff');
     const color = sq.isFree ? '#856404' : (isDone ? '#fff' : '#222');
     const border = sq.isFree ? '2px solid #f0c060' : (isDone ? '2px solid #b91c1c' : '1.5px solid #ddd');
     const checkOverlay = isDone && !sq.isFree ? '<div style="position:absolute;top:2px;right:4px;font-size:12px;">✓</div>' : '';
-    html += `<div data-bingo-idx="${idx}" style="position:relative;aspect-ratio:1/1;min-width:0;overflow:hidden;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:8px;padding:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;font-size:10px;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
+    // No aspect-ratio and no overflow:hidden. Forcing squares on a 5-column
+    // phone layout gave roughly 60px cells, too short for labels up to 36
+    // characters, so the text was clipped. Grid equalises row heights anyway,
+    // so min-height lets a row grow to fit its longest label instead.
+    html += `<div data-bingo-idx="${idx}" style="position:relative;min-height:84px;min-width:0;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:8px;padding:4px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
       ${checkOverlay}
-      <div style="font-size:19px;line-height:1;margin-bottom:2px;">${sq.emoji}</div>
-      <div style="font-size:9px;line-height:1.1;word-break:break-word;overflow-wrap:anywhere;hyphens:auto;max-width:100%;">${sq.label}</div>
+      <div style="font-size:16px;line-height:1;margin-bottom:3px;">${sq.emoji}</div>
+      <div style="font-size:10px;line-height:1.2;word-break:normal;overflow-wrap:break-word;hyphens:none;max-width:100%;">${sq.label}</div>
     </div>`;
   });
   html += `</div>
