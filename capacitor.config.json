@@ -9,7 +9,9 @@
     "scrollEnabled": true
   },
   "server": {
-    "iosScheme": "capacitor",
+    "url": "https://www.howdysummitcounty.com",
+    "cleartext": false,
+    "iosScheme": "https",
     "allowNavigation": [
       "www.howdysummitcounty.com",
       "howdysummitcounty.com"

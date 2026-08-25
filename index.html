@@ -406,7 +406,15 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 24px 20px;
-    background: #f7f7f9;
+    /* Summer default: Dillon Reservoir and the Gore Range. The winter photo is
+       the same view frozen over, so the background changes season without
+       changing subject. A light scrim is enough at 132/255 brightness. */
+    background:
+      linear-gradient(180deg, rgba(247,247,249,0.42) 0%, rgba(247,247,249,0.62) 100%),
+      #f7f7f9 url('/summit-summer.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: local;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -414,6 +422,13 @@
     z-index: 1;
     min-height: 0;
     scroll-padding-top: 12px;
+  }
+  /* Winter: the same reservoir and the same range, frozen. Averages 128/255,
+     within a few points of the summer shot, so it takes the same scrim. */
+  body.season-winter .messages {
+    background-image:
+      linear-gradient(180deg, rgba(247,247,249,0.42) 0%, rgba(247,247,249,0.62) 100%),
+      url('/summit-winter.webp');
   }
   .message {
     max-width: 80%;
@@ -4326,6 +4341,20 @@ function currentSeason(d) {
   if (m >= 5 && m <= 8) return 'summer';    // Jun - Sep
   return 'shoulder';                        // May, Oct
 }
+
+// Swap the chat background photo with the season. Winter gets alpenglow on the
+// Ten Mile Range, everything else gets Dillon Reservoir. Shoulder deliberately
+// uses the summer photo: May and October are brown and thawing, not deep snow,
+// so the reservoir shot is the less wrong of the two.
+(function applySeasonBackground() {
+  function tag() {
+    if (!document.body) return false;
+    const season = currentSeason();
+    document.body.classList.toggle('season-winter', season === 'winter');
+    return true;
+  }
+  if (!tag()) document.addEventListener('DOMContentLoaded', tag);
+})();
 
 function showThingsToDoMenu(skipPush) {
   if (!skipPush) pushMenu('do');
@@ -9722,11 +9751,16 @@ function showFilteredCurated(items, header) {
 
 // PWA: register service worker for offline support and home screen install.
 //
-// Skipped inside the Capacitor iOS shell. There the web assets are already
-// bundled on-device, so the service worker adds nothing: it would try to
-// cache capacitor://localhost URLs, and its network-first navigation handler
-// competes with WKWebView's own local asset loading. Web only.
-if ('serviceWorker' in navigator && API_BASE === '') {
+// This used to be skipped in the app, back when Capacitor served bundled
+// assets from capacitor://localhost and the worker had nothing useful to
+// cache. The app now loads the live site over https, which is what lets a
+// deploy reach users without an App Store release, so the worker matters more
+// here than on the web: it is the only thing standing between a user and a
+// blank screen at a trailhead with no signal.
+//
+// Gate on the scheme rather than the platform. Service workers require a
+// secure context, so http: and capacitor: are both excluded automatically.
+if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(err => {
       console.warn('Service worker registration failed:', err);
