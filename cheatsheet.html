@@ -252,6 +252,8 @@
   <div class="townbar">
     <div class="townbar-label">Where are you staying?</div>
     <div class="townpills" id="townPills"></div>
+    <div class="townbar-label" style="margin-top:14px;">When?</div>
+    <div class="townpills" id="seasonPills"></div>
   </div>
 
   <div class="intro">
@@ -260,7 +262,7 @@
       <li><strong>Altitude</strong>The towns sit at 9,000 to 10,000 feet. Day one is your easy day. Drink water, skip the second cocktail, and expect a short night of sleep. Ibuprofen and oxygen bars help. If a headache turns into vomiting or confusion, drive downhill.</li>
       <li><strong>Getting Here</strong>Fly into Denver (DEN) and drive I-70 west. It is roughly 75 to 100 minutes without weather. Snow, ski traffic, and Sunday afternoons can double it.</li>
       <li><strong>The Six Towns</strong>Breckenridge is the historic Main Street and the nightlife. Frisco is the walkable middle. Dillon is the reservoir. Silverthorne is outlets and the Blue River. Keystone and Copper Mountain are ski villages. They are all 10 to 20 minutes apart.</li>
-      <li><strong>Free Bus</strong>The Summit Stage connects every town and costs nothing. Breckenridge and Keystone also run free in-town shuttles. Use them on powder days when parking fills by 8:30am.</li>
+      <li><strong>Free Bus</strong>The Summit Stage connects every town and costs nothing. Breckenridge and Keystone also run free in-town shuttles. Use them on busy mornings, when base-area parking fills by 8:30am.</li>
       <li><strong>Rides</strong>Uber and Lyft run here but thin out late and after storms. Have a backup plan before the last round.</li>
     </ul>
   </div>
@@ -312,33 +314,41 @@
 
   <div class="day">
     <span class="day-label">Day 2</span>
-    <h2>Mountain Day and Apres</h2>
+    <h2 id="day2Title">Mountain Day and Apres</h2>
 
     <div class="timeslot">
-      <h3>Early: Pick Your Mountain</h3>
+      <h3 id="day2SlotAHead">Early: Pick Your Mountain</h3>
       <div id="slotMountain">
         <p>Breckenridge for terrain variety and a town at the base. Keystone for long groomers and night skiing. Copper Mountain for natural fall-line laps. Arapahoe Basin for steep, high, and no frills. Loveland for cheap and uncrowded.</p>
       </div>
-      <p>Not skiing? Frisco Adventure Park tubing hill, Keystone Adventure Point tubing, or Breckenridge Nordic Center for groomed cross-country tracks.</p>
+      <div id="slotMountainAlt">
+        <p>Not skiing? Frisco Adventure Park tubing hill, Keystone Adventure Point tubing, or Breckenridge Nordic Center for groomed cross-country tracks.</p>
+      </div>
     </div>
 
     <div class="timeslot">
-      <h3>Mid-Morning: Gear</h3>
-      <p>Ski Butlers or Black Tie Ski Rentals deliver to your condo and fit you in the living room. Christy Sports and Wilderness Sports handle walk-ins.</p>
-      <p>Ride the free shuttle or the Summit Stage instead of hunting for a parking spot after 8:30am.</p>
+      <h3 id="day2SlotBHead">Mid-Morning: Gear</h3>
+      <div id="slotGear">
+        <p>Ski Butlers or Black Tie Ski Rentals deliver to your condo and fit you in the living room. Christy Sports and Wilderness Sports handle walk-ins.</p>
+        <p>Ride the free shuttle or the Summit Stage instead of hunting for a parking spot after 8:30am.</p>
+      </div>
     </div>
 
     <div class="timeslot">
-      <h3>Lunch: On the Hill</h3>
-      <p>T-Bar at Breckenridge Peak 8. Ten Mile Tavern or Jack's Slopeside Grill at Copper Mountain. Summit House or Kickapoo Tavern at Keystone.</p>
+      <h3 id="day2SlotCHead">Lunch: On the Hill</h3>
+      <div id="slotHillLunch">
+        <p>T-Bar at Breckenridge Peak 8. Ten Mile Tavern or Jack's Slopeside Grill at Copper Mountain. Summit House or Kickapoo Tavern at Keystone.</p>
+      </div>
     </div>
 
     <div class="timeslot">
-      <h3>Apres: The Whole Point</h3>
+      <h3 id="apresHead">Apres: The Whole Point</h3>
       <div id="slotApres">
         <p>In Breckenridge: Apres Handcrafted Libations, The Maggie at the base of Peak 9, or Broken Compass Brewing a short ride from Main.</p>
       </div>
-      <p>Worth the drive from anywhere: The Beach at Arapahoe Basin for the tailgate scene, or 6th Alley Bar &amp; Grill for the deck.</p>
+      <div id="slotApresAlt">
+        <p>Worth the drive from anywhere: The Beach at Arapahoe Basin for the tailgate scene, or 6th Alley Bar &amp; Grill for the deck.</p>
+      </div>
     </div>
 
     <div class="timeslot">
@@ -353,20 +363,24 @@
 
   <div class="day">
     <span class="day-label">Day 3</span>
-    <h2>Reservoir, Trails, and Departure</h2>
+    <h2 id="day3Title">Reservoir, Trails, and Departure</h2>
 
     <div class="timeslot">
       <h3>Morning: Photo Spots</h3>
       <p>Sapphire Point Overlook between Dillon and Breckenridge. Ten minutes of walking for the postcard shot of Dillon Reservoir and the Ten Mile Range.</p>
-      <p>Dillon Marina at first light, or Frisco Bay Marina with Mount Royal behind it.</p>
-      <p>Driving out over Loveland Pass? The summit pullout at 11,990 feet is the easiest big view in Colorado.</p>
+      <div id="slotPhotoAlt">
+        <p>Dillon Marina at first light, or Frisco Bay Marina with Mount Royal behind it.</p>
+      </div>
+      <p>Driving out over Loveland Pass? The summit pullout at 11,990 feet is the easiest big view in Colorado, when the pass is open.</p>
     </div>
 
     <div class="timeslot">
-      <h3>Mid-Morning: Get Outside</h3>
-      <p>Old Dillon Reservoir Trail. Under a mile, big payoff, doable at any fitness level.</p>
-      <p>Mount Royal from Frisco if you want to work. McCullough Gulch near Breckenridge for waterfalls in summer.</p>
-      <p>Summer: rent a paddleboard or a pontoon at Dillon Marina or Frisco Bay Marina. Winter: swap it for a snowmobile tour with White Mountain Snowmobile Tours or Good Times Adventures.</p>
+      <h3 id="outsideHead">Mid-Morning: Get Outside</h3>
+      <div id="slotOutside">
+        <p>Old Dillon Reservoir Trail. Under a mile, big payoff, doable at any fitness level.</p>
+        <p>Mount Royal from Frisco if you want to work. McCullough Gulch near Breckenridge for waterfalls.</p>
+        <p>Rent a paddleboard or a pontoon at Dillon Marina or Frisco Bay Marina.</p>
+      </div>
     </div>
 
     <div class="timeslot">
@@ -378,8 +392,10 @@
     <div class="timeslot">
       <h3>Afternoon: Depending on Time</h3>
       <p>Breckenridge Distillery tasting room on Main Street, or Continental Divide Winery a few doors down.</p>
-      <p>Outlets at Silverthorne if the weather turned. Montezuma ghost town above Keystone if it did not.</p>
-      <p>Short on time? A drink on the Fatty's rooftop deck or at STEEP Brewing Lakeside Tiki Bar on the water in Dillon.</p>
+      <div id="slotAfternoonAlt">
+        <p>Outlets at Silverthorne if the weather turned. Montezuma ghost town above Keystone if it did not.</p>
+        <p>Short on time? A drink on the Fatty's rooftop deck or at STEEP Brewing Lakeside Tiki Bar on the water in Dillon.</p>
+      </div>
     </div>
 
     <div class="timeslot">
@@ -431,7 +447,11 @@ var TOWNS = {
       "Gold Pan Saloon, one of the oldest continuously operating bars west of the Mississippi. Then Downstairs at Eric's for arcade games and a hundred taps.",
       "Blue Stag Saloon or RMU Tavern if you want it loud. Cecilia's Martini Bar if you want it late."
     ],
-    mountain: ['Breckenridge is at your doorstep, with the most terrain variety in the county and a town at the base. Keystone is 20 minutes for long groomers and night skiing. Arapahoe Basin is 30 for steep and no frills.'],
+    mountainWinter: ['Breckenridge is at your doorstep, with the most terrain variety in the county and a town at the base. Keystone is 20 minutes for long groomers and night skiing. Arapahoe Basin is 30 for steep and no frills.'],
+    mountainSummer: [
+      { t: 'Breckenridge runs summer operations on Peak 8, reached by the free BreckConnect Gondola: lift-served hiking, the alpine slide, and the ropes course. The Colorado Trail crosses just south of town.', s: 'summer' },
+      { t: 'Peak 8 summer operations have not opened yet, but the BreckConnect Gondola usually keeps running and the ride up is free either way. Lower trails on the Blue River side melt out first.', s: 'shoulder' }
+    ],
     apres: ['Walk to it: Apres Handcrafted Libations, The Maggie at the base of Peak 9, or Broken Compass Brewing a short ride from Main.'],
     dinnerOff: [
       'Ski Tip Lodge in Keystone, a former 1800s stagecoach stop with a fixed menu. Book ahead.',
@@ -459,7 +479,8 @@ var TOWNS = {
       "Outer Range Brewing Co. The A-frame taproom is the county's most-hyped brewery and the beer program backs it up.",
       'Then Ein Prosit, Colorado’s only real beer hall, hidden inside a Main Street antique store. Highside Brewing if you want it quieter, Kemosabe at Silverheels for tequila.'
     ],
-    mountain: ['Copper Mountain is 10 minutes up I-70 for natural fall-line laps. Breckenridge is 15 the other way. That two-mountain choice is the whole reason to base in Frisco.'],
+    mountainWinter: ['Copper Mountain is 10 minutes up I-70 for natural fall-line laps. Breckenridge is 15 the other way. That two-mountain choice is the whole reason to base in Frisco.'],
+    mountainSummer: ['Frisco Adventure Park is in town, with a bike park and the peninsula trail network starting right there. Copper is 10 minutes for lift-served riding, and the Ten Mile Canyon recpath runs back down to Frisco mostly downhill.'],
     apres: ['Walk to it: Outer Range Brewing Co. or Highside Brewing, both just off Main Street.'],
     dinnerOff: [
       "Peppino's Pizza &amp; Subs or Bagalis, both on Main and both fine after a full ski day.",
@@ -476,17 +497,25 @@ var TOWNS = {
     afternoon: [
       'Sapphire Point Overlook is ten minutes away off Swan Mountain Road. A nearly flat loop to the best view of the reservoir and the Ten Mile Range. Free parking.',
       'Or the Old Dillon Reservoir Trail off Dillon Dam Road. One mile up to a small hidden reservoir.',
-      'The Dillon town core has the marina, the amphitheater, and a farmers market on Friday mornings in summer.'
+      { t: 'The Dillon town core has the marina, the amphitheater, and a farmers market on Friday mornings.', s: 'summer' },
+      { t: 'The Dillon town core is quiet this time of year, but the marina and the amphitheater are still worth the walk for the view across the ice.', s: 'winter' }
     ],
     dinner: [
       'Dillon Dam Brewery, one of the largest brewpubs in Colorado. House beer, a huge menu, and the easiest option in the county for a big group.'
     ],
     night: [
-      'STEEP Brewing Lakeside Tiki Bar, open-air right on the reservoir with the Gore Range across the water. Best lake drink in the county.',
-      'Or Cala Pub &amp; Restaurant, a tiny Irish pub the locals treat as a living room. Shepherd’s pie and a properly poured pint.'
+      { t: 'STEEP Brewing Lakeside Tiki Bar, open-air right on the reservoir with the Gore Range across the water. Best lake drink in the county.', s: 'summer' },
+      'Cala Pub &amp; Restaurant, a tiny Irish pub the locals treat as a living room. Shepherd’s pie and a properly poured pint.'
     ],
-    mountain: ['Keystone is 10 minutes east for long groomers and night skiing. Arapahoe Basin is 20 for steep, high, and no frills. Breckenridge is 20 the other way.'],
-    apres: ['Walk or drive five minutes: Dillon Dam Brewery, or STEEP Brewing Lakeside Tiki Bar if the sun is out.'],
+    mountainWinter: ['Keystone is 10 minutes east for long groomers and night skiing. Arapahoe Basin is 20 for steep, high, and no frills. Breckenridge is 20 the other way.'],
+    mountainSummer: [
+      { t: 'The reservoir is the whole point and it is out your door. Rent a paddleboard, a kayak, or a pontoon at Dillon Marina. Keystone is 10 minutes east for lift-served mountain biking.', s: 'summer' },
+      { t: 'The marina is closed and the bike parks are not spinning yet, but the Dillon Reservoir recpath melts out early and the view across the water is the same. Arapahoe Basin, 20 minutes east, is the lift most likely to be running.', s: 'shoulder' }
+    ],
+    apres: [
+      'Walk or drive five minutes to Dillon Dam Brewery.',
+      { t: 'Or STEEP Brewing Lakeside Tiki Bar, open-air on the water, if the sun is out.', s: 'summer' }
+    ],
     dinnerOff: [
       'Ski Tip Lodge in Keystone, 10 minutes east. A former 1800s stagecoach stop with a fixed menu. Book ahead.',
       'Lower key: Sauce on the Blue in Silverthorne, five minutes north.'
@@ -503,7 +532,8 @@ var TOWNS = {
     afternoon: [
       'The Blue River Trail runs right through town along Gold Medal trout water. Flat, free, and the gentlest way to spend an altitude day.',
       'The Outlets at Silverthorne are at exit 205, three villages of outlet shops. This is the county’s big shopping stop.',
-      'Rainbow Park and the Silverthorne Pavilion have a playground, a whitewater park, and free town events on the lawn.'
+      { t: 'Rainbow Park and the Silverthorne Pavilion have a playground, a whitewater park, and free town events on the lawn.', s: 'summer' },
+      { t: 'The Silverthorne Recreation Center has a pool, hot tub, and sauna, with much easier parking than Breckenridge. A good altitude-day afternoon.', s: 'winter' }
     ],
     dinner: [
       'Sauce on the Blue for an Italian wine list and a patio over the river.',
@@ -513,7 +543,8 @@ var TOWNS = {
       'Bluebird Market, a riverside food hall with a central bar. Order drinks in one place and food from whichever vendor wins.',
       'Angry James Brewery has a patio right on the Blue. Or Old Dillon Inn, an 1800s bar hauled up from Old Dillon before the reservoir flooded it. Margaritas by the pitcher and live country on weekends.'
     ],
-    mountain: ['Keystone is 15 minutes and Arapahoe Basin 25, both east on Highway 6. Breckenridge is 20 south. You are also closest to Loveland, which is cheap and uncrowded.'],
+    mountainWinter: ['Keystone is 15 minutes and Arapahoe Basin 25, both east on Highway 6. Breckenridge is 20 south. You are also closest to Loveland, which is cheap and uncrowded.'],
+    mountainSummer: ['The Blue River runs Gold Medal trout water straight through town, and Cutthroat Anglers is right on it. The Ptarmigan trailhead starts in Silverthorne, and Keystone bike park is 15 minutes east.'],
     apres: ['Walk to it: Angry James Brewery on the river, or the bar at Bluebird Market.'],
     dinnerOff: [
       'Sauce on the Blue, right in town, or Mint if you want to cook your own steak.',
@@ -530,7 +561,7 @@ var TOWNS = {
     afternoon: [
       'River Run Village is walkable straight from the gondola base: resort retail, gear shops, coffee, and a place to sit in the sun.',
       'Drive Loveland Pass, 20 minutes east and free, to 11,990 feet on the Continental Divide. Park at the top and walk the ridge a little.',
-      'Or the dirt road past Keystone to Montezuma, a surviving 1860s silver camp of a few cabins at the end of the valley.'
+      { t: 'Or the dirt road past Keystone to Montezuma, a surviving 1860s silver camp of a few cabins at the end of the valley. Summer only, the road is not maintained once the snow comes.', s: 'summer' }
     ],
     dinner: [
       'Ski Tip Lodge, a former 1800s stagecoach stop with a fireplace bar and a fixed menu. The most romantic table in the county. Book ahead.',
@@ -540,7 +571,8 @@ var TOWNS = {
       "Kickapoo Tavern, steps from the River Run gondola, is the default and good for a group. 9280' Tap House has Colorado beer and a fire-pit patio.",
       'The Goat Soup &amp; Whiskey Tavern on Highway 6 is where the lifties actually drink. Cheap beer, whiskey, live music.'
     ],
-    mountain: ['Keystone is out your door, with the longest groomers in the county and night skiing until 8pm. Arapahoe Basin is 15 minutes further east for steep and high. Breckenridge is 25 west.'],
+    mountainWinter: ['Keystone is out your door, with the longest groomers in the county and night skiing until 8pm. Arapahoe Basin is 15 minutes further east for steep and high. Breckenridge is 25 west.'],
+    mountainSummer: ['Keystone runs lift-served mountain biking from River Run, the biggest bike park in the county, and it is out your door. Loveland Pass is 20 minutes east for high-alpine hiking straight off the road.'],
     apres: ["Ski off and walk in: Kickapoo Tavern at the River Run base, or 9280' Tap House for the patio fire pit."],
     dinnerOff: [
       'You are staying in a resort village, so the real dinner town is 10 minutes west. Dillon Dam Brewery in Dillon for a group, Sauce on the Blue in Silverthorne for something better.',
@@ -568,7 +600,8 @@ var TOWNS = {
       "Jack's Slopeside Grill for burgers, beer, and Center Village people-watching, or High Rockies Whiskey and Wine Bar near West Lake for a proper cocktail.",
       "Mulligan's Irish Pub in the Lake building stays open later than anything else on the mountain."
     ],
-    mountain: ['Copper is out your door, and the natural fall-line laps here are the best in the county for intermediates and up. Breckenridge and Frisco Adventure Park are both 15 minutes. Vail is 25 west if you have the pass for it.'],
+    mountainWinter: ['Copper is out your door, and the natural fall-line laps here are the best in the county for intermediates and up. Breckenridge and Frisco Adventure Park are both 15 minutes. Vail is 25 west if you have the pass for it.'],
+    mountainSummer: ['Copper runs lift-served hiking and the Woodward bike park out of Center Village. The Ten Mile Canyon recpath drops from here to Frisco, ten miles and mostly downhill, which is the easiest big ride in the county.'],
     apres: ["Ski off and walk in: Ten Mile Tavern for the deck and the live music, or Jack's Slopeside Grill right off American Flyer."],
     dinnerOff: [
       'Ten Mile Tavern without moving the car.',
@@ -577,66 +610,213 @@ var TOWNS = {
   }
 };
 
-(function initTowns() {
-  var ORDER = ['breckenridge', 'frisco', 'dillon', 'silverthorne', 'keystone', 'copper'];
+// Day 2 was a ski day and Day 3 was a reservoir day, so the guide contradicted
+// itself and was half wrong in every season. These are the parts that swing.
+var SEASONS = {
+  winter: {
+    label: 'Winter',
+    day2Title: 'Mountain Day and Apres',
+    day2A: 'Early: Pick Your Mountain',
+    day2B: 'Mid-Morning: Gear',
+    day2C: 'Lunch: On the Hill',
+    apresHead: 'Apres: The Whole Point',
+    day3Title: 'Snow, Views, and Departure',
+    outsideHead: 'Mid-Morning: Get Outside',
+    mountainAlt: ['Not skiing? Frisco Adventure Park tubing hill, Keystone Adventure Point tubing, or Breckenridge Nordic Center for groomed cross-country tracks.'],
+    gear: [
+      'Ski Butlers or Black Tie Ski Rentals deliver to your condo and fit you in the living room. Christy Sports and Wilderness Sports handle walk-ins.',
+      'Ride the free shuttle or the Summit Stage instead of hunting for a parking spot after 8:30am.'
+    ],
+    hillLunch: ["T-Bar at Breckenridge Peak 8. Ten Mile Tavern or Jack's Slopeside Grill at Copper Mountain. Summit House or Kickapoo Tavern at Keystone."],
+    apresAlt: ['Worth the drive from anywhere: The Beach at Arapahoe Basin for the tailgate scene, or 6th Alley Bar &amp; Grill for the deck.'],
+    photoAlt: ['Dillon Reservoir frozen over from the Sapphire Point side, or Loveland Pass at first light.'],
+    outside: [
+      'Snowshoe or nordic ski at the Breckenridge Nordic Center or Frisco Nordic Center. Both rent gear on site.',
+      'Or a snowmobile tour with White Mountain Snowmobile Tours or Good Times Adventures, both above Breckenridge.',
+      'Tubing at Frisco Adventure Park or Keystone Adventure Point if you have kids and two hours.'
+    ],
+    afternoonAlt: [
+      'Outlets at Silverthorne if the weather turned, which in February it has.',
+      "Short on time? A drink by the fire at Fatty's in Breckenridge or the Dillon Dam Brewery."
+    ]
+  },
+  summer: {
+    label: 'Summer',
+    day2Title: 'Mountain Day and the Water',
+    day2A: 'Early: Get on the Mountain',
+    day2B: 'Mid-Morning: Gear',
+    day2C: 'Lunch: On the Hill',
+    apresHead: 'Afternoon Drink: The Whole Point',
+    day3Title: 'Reservoir, Trails, and Departure',
+    outsideHead: 'Mid-Morning: Get Outside',
+    mountainAlt: ['Not riding? The Ten Mile Canyon recpath, the Dillon Reservoir loop, and the Blue River Trail are all paved, flat, and free.'],
+    gear: [
+      'Wilderness Sports and Christy Sports rent mountain bikes, and most shops will hold a bike overnight for a multi-day rental.',
+      'Dillon Marina and Frisco Bay Marina rent paddleboards, kayaks, and pontoons. Book the pontoon a few days ahead in July.'
+    ],
+    hillLunch: ['Ten Mile Tavern at Copper or Kickapoo Tavern at Keystone, both open through the summer. Or pack it: the Frisco Bay Marina picnic tables beat any restaurant patio.'],
+    apresAlt: ['Worth the drive: the deck at 6th Alley Bar &amp; Grill, or a table on the water at STEEP Brewing Lakeside Tiki Bar in Dillon.'],
+    photoAlt: ['Dillon Marina at first light, or Frisco Bay Marina with Mount Royal behind it.'],
+    outside: [
+      'Old Dillon Reservoir Trail. Under a mile, big payoff, doable at any fitness level.',
+      'Mount Royal from Frisco if you want to work. McCullough Gulch near Breckenridge for waterfalls.',
+      'Rent a paddleboard or a pontoon at Dillon Marina or Frisco Bay Marina.'
+    ],
+    afternoonAlt: [
+      'Outlets at Silverthorne if an afternoon storm rolled in, which most July afternoons it does. Montezuma ghost town above Keystone if it did not.',
+      "Short on time? A drink on the Fatty's rooftop deck or at STEEP Brewing Lakeside Tiki Bar on the water in Dillon."
+    ]
+  },
+  shoulder: {
+    label: 'Spring / Fall',
+    day2Title: 'Mud Season: Plan B Day',
+    day2A: 'Early: What Is Actually Open',
+    day2B: 'Mid-Morning: Gear',
+    day2C: 'Lunch: Wherever Is Open',
+    apresHead: 'Afternoon Drink',
+    day3Title: 'Low Country and Departure',
+    outsideHead: 'Mid-Morning: Get Outside, Carefully',
+    mountainAlt: ['Arapahoe Basin runs latest into spring and opens earliest in fall, often the only lift spinning in the county. Everything else is closed or on limited operations.'],
+    gear: [
+      'Call the shop before you drive. Many rental shops cut hours or close entirely for a few weeks in April, May, and October.',
+      'The Summit Stage still runs year-round and is still free.'
+    ],
+    hillLunch: ['Assume the on-mountain restaurants are closed. Eat in town: Butterhorn Bakery in Frisco or Sunshine Cafe in Silverthorne are open through mud season.'],
+    apresAlt: ['The breweries stay open when the lifts do not. Outer Range and Highside in Frisco, Broken Compass in Breckenridge, Angry James in Silverthorne.'],
+    photoAlt: ['Dillon Marina at first light. In fall, the aspens off Boreas Pass Road and Swan Mountain Road peak in the last week of September.'],
+    outside: [
+      'Lower trails melt out first. The Blue River Trail in Silverthorne and the Dillon Reservoir recpath are usually clear when the high country is not.',
+      'Anything above treeline is snow, mud, or both until well into June. Sapphire Point is the safe bet in any conditions.',
+      'In fall, Boreas Pass Road above Breckenridge is the aspen drive, open until the snow closes it.'
+    ],
+    afternoonAlt: [
+      'This is the season to call ahead. Summit County restaurants close for a few weeks in April, May, and October, and the good ones do not always post it.',
+      'Outlets at Silverthorne and the Breckenridge Distillery tasting room stay open regardless.'
+    ]
+  }
+};
 
-  function setHtml(id, paras) {
+// The app's own thresholds, from currentSeason() in index.html.
+function seasonForDate(d) {
+  var m = (d || new Date()).getMonth();
+  if (m >= 10 || m <= 3) return 'winter';
+  if (m >= 5 && m <= 8) return 'summer';
+  return 'shoulder';
+}
+
+(function initGuide() {
+  var TOWN_ORDER = ['breckenridge', 'frisco', 'dillon', 'silverthorne', 'keystone', 'copper'];
+  var SEASON_ORDER = ['winter', 'shoulder', 'summer'];
+  var town = 'breckenridge';
+  var season = seasonForDate();
+
+  // Items are either a plain string (always shown) or { t, s } where s pins it
+  // to one season. That keeps the common case readable.
+  function render(id, items) {
     var el = document.getElementById(id);
-    if (!el || !paras) return;
-    el.innerHTML = paras.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+    if (!el || !items) return;
+    var html = items.reduce(function (acc, item) {
+      if (typeof item === 'string') return acc + '<p>' + item + '</p>';
+      if (!item || !item.t) return acc;
+      if (item.s && item.s !== season) return acc;
+      return acc + '<p>' + item.t + '</p>';
+    }, '');
+    el.innerHTML = html;
   }
   function setText(id, txt) {
     var el = document.getElementById(id);
     if (el && txt) el.textContent = txt;
   }
 
-  function apply(key) {
-    var t = TOWNS[key];
-    if (!t) return;
+  function apply() {
+    var t = TOWNS[town];
+    var s = SEASONS[season];
+    if (!t || !s) return;
+
     setText('day1Title', t.title);
     setText('nightHead', t.nightHead);
-    setHtml('slotLunch', t.lunch);
-    setHtml('slotAfternoon', t.afternoon);
-    setHtml('slotDinner', t.dinner);
-    setHtml('slotNight', t.night);
-    setHtml('slotMountain', t.mountain);
-    setHtml('slotApres', t.apres);
-    setHtml('slotDinnerOff', t.dinnerOff);
+    render('slotLunch', t.lunch);
+    render('slotAfternoon', t.afternoon);
+    render('slotDinner', t.dinner);
+    render('slotNight', t.night);
+    render('slotApres', t.apres);
+    render('slotDinnerOff', t.dinnerOff);
+
+    // Shoulder has no lift-served story worth writing per town, so it borrows
+    // the summer text and the season's own copy carries the mud-season warning.
+    render('slotMountain', season === 'winter' ? t.mountainWinter : t.mountainSummer);
+
+    setText('day2Title', s.day2Title);
+    setText('day2SlotAHead', s.day2A);
+    setText('day2SlotBHead', s.day2B);
+    setText('day2SlotCHead', s.day2C);
+    setText('apresHead', s.apresHead);
+    setText('day3Title', s.day3Title);
+    setText('outsideHead', s.outsideHead);
+    render('slotMountainAlt', s.mountainAlt);
+    render('slotGear', s.gear);
+    render('slotHillLunch', s.hillLunch);
+    render('slotApresAlt', s.apresAlt);
+    render('slotPhotoAlt', s.photoAlt);
+    render('slotOutside', s.outside);
+    render('slotAfternoonAlt', s.afternoonAlt);
+
     Array.prototype.forEach.call(document.querySelectorAll('.townpill'), function (b) {
-      b.setAttribute('aria-pressed', b.dataset.town === key ? 'true' : 'false');
+      b.setAttribute('aria-pressed', b.dataset.town === town ? 'true' : 'false');
     });
+    Array.prototype.forEach.call(document.querySelectorAll('.seasonpill'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.season === season ? 'true' : 'false');
+    });
+
     try {
       var u = new URL(window.location.href);
-      u.searchParams.set('town', key);
+      u.searchParams.set('town', town);
+      u.searchParams.set('season', season);
       history.replaceState(null, '', u);
-      localStorage.setItem('howdy-summit-cheatsheet-town', key);
+      localStorage.setItem('howdy-summit-cheatsheet-town', town);
+      localStorage.setItem('howdy-summit-cheatsheet-season', season);
     } catch (e) { /* param and storage are conveniences, not requirements */ }
   }
 
-  var pills = document.getElementById('townPills');
-  if (pills) {
-    ORDER.forEach(function (key) {
+  function buildPills(containerId, order, cls, dataKey, labelFor, onPick) {
+    var box = document.getElementById(containerId);
+    if (!box) return;
+    order.forEach(function (key) {
       var b = document.createElement('button');
-      b.className = 'townpill';
+      b.className = cls;
       b.type = 'button';
-      b.dataset.town = key;
-      b.textContent = TOWNS[key].label;
+      b.dataset[dataKey] = key;
+      b.textContent = labelFor(key);
       b.setAttribute('aria-pressed', 'false');
-      b.addEventListener('click', function () { apply(key); });
-      pills.appendChild(b);
+      b.addEventListener('click', function () { onPick(key); apply(); });
+      box.appendChild(b);
     });
   }
 
-  // Precedence: the ?town= the email linked to, then whatever they last picked,
-  // then Breckenridge as the most common base.
-  var start = 'breckenridge';
+  buildPills('townPills', TOWN_ORDER, 'townpill', 'town',
+    function (k) { return TOWNS[k].label; },
+    function (k) { town = k; });
+
+  buildPills('seasonPills', SEASON_ORDER, 'townpill seasonpill', 'season',
+    function (k) { return SEASONS[k].label; },
+    function (k) { season = k; });
+
+  // Precedence: what the link asked for, then what they last picked, then the
+  // default. Season falls back to today's date rather than a fixed value,
+  // because someone reading in January is often booking for July.
   try {
-    var q = (new URLSearchParams(window.location.search).get('town') || '').toLowerCase();
-    var saved = localStorage.getItem('howdy-summit-cheatsheet-town');
-    if (TOWNS[q]) start = q;
-    else if (TOWNS[saved]) start = saved;
-  } catch (e) { /* fall through to the default */ }
-  apply(start);
+    var q = new URLSearchParams(window.location.search);
+    var qTown = (q.get('town') || '').toLowerCase();
+    var qSeason = (q.get('season') || '').toLowerCase();
+    var savedTown = localStorage.getItem('howdy-summit-cheatsheet-town');
+    var savedSeason = localStorage.getItem('howdy-summit-cheatsheet-season');
+    if (TOWNS[qTown]) town = qTown;
+    else if (TOWNS[savedTown]) town = savedTown;
+    if (SEASONS[qSeason]) season = qSeason;
+    else if (SEASONS[savedSeason]) season = savedSeason;
+  } catch (e) { /* fall through to the defaults */ }
+
+  apply();
 })();
 </script>
 
