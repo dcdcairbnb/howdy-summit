@@ -1858,6 +1858,16 @@ async function handleSignupSubmit(event, source) {
       btn.textContent = 'Send it to me';
       return;
     }
+    // The server answers 200 with emailSent:false when Resend rejects the send.
+    // The signup itself is saved, only the email failed, so checking r.ok alone
+    // printed "check your inbox" for a mail that was never sent.
+    if (data.emailSent === false) {
+      status.textContent = data.message || "You're signed up, but the email could not be sent. Try again shortly.";
+      status.style.color = '#b45309';
+      btn.disabled = false;
+      btn.textContent = 'Send it to me';
+      return;
+    }
     status.textContent = 'Check your inbox in a minute. Thanks!';
     status.style.color = '#1b8a3e';
     btn.textContent = 'Sent';
