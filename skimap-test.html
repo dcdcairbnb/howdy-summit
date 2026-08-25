@@ -46,14 +46,13 @@ var SKI_RESORT_BOUNDS = [
   { name: 'Keystone',        south: 39.565, north: 39.625, west: -105.995, east: -105.905, center: [39.6053, -105.9437] },
   { name: 'Arapahoe Basin',  south: 39.626, north: 39.655, west: -105.900, east: -105.840, center: [39.6425, -105.8719] },
   { name: 'Breckenridge',    south: 39.435, north: 39.515, west: -106.108, east: -106.044, center: [39.4800, -106.0680] },
-  { name: 'Copper Mountain', south: 39.465, north: 39.525, west: -106.185, east: -106.112, center: [39.5010, -106.1520] },
-  { name: 'Frisco (town)',   south: 0, north: 0, west: 0, east: 0, center: [39.5744, -106.0975] }
+  { name: 'Copper Mountain', south: 39.465, north: 39.525, west: -106.185, east: -106.112, center: [39.5010, -106.1520] }
 ];
 
 function resortForCoords(lat, lng) {
   if (lat == null || lng == null) return null;
   return SKI_RESORT_BOUNDS.find(function (r) {
-    return r.north !== 0 && lat >= r.south && lat <= r.north && lng >= r.west && lng <= r.east;
+    return lat >= r.south && lat <= r.north && lng >= r.west && lng <= r.east;
   }) || null;
 }
 
