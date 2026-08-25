@@ -89,6 +89,40 @@
     margin-bottom: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.04);
   }
+  .townbar {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  .townbar-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gray);
+    margin-bottom: 10px;
+  }
+  .townpills { display: flex; flex-wrap: wrap; gap: 7px; }
+  .townpill {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 13px;
+    border-radius: 999px;
+    border: 1.5px solid #e0d8d2;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .townpill:hover { border-color: var(--red); }
+  .townpill[aria-pressed="true"] {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
+  }
   .day-label {
     display: inline-block;
     background: var(--red);
@@ -215,6 +249,11 @@
 
 <div class="container">
 
+  <div class="townbar">
+    <div class="townbar-label">Where are you staying?</div>
+    <div class="townpills" id="townPills"></div>
+  </div>
+
   <div class="intro">
     <h2>Read this on the plane.</h2>
     <ul>
@@ -228,7 +267,7 @@
 
   <div class="day">
     <span class="day-label">Day 1</span>
-    <h2>Arrival and Breckenridge Main Street</h2>
+    <h2 id="day1Title">Arrival and Breckenridge Main Street</h2>
 
     <div class="timeslot">
       <h3>Morning: Land and Drive</h3>
@@ -237,28 +276,36 @@
     </div>
 
     <div class="timeslot">
-      <h3>Lunch: Easy and Local</h3>
-      <p>Empire Burger on Main Street in Breckenridge. Simple, fast, and right where you are parking.</p>
-      <p>Or Fatty's Pizzeria, a Breckenridge institution since 1979, with a rooftop deck when the sun is out.</p>
+      <h3 id="lunchHead">Lunch: Easy and Local</h3>
+      <div id="slotLunch">
+        <p>Empire Burger on Main Street in Breckenridge. Simple, fast, and right where you are parking.</p>
+        <p>Or Fatty's Pizzeria, a Breckenridge institution since 1979, with a rooftop deck when the sun is out.</p>
+      </div>
     </div>
 
     <div class="timeslot">
       <h3>Afternoon: Walk, Do Not Ski</h3>
-      <p>Main Street Breckenridge Historic District. Victorian storefronts, the Blue River Plaza footbridge, and the Breckenridge Arts District a block off Main.</p>
-      <p>Ride the BreckConnect Gondola up and back. It is free, it is heated, and it is the best altitude-friendly view in the county.</p>
-      <p>Rather learn something? Country Boy Mine or the Barney Ford House Museum.</p>
+      <div id="slotAfternoon">
+        <p>Main Street Breckenridge Historic District. Victorian storefronts, the Blue River Plaza footbridge, and the Breckenridge Arts District a block off Main.</p>
+        <p>Ride the BreckConnect Gondola up and back. It is free, it is heated, and it is the best altitude-friendly view in the county.</p>
+        <p>Rather learn something? Country Boy Mine or the Barney Ford House Museum.</p>
+      </div>
     </div>
 
     <div class="timeslot">
       <h3>Dinner: First Night Splurge</h3>
-      <p>Hearthstone Restaurant in a restored 1886 Victorian, or Briar Rose Chophouse &amp; Saloon for steak in the oldest building on the block.</p>
-      <p>Or Aurum Food &amp; Wine for a creekside table and a shorter wait.</p>
+      <div id="slotDinner">
+        <p>Hearthstone Restaurant in a restored 1886 Victorian, or Briar Rose Chophouse &amp; Saloon for steak in the oldest building on the block.</p>
+        <p>Or Aurum Food &amp; Wine for a creekside table and a shorter wait.</p>
+      </div>
     </div>
 
     <div class="timeslot">
-      <h3>Night: Main Street Bar Crawl</h3>
-      <p>Gold Pan Saloon, one of the oldest continuously operating bars west of the Mississippi. Then Downstairs at Eric's for arcade games and a hundred taps.</p>
-      <p>Blue Stag Saloon or RMU Tavern if you want it loud. Cecilia's Martini Bar if you want it late.</p>
+      <h3 id="nightHead">Night: Main Street Bar Crawl</h3>
+      <div id="slotNight">
+        <p>Gold Pan Saloon, one of the oldest continuously operating bars west of the Mississippi. Then Downstairs at Eric's for arcade games and a hundred taps.</p>
+        <p>Blue Stag Saloon or RMU Tavern if you want it loud. Cecilia's Martini Bar if you want it late.</p>
+      </div>
       <p>Go easy tonight. Altitude does the work of two drinks.</p>
     </div>
   </div>
@@ -269,7 +316,9 @@
 
     <div class="timeslot">
       <h3>Early: Pick Your Mountain</h3>
-      <p>Breckenridge for terrain variety and a town at the base. Keystone for long groomers and night skiing. Copper Mountain for natural fall-line laps. Arapahoe Basin for steep, high, and no frills. Loveland for cheap and uncrowded.</p>
+      <div id="slotMountain">
+        <p>Breckenridge for terrain variety and a town at the base. Keystone for long groomers and night skiing. Copper Mountain for natural fall-line laps. Arapahoe Basin for steep, high, and no frills. Loveland for cheap and uncrowded.</p>
+      </div>
       <p>Not skiing? Frisco Adventure Park tubing hill, Keystone Adventure Point tubing, or Breckenridge Nordic Center for groomed cross-country tracks.</p>
     </div>
 
@@ -286,16 +335,19 @@
 
     <div class="timeslot">
       <h3>Apres: The Whole Point</h3>
-      <p>The Beach at Arapahoe Basin for the tailgate scene. 6th Alley Bar &amp; Grill for the deck.</p>
-      <p>In Breckenridge: Apres Handcrafted Libations, The Maggie at the base of Peak 9, or Broken Compass Brewing a short ride from Main.</p>
-      <p>In Frisco: Outer Range Brewing Co. or Highside Brewing. In Dillon: Dillon Dam Brewery.</p>
+      <div id="slotApres">
+        <p>In Breckenridge: Apres Handcrafted Libations, The Maggie at the base of Peak 9, or Broken Compass Brewing a short ride from Main.</p>
+      </div>
+      <p>Worth the drive from anywhere: The Beach at Arapahoe Basin for the tailgate scene, or 6th Alley Bar &amp; Grill for the deck.</p>
     </div>
 
     <div class="timeslot">
       <h3>Dinner: Off the Mountain</h3>
-      <p>Ski Tip Lodge in Keystone, a former 1800s stagecoach stop with a fixed menu. Book ahead.</p>
+      <div id="slotDinnerOff">
+        <p>Ski Tip Lodge in Keystone, a former 1800s stagecoach stop with a fixed menu. Book ahead.</p>
+        <p>Lower key: Peppino's Pizza &amp; Subs or Bagalis in Frisco, Sauce on the Blue in Silverthorne.</p>
+      </div>
       <p>Or Der Fondue Chessel at Keystone, reached by gondola, for fondue at 11,444 feet.</p>
-      <p>Lower key: Peppino's Pizza &amp; Subs or Bagalis in Frisco, Sauce on the Blue in Silverthorne.</p>
     </div>
   </div>
 
@@ -351,6 +403,242 @@
   </div>
 
 </div>
+
+<script>
+// Day 1 and two Day 2 slots change with where you sleep. Everything else
+// (altitude, DEN drive, gear, Sapphire Point, departure) is county-wide and
+// stays put. Every business named here comes from the curated lists in the
+// app, so nothing is invented.
+var TOWNS = {
+  breckenridge: {
+    label: 'Breckenridge',
+    title: 'Arrival and Breckenridge Main Street',
+    nightHead: 'Night: Main Street Bar Crawl',
+    lunch: [
+      'Empire Burger on Main Street. Simple, fast, and right where you are parking.',
+      "Or Fatty's Pizzeria, a Breckenridge institution since 1979, with a rooftop deck when the sun is out."
+    ],
+    afternoon: [
+      'Main Street Breckenridge Historic District. Victorian storefronts, the Blue River Plaza footbridge, and the Breckenridge Arts District a block off Main.',
+      'Ride the BreckConnect Gondola up and back. It is free, it is heated, and it is the best altitude-friendly view in the county.',
+      'Rather learn something? Country Boy Mine or the Barney Ford House Museum.'
+    ],
+    dinner: [
+      'Hearthstone Restaurant in a restored 1886 Victorian, or Briar Rose Chophouse &amp; Saloon for steak in the oldest building on the block.',
+      'Or Aurum Food &amp; Wine for a creekside table and a shorter wait.'
+    ],
+    night: [
+      "Gold Pan Saloon, one of the oldest continuously operating bars west of the Mississippi. Then Downstairs at Eric's for arcade games and a hundred taps.",
+      "Blue Stag Saloon or RMU Tavern if you want it loud. Cecilia's Martini Bar if you want it late."
+    ],
+    mountain: ['Breckenridge is at your doorstep, with the most terrain variety in the county and a town at the base. Keystone is 20 minutes for long groomers and night skiing. Arapahoe Basin is 30 for steep and no frills.'],
+    apres: ['Walk to it: Apres Handcrafted Libations, The Maggie at the base of Peak 9, or Broken Compass Brewing a short ride from Main.'],
+    dinnerOff: [
+      'Ski Tip Lodge in Keystone, a former 1800s stagecoach stop with a fixed menu. Book ahead.',
+      "Lower key and closer: Peppino's Pizza &amp; Subs or Bagalis in Frisco."
+    ]
+  },
+  frisco: {
+    label: 'Frisco',
+    title: 'Arrival and Frisco Main Street',
+    nightHead: 'Night: Frisco Main Street',
+    lunch: [
+      'Butterhorn Bakery &amp; Cafe, the county benchmark for breakfast and lunch. Butterhorns, muffins, huge omelets.',
+      'Or Food Hedz World Cafe, chef-owned and hiding in a strip mall. This is the one locals send visitors to.'
+    ],
+    afternoon: [
+      'Frisco Main Street. Lower-key than Breckenridge and easier to park: local boutiques, gear shops, galleries, and coffee.',
+      'Frisco Historic Park &amp; Museum is free. Relocated 1800s cabins, a jail, a chapel, and a schoolhouse, right off Main.',
+      'The Next Page Books &amp; Nosh, an independent bookstore with a cafe and a wine bar. The most civilized stop in the county.'
+    ],
+    dinner: [
+      '5th Avenue Grille, the best steakhouse in town, with high-tops in the tavern if you skipped the reservation.',
+      'Or Bread + Salt for house-milled bread and wood-fired pizza in a small, bright storefront.'
+    ],
+    night: [
+      "Outer Range Brewing Co. The A-frame taproom is the county's most-hyped brewery and the beer program backs it up.",
+      'Then Ein Prosit, Colorado’s only real beer hall, hidden inside a Main Street antique store. Highside Brewing if you want it quieter, Kemosabe at Silverheels for tequila.'
+    ],
+    mountain: ['Copper Mountain is 10 minutes up I-70 for natural fall-line laps. Breckenridge is 15 the other way. That two-mountain choice is the whole reason to base in Frisco.'],
+    apres: ['Walk to it: Outer Range Brewing Co. or Highside Brewing, both just off Main Street.'],
+    dinnerOff: [
+      "Peppino's Pizza &amp; Subs or Bagalis, both on Main and both fine after a full ski day.",
+      'Ski Tip Lodge in Keystone is 20 minutes if you want the 1800s stagecoach stop and a fixed menu. Book ahead.'
+    ]
+  },
+  dillon: {
+    label: 'Dillon',
+    title: 'Arrival and Dillon Reservoir',
+    nightHead: 'Night: On the Water',
+    lunch: [
+      'Chimayo Grill, counter-service New Mexican in a strip mall. Green chile and fish tacos, and you will spend half what Main Street costs.'
+    ],
+    afternoon: [
+      'Sapphire Point Overlook is ten minutes away off Swan Mountain Road. A nearly flat loop to the best view of the reservoir and the Ten Mile Range. Free parking.',
+      'Or the Old Dillon Reservoir Trail off Dillon Dam Road. One mile up to a small hidden reservoir.',
+      'The Dillon town core has the marina, the amphitheater, and a farmers market on Friday mornings in summer.'
+    ],
+    dinner: [
+      'Dillon Dam Brewery, one of the largest brewpubs in Colorado. House beer, a huge menu, and the easiest option in the county for a big group.'
+    ],
+    night: [
+      'STEEP Brewing Lakeside Tiki Bar, open-air right on the reservoir with the Gore Range across the water. Best lake drink in the county.',
+      'Or Cala Pub &amp; Restaurant, a tiny Irish pub the locals treat as a living room. Shepherd’s pie and a properly poured pint.'
+    ],
+    mountain: ['Keystone is 10 minutes east for long groomers and night skiing. Arapahoe Basin is 20 for steep, high, and no frills. Breckenridge is 20 the other way.'],
+    apres: ['Walk or drive five minutes: Dillon Dam Brewery, or STEEP Brewing Lakeside Tiki Bar if the sun is out.'],
+    dinnerOff: [
+      'Ski Tip Lodge in Keystone, 10 minutes east. A former 1800s stagecoach stop with a fixed menu. Book ahead.',
+      'Lower key: Sauce on the Blue in Silverthorne, five minutes north.'
+    ]
+  },
+  silverthorne: {
+    label: 'Silverthorne',
+    title: 'Arrival and the Blue River',
+    nightHead: 'Night: Riverside',
+    lunch: [
+      'Sunshine Cafe, where county workers eat breakfast. Big plates, fast service, no scene.',
+      'Or Blue Moon Bakery for a scratch breakfast burrito and sandwiches built for a trailhead.'
+    ],
+    afternoon: [
+      'The Blue River Trail runs right through town along Gold Medal trout water. Flat, free, and the gentlest way to spend an altitude day.',
+      'The Outlets at Silverthorne are at exit 205, three villages of outlet shops. This is the county’s big shopping stop.',
+      'Rainbow Park and the Silverthorne Pavilion have a playground, a whitewater park, and free town events on the lawn.'
+    ],
+    dinner: [
+      'Sauce on the Blue for an Italian wine list and a patio over the river.',
+      'Or Mint, where you cook your own steak on a 700-degree stone. Loud and worth it.'
+    ],
+    night: [
+      'Bluebird Market, a riverside food hall with a central bar. Order drinks in one place and food from whichever vendor wins.',
+      'Angry James Brewery has a patio right on the Blue. Or Old Dillon Inn, an 1800s bar hauled up from Old Dillon before the reservoir flooded it. Margaritas by the pitcher and live country on weekends.'
+    ],
+    mountain: ['Keystone is 15 minutes and Arapahoe Basin 25, both east on Highway 6. Breckenridge is 20 south. You are also closest to Loveland, which is cheap and uncrowded.'],
+    apres: ['Walk to it: Angry James Brewery on the river, or the bar at Bluebird Market.'],
+    dinnerOff: [
+      'Sauce on the Blue, right in town, or Mint if you want to cook your own steak.',
+      'Ski Tip Lodge in Keystone is 15 minutes for the 1800s stagecoach stop and a fixed menu. Book ahead.'
+    ]
+  },
+  keystone: {
+    label: 'Keystone',
+    title: 'Arrival and River Run Village',
+    nightHead: 'Night: In the Village',
+    lunch: [
+      'Inxpot in River Run, a bookshelf-lined coffee shop with espresso, bagels, and a couch by the window. The easy first stop before you unpack.'
+    ],
+    afternoon: [
+      'River Run Village is walkable straight from the gondola base: resort retail, gear shops, coffee, and a place to sit in the sun.',
+      'Drive Loveland Pass, 20 minutes east and free, to 11,990 feet on the Continental Divide. Park at the top and walk the ridge a little.',
+      'Or the dirt road past Keystone to Montezuma, a surviving 1860s silver camp of a few cabins at the end of the valley.'
+    ],
+    dinner: [
+      'Ski Tip Lodge, a former 1800s stagecoach stop with a fireplace bar and a fixed menu. The most romantic table in the county. Book ahead.',
+      'Or Snake River Saloon, a steakhouse that turns into a live music room late.'
+    ],
+    night: [
+      "Kickapoo Tavern, steps from the River Run gondola, is the default and good for a group. 9280' Tap House has Colorado beer and a fire-pit patio.",
+      'The Goat Soup &amp; Whiskey Tavern on Highway 6 is where the lifties actually drink. Cheap beer, whiskey, live music.'
+    ],
+    mountain: ['Keystone is out your door, with the longest groomers in the county and night skiing until 8pm. Arapahoe Basin is 15 minutes further east for steep and high. Breckenridge is 25 west.'],
+    apres: ["Ski off and walk in: Kickapoo Tavern at the River Run base, or 9280' Tap House for the patio fire pit."],
+    dinnerOff: [
+      'You are staying in a resort village, so the real dinner town is 10 minutes west. Dillon Dam Brewery in Dillon for a group, Sauce on the Blue in Silverthorne for something better.',
+      'Staying in? Der Fondue Chessel is up the gondola at 11,444 feet.'
+    ]
+  },
+  copper: {
+    label: 'Copper Mtn',
+    title: 'Arrival and Center Village',
+    nightHead: 'Night: In the Village',
+    lunch: [
+      'Camp Hale Coffee at the Center Village counter. Get there before the first-chair rush and it is the fastest food at the base.',
+      'Frisco is 10 minutes down I-70 if you want a real sit-down lunch. Butterhorn Bakery &amp; Cafe is the one.'
+    ],
+    afternoon: [
+      'Center Village sits at the base of American Eagle: slopeside shops for gear, apparel, and anything you forgot to pack.',
+      'Copper is a ski resort rather than a town, so the walking is short. Drive 10 minutes to Frisco Main Street for shops, a bookstore, and the free Frisco Historic Park.',
+      'The Copper Mountain Athletic Club has a pool, hot tubs, sauna, and steam room with day passes. A good altitude-day afternoon.'
+    ],
+    dinner: [
+      'Ten Mile Tavern in Center Village, with live music and a slopeside deck.',
+      'Or drive 10 minutes to Frisco for 5th Avenue Grille or Bread + Salt.'
+    ],
+    night: [
+      "Jack's Slopeside Grill for burgers, beer, and Center Village people-watching, or High Rockies Whiskey and Wine Bar near West Lake for a proper cocktail.",
+      "Mulligan's Irish Pub in the Lake building stays open later than anything else on the mountain."
+    ],
+    mountain: ['Copper is out your door, and the natural fall-line laps here are the best in the county for intermediates and up. Breckenridge and Frisco Adventure Park are both 15 minutes. Vail is 25 west if you have the pass for it.'],
+    apres: ["Ski off and walk in: Ten Mile Tavern for the deck and the live music, or Jack's Slopeside Grill right off American Flyer."],
+    dinnerOff: [
+      'Ten Mile Tavern without moving the car.',
+      "Or 10 minutes to Frisco: Peppino's Pizza &amp; Subs, Bagalis, or Outer Range Brewing Co."
+    ]
+  }
+};
+
+(function initTowns() {
+  var ORDER = ['breckenridge', 'frisco', 'dillon', 'silverthorne', 'keystone', 'copper'];
+
+  function setHtml(id, paras) {
+    var el = document.getElementById(id);
+    if (!el || !paras) return;
+    el.innerHTML = paras.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+  }
+  function setText(id, txt) {
+    var el = document.getElementById(id);
+    if (el && txt) el.textContent = txt;
+  }
+
+  function apply(key) {
+    var t = TOWNS[key];
+    if (!t) return;
+    setText('day1Title', t.title);
+    setText('nightHead', t.nightHead);
+    setHtml('slotLunch', t.lunch);
+    setHtml('slotAfternoon', t.afternoon);
+    setHtml('slotDinner', t.dinner);
+    setHtml('slotNight', t.night);
+    setHtml('slotMountain', t.mountain);
+    setHtml('slotApres', t.apres);
+    setHtml('slotDinnerOff', t.dinnerOff);
+    Array.prototype.forEach.call(document.querySelectorAll('.townpill'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.town === key ? 'true' : 'false');
+    });
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.set('town', key);
+      history.replaceState(null, '', u);
+      localStorage.setItem('howdy-summit-cheatsheet-town', key);
+    } catch (e) { /* param and storage are conveniences, not requirements */ }
+  }
+
+  var pills = document.getElementById('townPills');
+  if (pills) {
+    ORDER.forEach(function (key) {
+      var b = document.createElement('button');
+      b.className = 'townpill';
+      b.type = 'button';
+      b.dataset.town = key;
+      b.textContent = TOWNS[key].label;
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () { apply(key); });
+      pills.appendChild(b);
+    });
+  }
+
+  // Precedence: the ?town= the email linked to, then whatever they last picked,
+  // then Breckenridge as the most common base.
+  var start = 'breckenridge';
+  try {
+    var q = (new URLSearchParams(window.location.search).get('town') || '').toLowerCase();
+    var saved = localStorage.getItem('howdy-summit-cheatsheet-town');
+    if (TOWNS[q]) start = q;
+    else if (TOWNS[saved]) start = saved;
+  } catch (e) { /* fall through to the default */ }
+  apply(start);
+})();
+</script>
 
 </body>
 </html>

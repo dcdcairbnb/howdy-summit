@@ -35,8 +35,10 @@ async function ensureTable() {
       subscribed_at TIMESTAMPTZ DEFAULT NOW(),
       unsubscribed_at TIMESTAMPTZ NULL,
       consent_ip VARCHAR(45),
-      saved_spots JSONB
+      saved_spots JSONB,
+      town VARCHAR(20)
     );
+    ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS town VARCHAR(20);
     CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers(email);
     CREATE INDEX IF NOT EXISTS idx_subscribers_token ON subscribers(unsubscribe_token);
   `;
@@ -209,7 +211,14 @@ ${incomingBlock}
 <p style="margin:8px 0;font-size:14px;color:#666;">Split evenly across the people in each line item. Total trip: $${Number(totalSpent || 0).toFixed(2)}.</p>`;
 }
 
-function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData }) {
+function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData, town }) {
+  const TOWN_LABELS = {
+    breckenridge: 'Breckenridge', frisco: 'Frisco', dillon: 'Dillon',
+    silverthorne: 'Silverthorne', keystone: 'Keystone', copper: 'Copper Mountain'
+  };
+  // Deep-link to their version. The town was validated against a fixed list
+  // before it got here, so it is safe in the URL.
+  const cheatsheetUrl = town ? `${CHEATSHEET_URL}?town=${town}` : CHEATSHEET_URL;
   const firstName = name ? titleCase(name.split(' ')[0]) : '';
   const greeting = firstName ? `Howdy ${firstName}` : 'Howdy';
   let savedSpotsBlock = '';
@@ -218,7 +227,9 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
     savedSpotsBlock = `<h3 style="margin:24px 0 8px;">Your saved Summit County spots</h3><ul style="padding-left:18px;">${items}</ul>`;
   }
   const sourceBlurb = {
-    'cheatsheet': 'Your free Summit County 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
+    'cheatsheet': town
+      ? `Your free Summit County 3-Day Cheat Sheet is below, set up for ${TOWN_LABELS[town]}. Day one, the mountain day, and where to eat are all written around staying there. Open it on your phone. Save the page. Take it on the road.`
+      : 'Your free Summit County 3-Day Cheat Sheet is attached as a link below. Open it on your phone. Save the page. Take it on the road.',
     'saved-spots': 'Here are the spots you starred. Tap any to open them in Maps.',
     'bachelorette': 'Thanks for signing up. We built a Summit County group trip planner page just for trips like yours.',
     'trip-summary': tripData && tripData.isPayer ? `Here is the summary from your ${tripData.tripName || 'Summit County trip'}. Each person on the trip got their own email with what they owe.` : `Here is your share from the ${tripData && tripData.tripName || 'Summit County trip'}. Tap a payment button below to settle up in seconds.`,
@@ -236,7 +247,7 @@ function buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData 
     <div style="margin-bottom:18px;"><img src="${SITE_URL}/logo.png" alt="Howdy Summit" width="56" height="56" style="border-radius:12px;display:block;" /></div>
     <p style="margin:0 0 14px;">${greeting},</p>
     <p style="margin:0 0 14px;">${sourceBlurb}</p>
-    ${source === 'cheatsheet' ? `<p style="margin:14px 0;"><a href="${CHEATSHEET_URL}" style="color:#d62828;font-weight:600;">${CHEATSHEET_URL}</a></p>` : ''}
+    ${source === 'cheatsheet' ? `<p style="margin:14px 0;"><a href="${cheatsheetUrl}" style="color:#d62828;font-weight:600;">${cheatsheetUrl}</a></p>${town ? '<p style="margin:0 0 14px;color:#666;font-size:14px;">Staying somewhere else? Tap any town at the top of that page and it rewrites itself.</p>' : ''}` : ''}
     ${source === 'bachelorette' ? buildBacheloretteBlock() : ''}
     ${source === 'trip-summary' ? buildTripSummaryBlock(tripData) : ''}
     ${savedSpotsBlock}
@@ -694,6 +705,13 @@ export default async function handler(req, res) {
   const name = String(body.name || '').trim().slice(0, 100);
   const source = String(body.source || 'general').trim().slice(0, 50);
   const optIn = !!body.optIn;
+  // Town is optional and only comes from the cheat sheet form. Validate against
+  // the known list rather than trusting the body, since it is interpolated into
+  // the cheat sheet URL in the welcome email.
+  const TOWNS = ['breckenridge', 'frisco', 'dillon', 'silverthorne', 'keystone', 'copper'];
+  const townRaw = typeof body.town === 'string' ? body.town.trim().toLowerCase() : '';
+  const town = TOWNS.includes(townRaw) ? townRaw : null;
+
   // Sanitize savedSpots: cap each field so an attacker can't store huge blobs.
   const savedSpots = Array.isArray(body.savedSpots)
     ? body.savedSpots.slice(0, 50).map(s => ({
@@ -762,13 +780,14 @@ export default async function handler(req, res) {
     if (shouldStoreSubscriber) {
       const token = crypto.randomBytes(24).toString('hex');
       const upsert = `
-        INSERT INTO subscribers (email, name, source, unsubscribe_token, consent_ip, saved_spots)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO subscribers (email, name, source, unsubscribe_token, consent_ip, saved_spots, town)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (email) DO UPDATE SET
           name = COALESCE(EXCLUDED.name, subscribers.name),
           source = COALESCE(EXCLUDED.source, subscribers.source),
           unsubscribed_at = NULL,
-          saved_spots = COALESCE(EXCLUDED.saved_spots, subscribers.saved_spots)
+          saved_spots = COALESCE(EXCLUDED.saved_spots, subscribers.saved_spots),
+          town = COALESCE(EXCLUDED.town, subscribers.town)
         RETURNING unsubscribe_token, subscribed_at
       `;
       const result = await getPool().query(upsert, [
@@ -777,7 +796,8 @@ export default async function handler(req, res) {
         source,
         token,
         ip.slice(0, 45),
-        savedSpots ? JSON.stringify(savedSpots) : null
+        savedSpots ? JSON.stringify(savedSpots) : null,
+        town
       ]);
       const stored = result.rows[0];
       unsubscribeUrl = `${SITE_URL}/api/unsubscribe?token=${stored.unsubscribe_token}`;
@@ -796,7 +816,7 @@ export default async function handler(req, res) {
       from: FROM_EMAIL,
       to: email,
       subject,
-      html: buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData }),
+      html: buildWelcomeEmail({ name, source, unsubscribeUrl, savedSpots, tripData, town }),
       headers: {
         'List-Unsubscribe': `<${unsubscribeUrl}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'

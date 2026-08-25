@@ -1791,6 +1791,17 @@ function openSignupModal(source) {
       <form id="signupForm" onsubmit="handleSignupSubmit(event, '${source}'); return false;">
         <input type="text" id="signupName" placeholder="First name (optional)" maxlength="100" style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;">
         <input type="email" id="signupEmail" placeholder="your@email.com" required maxlength="200" style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;">
+        ${source === 'cheatsheet' ? `
+        <label for="signupTown" style="display:block;font-size:12px;color:#666;margin-bottom:5px;">Where are you staying? <span style="color:#999;">(optional, tailors your guide)</span></label>
+        <select id="signupTown" style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;background:#fff;color:#222;">
+          <option value="">Not sure yet</option>
+          <option value="breckenridge">Breckenridge</option>
+          <option value="frisco">Frisco</option>
+          <option value="dillon">Dillon</option>
+          <option value="silverthorne">Silverthorne</option>
+          <option value="keystone">Keystone</option>
+          <option value="copper">Copper Mountain</option>
+        </select>` : ''}
         <button type="submit" id="signupSubmitBtn" style="width:100%;background:#d62828;color:#fff;border:none;padding:12px 16px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Send it to me</button>
       </form>
       <div id="signupStatus" style="font-size:13px;text-align:center;margin-top:10px;color:#666;"></div>
@@ -1827,6 +1838,9 @@ async function handleSignupSubmit(event, source) {
   const status = document.getElementById('signupStatus');
   const email = emailEl.value.trim();
   const name = nameEl.value.trim();
+  // Only the cheat sheet form carries a town, and it is optional there, so an
+  // empty string is the normal case rather than an error.
+  const town = (document.getElementById('signupTown')?.value || '').trim();
   if (!email) return;
 
   btn.disabled = true;
@@ -1847,7 +1861,7 @@ async function handleSignupSubmit(event, source) {
     const r = await fetch(`${API_BASE}/api/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, source, savedSpots: savedSpotsPayload }),
+      body: JSON.stringify({ email, name, source, town, savedSpots: savedSpotsPayload }),
       signal: AbortSignal.timeout(15000)
     });
     const data = await r.json().catch(() => ({}));
