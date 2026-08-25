@@ -510,6 +510,17 @@ what is actually available today.`;
 }
 
 export default async function handler(req, res) {
+  // CORS preflight. The iOS app runs on capacitor://localhost, so its POSTs are
+  // cross-origin and preflighted. Without this, OPTIONS hit the 405 below and
+  // chat failed in the app while working on the website.
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'POST only' });
   }

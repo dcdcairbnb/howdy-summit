@@ -442,6 +442,20 @@ async function sendWeeklyNewsletter(resend) {
 }
 
 export default async function handler(req, res) {
+  // CORS preflight. The iOS app runs on capacitor://localhost, so every POST
+  // from it is cross-origin and the browser sends an OPTIONS request first.
+  // Without this the preflight fell through to the 405 below, the browser
+  // blocked the real request, and the app showed "Connection issue. Try
+  // again." while the website worked fine (same-origin, no preflight).
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   // Vercel Cron support: GET /api/subscribe?cron=newsletter triggers the weekly send.
   // Vercel automatically attaches Authorization: Bearer CRON_SECRET when calling cron paths.
   if (req.method === 'GET' && req.query && req.query.cron === 'newsletter') {

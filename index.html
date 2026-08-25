@@ -1192,7 +1192,10 @@ let messageSnapshots = [];
     recentLocalErrors.add(key);
     localReportCount++;
     try {
-      fetch('/api/subscribe', {
+      // API_BASE is declared further down but this only runs on an error event,
+      // long after that line has executed. Relative paths break in the app,
+      // where the page origin is capacitor://localhost rather than the site.
+      fetch(`${API_BASE}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'log-error', ...payload })
@@ -6305,7 +6308,7 @@ async function groupApi(payload) {
   // 10s timeout prevents the UI from hanging forever if the group endpoint
   // stops responding. Callers already handle non-ok responses, so a timeout
   // just lands as a normal "fetch failed" error.
-  const r = await fetch('/api/group', {
+  const r = await fetch(`${API_BASE}/api/group`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -9129,7 +9132,7 @@ async function showLiveMusic() {
 
   // Render iconic venue calendar (paginated) then chain to always-on venues.
   function renderVenueCalendarThenAlwaysOn() {
-    (LIVE_CITY_FEEDS_ENABLED ? fetch('/api/venue-calendars').then(r => r.ok ? r.json() : null) : Promise.resolve(null)).then(data => {
+    (LIVE_CITY_FEEDS_ENABLED ? fetch(`${API_BASE}/api/venue-calendars`).then(r => r.ok ? r.json() : null) : Promise.resolve(null)).then(data => {
       if (data && data.events && data.events.length) {
         const slice = data.events.slice(0, 20);
         addMessage(`Plus ${slice.length} shows scraped from iconic Summit County venues. Showing 5 at a time:`, 'bot');
