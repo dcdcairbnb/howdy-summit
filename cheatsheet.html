@@ -775,6 +775,10 @@ function seasonForDate(d) {
       history.replaceState(null, '', u);
       localStorage.setItem('howdy-summit-cheatsheet-town', town);
       localStorage.setItem('howdy-summit-cheatsheet-season', season);
+      // Record which season it actually was when they chose, so the choice can
+      // be recognised as stale later. Without this, someone who picks winter in
+      // December is still shown a ski itinerary when they come back in July.
+      localStorage.setItem('howdy-summit-cheatsheet-season-asof', seasonForDate());
     } catch (e) { /* param and storage are conveniences, not requirements */ }
   }
 
@@ -810,10 +814,14 @@ function seasonForDate(d) {
     var qSeason = (q.get('season') || '').toLowerCase();
     var savedTown = localStorage.getItem('howdy-summit-cheatsheet-town');
     var savedSeason = localStorage.getItem('howdy-summit-cheatsheet-season');
+    var savedAsOf = localStorage.getItem('howdy-summit-cheatsheet-season-asof');
     if (TOWNS[qTown]) town = qTown;
     else if (TOWNS[savedTown]) town = savedTown;
+    // Town is a preference and keeps indefinitely. Season is only honoured
+    // while the real season has not turned over since they picked it, so the
+    // choice survives a reload but never outlives the winter it was made in.
     if (SEASONS[qSeason]) season = qSeason;
-    else if (SEASONS[savedSeason]) season = savedSeason;
+    else if (SEASONS[savedSeason] && savedAsOf === seasonForDate()) season = savedSeason;
   } catch (e) { /* fall through to the defaults */ }
 
   apply();
