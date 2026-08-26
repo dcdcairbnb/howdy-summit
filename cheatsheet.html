@@ -249,13 +249,6 @@
 
 <div class="container">
 
-  <div class="townbar">
-    <div class="townbar-label">Where are you staying?</div>
-    <div class="townpills" id="townPills"></div>
-    <div class="townbar-label" style="margin-top:14px;">When?</div>
-    <div class="townpills" id="seasonPills"></div>
-  </div>
-
   <div class="intro">
     <h2>Read this on the plane.</h2>
     <ul>
@@ -267,7 +260,19 @@
     </ul>
   </div>
 
-  <div class="day">
+  <!-- The picker sits here rather than at the top of the page on purpose.
+       Above the intro it looked broken: everything visible on a phone screen
+       (altitude, the DEN drive, the six towns) is county-wide and identical
+       for every town, so tapping a pill appeared to do nothing. Next to Day 1,
+       the thing that changes is the thing you are looking at. -->
+  <div class="townbar" id="townbar">
+    <div class="townbar-label">Where are you staying?</div>
+    <div class="townpills" id="townPills"></div>
+    <div class="townbar-label" style="margin-top:14px;">When?</div>
+    <div class="townpills" id="seasonPills"></div>
+  </div>
+
+  <div class="day" id="day1">
     <span class="day-label">Day 1</span>
     <h2 id="day1Title">Arrival and Breckenridge Main Street</h2>
 
@@ -524,7 +529,7 @@ var TOWNS = {
   silverthorne: {
     label: 'Silverthorne',
     title: 'Arrival and the Blue River',
-    nightHead: 'Night: Riverside',
+    nightHead: 'Night: In Town',
     lunch: [
       'Sunshine Cafe, where county workers eat breakfast. Big plates, fast service, no scene.',
       'Or Blue Moon Bakery for a scratch breakfast burrito and sandwiches built for a trailhead.'
@@ -792,7 +797,16 @@ function seasonForDate(d) {
       b.dataset[dataKey] = key;
       b.textContent = labelFor(key);
       b.setAttribute('aria-pressed', 'false');
-      b.addEventListener('click', function () { onPick(key); apply(); });
+      b.addEventListener('click', function () {
+        onPick(key);
+        apply();
+        // Pull the picker to the top of the screen so Day 1, the part that
+        // actually changed, is what fills the rest of it.
+        try {
+          var bar = document.getElementById('townbar');
+          if (bar && bar.scrollIntoView) bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) { /* older browsers just stay put */ }
+      });
       box.appendChild(b);
     });
   }
