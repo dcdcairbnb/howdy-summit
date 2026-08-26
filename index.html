@@ -6137,35 +6137,35 @@ function showSnowTours(skipPush) {
 
 const BINGO_STORAGE_KEY = 'howdy-summit-bingo-v1';
 const SUMMIT_BINGO_SQUARES = [
-  { emoji: '🎿', label: 'Ski or ride a Summit resort' },
-  { emoji: '🚡', label: 'Ride the free BreckConnect gondola' },
-  { emoji: '🍺', label: 'Drink a local Summit County beer' },
-  { emoji: '📸', label: 'Sunset photo at Sapphire Point' },
-  { emoji: '🏔️', label: 'Walk all of Main Street Breckenridge' },
+  { emoji: '🎿', label: 'Ski or ride a Summit resort', short: 'Ski a resort' },
+  { emoji: '🚡', label: 'Ride the free BreckConnect gondola', short: 'BreckConnect' },
+  { emoji: '🍺', label: 'Drink a local Summit County beer', short: 'Local beer' },
+  { emoji: '📸', label: 'Sunset photo at Sapphire Point', short: 'Sapphire Point' },
+  { emoji: '🏔️', label: 'Walk all of Main Street Breckenridge', short: 'Main Street' },
 
-  { emoji: '🫎', label: 'Spot a moose (from a safe distance)' },
-  { emoji: '🥃', label: 'Tour Breckenridge Distillery' },
-  { emoji: '🛷', label: 'Tube or sled a hill' },
-  { emoji: '⛸️', label: 'Skate the Keystone Lake rink' },
-  { emoji: '🥞', label: 'Breakfast at Butterhorn or Columbine' },
+  { emoji: '🫎', label: 'Spot a moose (from a safe distance)', short: 'Spot a moose' },
+  { emoji: '🥃', label: 'Tour Breckenridge Distillery', short: 'Distillery' },
+  { emoji: '🛷', label: 'Tube or sled a hill', short: 'Tube or sled' },
+  { emoji: '⛸️', label: 'Skate the Keystone Lake rink', short: 'Keystone rink' },
+  { emoji: '🥞', label: 'Breakfast at Butterhorn or Columbine', short: 'Butterhorn' },
 
-  { emoji: '🚌', label: 'Ride the free Summit Stage' },
-  { emoji: '🧣', label: 'Buy a souvenir beanie' },
-  { emoji: '⭐', label: 'FREE SPACE', isFree: true },
-  { emoji: '🌡️', label: 'Survive a sub-zero morning' },
-  { emoji: '👯', label: 'Group photo in ski gear' },
+  { emoji: '🚌', label: 'Ride the free Summit Stage', short: 'Summit Stage' },
+  { emoji: '🧣', label: 'Buy a souvenir beanie', short: 'Beanie' },
+  { emoji: '⭐', label: 'FREE SPACE', short: 'FREE', isFree: true },
+  { emoji: '🌡️', label: 'Survive a sub-zero morning', short: 'Sub-zero' },
+  { emoji: '👯', label: 'Group photo in ski gear', short: 'Group photo' },
 
-  { emoji: '⛰️', label: 'Hike above 11,000 feet' },
-  { emoji: '🛶', label: 'Get on Dillon Reservoir' },
-  { emoji: '⛏️', label: 'Go underground at Country Boy Mine' },
-  { emoji: '🍻', label: 'Apres at a slopeside bar' },
-  { emoji: '🛣️', label: 'Drive Loveland Pass' },
+  { emoji: '⛰️', label: 'Hike above 11,000 feet', short: '11,000 feet' },
+  { emoji: '🛶', label: 'Get on Dillon Reservoir', short: 'The reservoir' },
+  { emoji: '⛏️', label: 'Go underground at Country Boy Mine', short: 'Country Boy Mine' },
+  { emoji: '🍻', label: 'Apres at a slopeside bar', short: 'Slopeside apres' },
+  { emoji: '🛣️', label: 'Drive Loveland Pass', short: 'Loveland Pass' },
 
-  { emoji: '🎣', label: 'Cast a line on the Blue River' },
-  { emoji: '🎶', label: 'Catch a show at Dillon Amphitheater' },
-  { emoji: '🥨', label: 'Eat a Crepes a la Cart crepe' },
-  { emoji: '❄️', label: 'Ski or ride on a powder day' },
-  { emoji: '📱', label: 'Post a Summit County TikTok' }
+  { emoji: '🎣', label: 'Cast a line on the Blue River', short: 'Blue River' },
+  { emoji: '🎶', label: 'Catch a show at Dillon Amphitheater', short: 'Amphitheater' },
+  { emoji: '🥨', label: 'Eat a Crepes a la Cart crepe', short: 'Crepes a la Cart' },
+  { emoji: '❄️', label: 'Ski or ride on a powder day', short: 'Powder day' },
+  { emoji: '📱', label: 'Post a Summit County TikTok', short: 'TikTok' }
 ];
 
 function getBingoState() {
@@ -6214,14 +6214,31 @@ function showBingo(skipPush) {
     const color = sq.isFree ? '#856404' : (isDone ? '#fff' : '#222');
     const border = sq.isFree ? '2px solid #f0c060' : (isDone ? '2px solid #b91c1c' : '1.5px solid #ddd');
     const checkOverlay = isDone && !sq.isFree ? '<div style="position:absolute;top:2px;right:4px;font-size:12px;">✓</div>' : '';
-    // No aspect-ratio and no overflow:hidden. Forcing squares on a 5-column
-    // phone layout gave roughly 60px cells, too short for labels up to 36
-    // characters, so the text was clipped. Grid equalises row heights anyway,
-    // so min-height lets a row grow to fit its longest label instead.
-    html += `<div data-bingo-idx="${idx}" style="position:relative;min-height:84px;min-width:0;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:8px;padding:4px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
+    // A 5-column grid on a 390px phone gives each square about 70px, which
+    // holds roughly 9 characters per line. The full labels run to 36
+    // characters, so they needed five lines and stayed unreadable at any size
+    // that fit. The square carries a short label instead and the full wording
+    // moves to the checklist underneath, which lets the type and the emoji
+    // grow rather than shrink.
+    html += `<div data-bingo-idx="${idx}" style="position:relative;min-height:96px;min-width:0;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:8px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
       ${checkOverlay}
-      <div style="font-size:16px;line-height:1;margin-bottom:3px;">${sq.emoji}</div>
-      <div style="font-size:10px;line-height:1.2;word-break:normal;overflow-wrap:break-word;hyphens:none;max-width:100%;">${sq.label}</div>
+      <div style="font-size:22px;line-height:1;margin-bottom:5px;">${sq.emoji}</div>
+      <div style="font-size:11px;line-height:1.25;word-break:normal;overflow-wrap:break-word;hyphens:none;max-width:100%;">${sq.short || sq.label}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // The full wording, since the squares only have room for a short label.
+  // Tappable too, so the list is a usable checklist in its own right rather
+  // than a legend you have to cross-reference against the grid.
+  html += `<div style="margin-top:14px;border-top:1px solid #eee;padding-top:10px;">`;
+  SUMMIT_BINGO_SQUARES.forEach((sq, idx) => {
+    if (sq.isFree) return;
+    const isDone = completed.has(idx);
+    html += `<div data-bingo-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid #f4f4f4;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      <span style="flex:0 0 20px;font-size:15px;text-align:center;">${isDone ? '✅' : '⬜'}</span>
+      <span style="flex:0 0 18px;font-size:15px;">${sq.emoji}</span>
+      <span style="flex:1;font-size:13px;line-height:1.35;color:${isDone ? '#999' : '#222'};text-decoration:${isDone ? 'line-through' : 'none'};">${sq.label}</span>
     </div>`;
   });
   html += `</div>
@@ -6229,7 +6246,7 @@ function showBingo(skipPush) {
       <a href="#" onclick="shareBingoCard();return false;" style="flex:1;background:#d62828;color:#fff;text-align:center;font-weight:600;font-size:13px;">📤 Share my card</a>
       <a href="#" onclick="resetBingoCard();return false;" style="background:#999;color:#fff;font-weight:600;font-size:13px;">Reset</a>
     </div>
-    <div style="font-size:11px;color:#888;margin-top:8px;text-align:center;">Tap any square to check it off. Progress saves automatically.</div>
+    <div style="font-size:11px;color:#888;margin-top:8px;text-align:center;">Tap a square or a line below to check it off. Progress saves automatically.</div>
   </div>`;
   addMessage(html, 'bot', true);
   // Wire up taps after the card is in the DOM
@@ -6255,8 +6272,9 @@ function toggleBingoSquare(idx) {
   else completed.add(idx);
   state.completed = [...completed];
   saveBingoState(state);
-  // Animate the tapped square + check for bingo
-  const cell = document.querySelector(`[data-bingo-idx="${idx}"]`);
+  // Animate the grid square specifically. The checklist rows below share the
+  // same data attribute, and scaling a full-width row looks wrong.
+  const cell = document.querySelector(`#bingoGrid [data-bingo-idx="${idx}"]`);
   if (cell) {
     cell.style.transform = 'scale(1.15)';
     setTimeout(() => { cell.style.transform = ''; }, 150);
