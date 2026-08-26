@@ -1,7 +1,7 @@
 // Howdy Summit service worker. Caches static assets for offline use.
 // Bump CACHE_VERSION when deploying changes you want users to see immediately.
 
-const CACHE_VERSION = 'howdysummit-v24';
+const CACHE_VERSION = 'howdysummit-v25';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_ASSETS = [
