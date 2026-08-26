@@ -6214,16 +6214,14 @@ function showBingo(skipPush) {
     const color = sq.isFree ? '#856404' : (isDone ? '#fff' : '#222');
     const border = sq.isFree ? '2px solid #f0c060' : (isDone ? '2px solid #b91c1c' : '1.5px solid #ddd');
     const checkOverlay = isDone && !sq.isFree ? '<div style="position:absolute;top:2px;right:4px;font-size:12px;">✓</div>' : '';
-    // A 5-column grid on a 390px phone gives each square about 70px, which
-    // holds roughly 9 characters per line. The full labels run to 36
-    // characters, so they needed five lines and stayed unreadable at any size
-    // that fit. The square carries a short label instead and the full wording
-    // moves to the checklist underneath, which lets the type and the emoji
-    // grow rather than shrink.
-    html += `<div data-bingo-idx="${idx}" style="position:relative;min-height:96px;min-width:0;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:8px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;line-height:1.15;font-weight:600;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
+    // Emoji only. Five columns inside a chat bubble capped at 80% width gives
+    // each square roughly 60px even after widening the card, and no amount of
+    // shortening makes words work at that size: "Sapphire Point" was breaking
+    // one syllable per line. The emoji is the marker, the checklist below
+    // carries the wording, and a square grid finally looks like a bingo card.
+    html += `<div data-bingo-idx="${idx}" title="${sq.label.replace(/"/g, '&quot;')}" style="position:relative;aspect-ratio:1/1;min-width:0;box-sizing:border-box;background:${bg};color:${color};border:${border};border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;">
       ${checkOverlay}
-      <div style="font-size:22px;line-height:1;margin-bottom:5px;">${sq.emoji}</div>
-      <div style="font-size:11px;line-height:1.25;word-break:normal;overflow-wrap:break-word;hyphens:none;max-width:100%;">${sq.short || sq.label}</div>
+      <div style="font-size:26px;line-height:1;">${sq.emoji}</div>
     </div>`;
   });
   html += `</div>`;
@@ -6257,6 +6255,15 @@ function showBingo(skipPush) {
         toggleBingoSquare(idx);
       });
     });
+    // Chat bubbles cap at 80% width, which left the 5-column grid with 49px
+    // columns. A bingo card is the one thing here that needs the full width,
+    // so it opts out of the bubble constraint once it is in the DOM.
+    const grid = document.getElementById('bingoGrid');
+    const bubble = grid && grid.closest('.message');
+    if (bubble) {
+      bubble.style.maxWidth = '100%';
+      bubble.style.width = '100%';
+    }
     if (messagesEl) messagesEl.scrollTop = 0;
   }, 50);
   setTimeout(() => { suppressAutoScroll = false; }, 1500);
