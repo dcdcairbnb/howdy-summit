@@ -305,9 +305,96 @@ async function snowfall(req, res) {
   }
 }
 
+/* ---- Storm clock ----------------------------------------------------------
+   Powers Monsoon mode, and it is the summer counterpart to the snow report.
+
+   Colorado's monsoon runs roughly mid-June to early September: clear mornings,
+   storms building over the high country through the afternoon. The hazard is
+   lightning above treeline, and the local habit is to summit early and be
+   heading down by early afternoon. Visitors do not know that clock.
+
+   Risk is taken as the WORST of the four high-country points rather than an
+   average. If it is going to thunder at A-Basin and someone is hiking near
+   A-Basin, an average that includes three calmer spots is the wrong number.
+   Safety readouts should round toward caution.
+
+   WMO weather codes 95, 96 and 99 are thunderstorm. Those matter more than
+   rain probability, because rain is uncomfortable and lightning is not.
+--------------------------------------------------------------------------- */
+const THUNDER_CODES = new Set([95, 96, 99]);
+const STORM_POP_THRESHOLD = 30;   // percent, "likely enough to plan around"
+
+async function stormClock(req, res) {
+  try {
+    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    url.searchParams.set('latitude',  SNOW_RESORTS.map(r => r.lat).join(','));
+    url.searchParams.set('longitude', SNOW_RESORTS.map(r => r.lng).join(','));
+    url.searchParams.set('elevation', SNOW_RESORTS.map(r => r.elevation).join(','));
+    url.searchParams.set('hourly', 'precipitation_probability,weathercode');
+    url.searchParams.set('forecast_days', '1');
+    url.searchParams.set('timezone', 'America/Denver');
+
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!r.ok) return res.status(502).json({ ok: false, error: 'storm feed unavailable' });
+
+    const body = await r.json();
+    const list = Array.isArray(body) ? body : [body];
+    const base = list[0]?.hourly;
+    if (!base?.time?.length) {
+      return res.status(502).json({ ok: false, error: 'no hourly data' });
+    }
+
+    // Daylight hours only. Nobody is planning a 3am summit push around this.
+    const hours = [];
+    for (let i = 0; i < base.time.length; i++) {
+      const hr = Number(base.time[i].slice(11, 13));
+      if (hr < 6 || hr > 21) continue;
+
+      let pop = 0, thunder = false;
+      for (const loc of list) {
+        const p = Number(loc?.hourly?.precipitation_probability?.[i]);
+        if (Number.isFinite(p) && p > pop) pop = p;
+        const wc = Number(loc?.hourly?.weathercode?.[i]);
+        if (THUNDER_CODES.has(wc)) thunder = true;
+      }
+      hours.push({ hour: hr, time: base.time[i].slice(11, 16), pop, thunder });
+    }
+
+    const firstRisk = hours.find(h => h.pop >= STORM_POP_THRESHOLD || h.thunder) || null;
+    const firstThunder = hours.find(h => h.thunder) || null;
+    const peak = hours.reduce((a, b) => (b.pop > (a?.pop ?? -1) ? b : a), null);
+
+    // Turnaround is one hour before risk starts, floored at 9am. A forecast
+    // that says "be down by 7am" is not advice anyone can use, and a storm
+    // that early is not the monsoon pattern anyway.
+    let turnaround = null;
+    if (firstRisk) turnaround = Math.max(9, firstRisk.hour - 1);
+
+    res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate');
+    return res.status(200).json({
+      ok: true,
+      source: 'open-meteo',
+      disclaimer: 'Modeled forecast. Mountain storms build faster than any model predicts. Treat this as a floor, not a guarantee.',
+      popThreshold: STORM_POP_THRESHOLD,
+      anyRisk: !!firstRisk,
+      anyThunder: !!firstThunder,
+      firstRisk: firstRisk ? { time: firstRisk.time, hour: firstRisk.hour, pop: firstRisk.pop } : null,
+      firstThunder: firstThunder ? { time: firstThunder.time, hour: firstThunder.hour } : null,
+      peak: peak ? { time: peak.time, hour: peak.hour, pop: peak.pop } : null,
+      turnaroundHour: turnaround,
+      hours,
+      updated: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('[storm] error', e);
+    return res.status(500).json({ ok: false, error: 'internal server error' });
+  }
+}
+
 export default async function handler(req, res) {
   if (req.query.feed === 'roads') return roadConditions(req, res);
   if (req.query.feed === 'snow') return snowfall(req, res);
+  if (req.query.feed === 'storm') return stormClock(req, res);
 
   const { lat = 39.5744, lng = -106.0975 } = req.query;
 
