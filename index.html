@@ -433,47 +433,128 @@
 
   /* ---- Trip modes -------------------------------------------------------
      Three mutually exclusive themes. Powder and Bluebird are the seasonal
-     pair; Ski Bum is a year-round budget lens. Each one only recolours the
+     pair; Alpenglow is the evening. Each one only recolours the
      brand red (#d62828) surfaces, so anything not listed here keeps its own
      colour on purpose: Uber stays black, Lyft stays pink, Maps stays green.
      Those are other companies' brands and must not be themed.
      ---------------------------------------------------------------------- */
 
-  /* Powder Day: storm blue into fresh-snow white. */
-  body.powder-mode .header { background: linear-gradient(135deg, #0b3a7a 0%, #6fa8dc 100%) !important; }
-  body.powder-mode .user { background: #1d50a2 !important; }
-  body.powder-mode .quick-reply { border-color: #1d50a2 !important; color: #1d50a2 !important; }
-  body.powder-mode .quick-reply:hover { background: #1d50a2 !important; color: #fff !important; }
-  body.powder-mode .card-title { color: #1d50a2 !important; }
-  body.powder-mode .card a:hover { background: #1d50a2 !important; }
-  body.powder-mode .input-area input:focus { border-color: #1d50a2 !important; }
-  body.powder-mode .input-area button { background: #1d50a2 !important; }
-  body.powder-mode .bottom-btn:hover:not(:disabled) { background: #1d50a2 !important; color: #fff !important; }
-  body.powder-mode .disclaimer-bar a:hover { color: #1d50a2 !important; }
+  /* A mode overrides the calendar for the photo behind the chat.
+     Without this, turning on Powder Day in August drops snow over a green
+     summer reservoir, and Bluebird in January puts a hiking shot behind a
+     frozen lake. The mode is a statement about conditions, so it wins over
+     whatever month it happens to be. These sit after the .season-winter rule
+     on purpose: equal specificity, so source order decides. */
+  body.powder-mode .messages {
+    background-image:
+      linear-gradient(180deg, rgba(240,245,250,0.46) 0%, rgba(240,245,250,0.66) 100%),
+      url('/summit-winter.webp') !important;
+  }
+  body.bluebird-mode .messages {
+    background-image:
+      linear-gradient(180deg, rgba(247,247,249,0.40) 0%, rgba(247,247,249,0.60) 100%),
+      url('/summit-summer.jpg') !important;
+  }
 
-  /* Bluebird: alpine green into high-country gold. */
-  body.bluebird-mode .header { background: linear-gradient(135deg, #0a8754 0%, #e8a317 100%) !important; }
-  body.bluebird-mode .user { background: #0a8754 !important; }
-  body.bluebird-mode .quick-reply { border-color: #0a8754 !important; color: #0a8754 !important; }
-  body.bluebird-mode .quick-reply:hover { background: #0a8754 !important; color: #fff !important; }
-  body.bluebird-mode .card-title { color: #0a8754 !important; }
-  body.bluebird-mode .card a:hover { background: #0a8754 !important; }
-  body.bluebird-mode .input-area input:focus { border-color: #0a8754 !important; }
-  body.bluebird-mode .input-area button { background: #0a8754 !important; }
-  body.bluebird-mode .bottom-btn:hover:not(:disabled) { background: #0a8754 !important; color: #fff !important; }
-  body.bluebird-mode .disclaimer-bar a:hover { color: #0a8754 !important; }
+  /* Powder Day is a STORM day: dark slate sky, snow coming down.
+     Bluebird is the clear morning after it. They were both blue before, which
+     is why neither read as anything. Now they are different weather. */
+  body.powder-mode .header { background: linear-gradient(135deg, #17293f 0%, #7f9bb5 100%) !important; }
+  body.powder-mode .user { background: #1e3a5f !important; }
+  body.powder-mode .quick-reply { border-color: #1e3a5f !important; color: #1e3a5f !important; }
+  body.powder-mode .quick-reply:hover { background: #1e3a5f !important; color: #fff !important; }
+  body.powder-mode .card-title { color: #1e3a5f !important; }
+  body.powder-mode .card a:hover { background: #1e3a5f !important; }
+  body.powder-mode .input-area input:focus { border-color: #1e3a5f !important; }
+  body.powder-mode .input-area button { background: #1e3a5f !important; }
+  body.powder-mode .bottom-btn:hover:not(:disabled) { background: #1e3a5f !important; color: #fff !important; }
+  body.powder-mode .disclaimer-bar a:hover { color: #1e3a5f !important; }
 
-  /* Ski Bum: faded retro-poster rust and amber. */
-  body.skibum-mode .header { background: linear-gradient(135deg, #7c2d12 0%, #d97706 100%) !important; }
-  body.skibum-mode .user { background: #b45309 !important; }
-  body.skibum-mode .quick-reply { border-color: #b45309 !important; color: #b45309 !important; }
-  body.skibum-mode .quick-reply:hover { background: #b45309 !important; color: #fff !important; }
-  body.skibum-mode .card-title { color: #b45309 !important; }
-  body.skibum-mode .card a:hover { background: #b45309 !important; }
-  body.skibum-mode .input-area input:focus { border-color: #b45309 !important; }
-  body.skibum-mode .input-area button { background: #b45309 !important; }
-  body.skibum-mode .bottom-btn:hover:not(:disabled) { background: #b45309 !important; color: #fff !important; }
-  body.skibum-mode .disclaimer-bar a:hover { color: #b45309 !important; }
+  /* Bluebird: the clear sky itself. Sky blue at the top, washing to white. */
+  body.bluebird-mode .header { background: linear-gradient(135deg, #0284c7 0%, #bae6fd 100%) !important; }
+  body.bluebird-mode .user { background: #0369a1 !important; }
+  body.bluebird-mode .quick-reply { border-color: #0369a1 !important; color: #0369a1 !important; }
+  body.bluebird-mode .quick-reply:hover { background: #0369a1 !important; color: #fff !important; }
+  body.bluebird-mode .card-title { color: #0369a1 !important; }
+  body.bluebird-mode .card a:hover { background: #0369a1 !important; }
+  body.bluebird-mode .input-area input:focus { border-color: #0369a1 !important; }
+  body.bluebird-mode .input-area button { background: #0369a1 !important; }
+  body.bluebird-mode .bottom-btn:hover:not(:disabled) { background: #0369a1 !important; color: #fff !important; }
+  body.bluebird-mode .disclaimer-bar a:hover { color: #0369a1 !important; }
+
+  /* ---- Weather layer ----------------------------------------------------
+     One fixed overlay, reused by both modes. Fixed rather than inside
+     .messages because .messages scrolls, and snow that scrolls away with the
+     chat looks broken. pointer-events:none so it never eats a tap. z-index 5
+     sits above the message bubbles (z-index 1) and below the header (10), so
+     flakes fall in front of the chat but never over the title bar.
+     ---------------------------------------------------------------------- */
+  .weather-layer {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    overflow: hidden; display: none;
+  }
+  body.powder-mode .weather-layer,
+  body.bluebird-mode .weather-layer { display: block; }
+  /* Haze deliberately off. With the winter photo behind it and 400 flakes in
+     front, an extra wash just greyed the mountains out for no gain. */
+
+  .flake {
+    position: absolute; top: -8vh; border-radius: 50%;
+    background: #fff; will-change: transform;
+    animation-name: snowfall; animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  @keyframes snowfall {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(var(--drift, 12px), 118vh, 0); }
+  }
+
+  .cloud {
+    position: absolute; border-radius: 999px;
+    background: rgba(255,255,255,0.72); filter: blur(9px);
+    will-change: transform;
+    animation-name: clouddrift; animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  @keyframes clouddrift {
+    from { transform: translate3d(-40vw, 0, 0); }
+    to   { transform: translate3d(120vw, 0, 0); }
+  }
+
+  /* Anyone who has asked their OS to stop moving things gets a still scene.
+     The palette still changes, so the mode is not lost, just calm. */
+  @media (prefers-reduced-motion: reduce) {
+    .weather-layer { display: none !important; }
+  }
+
+  /* Alpenglow: the plum sky and the orange light on the peaks at last light. */
+  body.alpenglow-mode .header { background: linear-gradient(135deg, #3b1e54 0%, #fb923c 100%) !important; }
+  body.alpenglow-mode .user { background: #b03a5b !important; }
+  body.alpenglow-mode .quick-reply { border-color: #b03a5b !important; color: #b03a5b !important; }
+  body.alpenglow-mode .quick-reply:hover { background: #b03a5b !important; color: #fff !important; }
+  body.alpenglow-mode .card-title { color: #b03a5b !important; }
+  body.alpenglow-mode .card a:hover { background: #b03a5b !important; }
+  body.alpenglow-mode .input-area input:focus { border-color: #b03a5b !important; }
+  body.alpenglow-mode .input-area button { background: #b03a5b !important; }
+  body.alpenglow-mode .bottom-btn:hover:not(:disabled) { background: #b03a5b !important; color: #fff !important; }
+  body.alpenglow-mode .disclaimer-bar a:hover { color: #b03a5b !important; }
+  body.alpenglow-mode .weather-layer { display: block; background: linear-gradient(180deg, rgba(251,146,60,0.20) 0%, rgba(59,30,84,0.13) 100%); }
+
+  /* No particles for Alpenglow. Light does not fall, it sits and slowly shifts.
+     A single very slow bloom reads as changing light without ever competing
+     with the text underneath it. */
+  .bloom {
+    position: absolute; left: 50%; top: 8%;
+    width: 150vw; height: 70vh; margin-left: -75vw;
+    border-radius: 50%; filter: blur(48px);
+    background: radial-gradient(ellipse at center, rgba(253,186,116,0.5) 0%, rgba(253,164,175,0.22) 45%, rgba(255,255,255,0) 72%);
+    will-change: opacity, transform;
+    animation: bloomshift 22s ease-in-out infinite alternate;
+  }
+  @keyframes bloomshift {
+    from { opacity: 0.55; transform: translate3d(-4vw, 0, 0) scale(1); }
+    to   { opacity: 0.95; transform: translate3d(4vw, -3vh, 0) scale(1.09); }
+  }
   .message {
     max-width: 80%;
     padding: 12px 16px;
@@ -2662,7 +2743,14 @@ function routeIntent(text) {
     return;
   }
 
-  if (lower === '🎨 trip modes' || matches(lower, ['trip mode', 'trip modes', 'powder day mode', 'bluebird mode', 'ski bum mode', 'change the theme', 'change theme', 'app theme', 'color mode', 'colour mode'])) {
+  // Above the ski/snow matches: "how much snow" contains "snow", which the
+  // sleigh-rides and skiing guards would otherwise pick up first.
+  if (lower === '❄️ snow report' || matches(lower, ['snow report', 'snow total', 'snow totals', 'how much snow', 'fresh snow', 'powder day', 'is it snowing', 'new snow', 'snowfall', 'did it snow'])) {
+    showSnowReport();
+    return;
+  }
+
+  if (lower === '🎨 trip modes' || matches(lower, ['trip mode', 'trip modes', 'powder day mode', 'bluebird mode', 'alpenglow mode', 'alpenglow', 'change the theme', 'change theme', 'app theme', 'color mode', 'colour mode'])) {
     showModesMenu();
     return;
   }
@@ -4415,8 +4503,8 @@ function currentSeason(d) {
 /* ===== Trip modes =========================================================
    Nash splits its modes by who the group is (pink for bachelorette, bourbon
    for bachelor). Summit has no equivalent split, so these are keyed to what
-   the trip actually is: Powder for a storm day, Bluebird for summer, Ski Bum
-   for anyone trying not to spend money. One key holds the active mode rather
+   the trip actually is: Powder for a storm day, Bluebird for the clear day
+   after it, Alpenglow for the evening. One key holds the active mode rather
    than three booleans, which makes them mutually exclusive by construction
    instead of by three remembered removeItem calls.
    ========================================================================== */
@@ -4434,7 +4522,7 @@ const SUMMIT_MODES = {
     pitch: 'Storm-day layout. Snow, lifts, roads, and the bar after.',
     on: 'Layout is built around a ski day. Roads and lifts come first.',
     // Every one of these pills already exists in the router. Nothing new to build.
-    pills: ['🚧 Road conditions', '⛷️ Skiing & snowboarding', '🎿 Ski & gear rentals', 'Apres-ski bars', '🛷 Sleigh rides & snowmobiles', 'Weather']
+    pills: ['❄️ Snow report', '🚧 Road conditions', '⛷️ Skiing & snowboarding', '🎿 Ski & gear rentals', 'Apres-ski bars', 'Weather']
   },
   bluebird: {
     cls: 'bluebird-mode',
@@ -4447,16 +4535,20 @@ const SUMMIT_MODES = {
     on: 'Layout is built around a summer day. Trails and water come first.',
     pills: ['🥾 Hiking trails', '🚲 Bike trails', '💦 Waterfalls & alpine lakes', 'Fishing', 'Photo spots', 'Decks & patios']
   },
-  skibum: {
-    cls: 'skibum-mode',
-    emoji: '💸',
-    label: 'Ski Bum',
-    color: '#b45309',
-    gradient: 'linear-gradient(135deg,#7c2d12 0%,#d97706 100%)',
-    season: null, // year-round
-    pitch: 'Broke-in-a-resort-town layout. Free things first, then cheap ones.',
-    on: 'Free and cheap things come first. The bus is free, so is most of the good stuff.',
-    pills: ['Free things to do', '✈️ Airport shuttles', 'Apres-ski bars', '🚻 Restrooms', '🥾 Hiking trails', '💰 Split Costs']
+  // Alpenglow replaced a "Ski Bum" budget mode. Two weather states plus a
+  // discount filter was an incoherent set. Storm, clear, and sunset is a set.
+  // The free-and-cheap content did not go anywhere: "Free things to do" is
+  // still its own menu item and still holds all 27 entries.
+  alpenglow: {
+    cls: 'alpenglow-mode',
+    emoji: '🌄',
+    label: 'Alpenglow',
+    color: '#b03a5b',
+    gradient: 'linear-gradient(135deg,#3b1e54 0%,#fb923c 100%)',
+    season: null, // happens every evening, all year
+    pitch: 'The last light on the Ten Mile Range. Evening layout.',
+    on: 'Built for the end of the day. Drinks, dinner, music, and somewhere warm.',
+    pills: ['Apres-ski bars', 'Cocktail bars', 'Live music tonight', 'Spas & hot springs', 'Photo spots', 'Fine dining']
   }
 };
 
@@ -4481,9 +4573,105 @@ function setMode(name) {
   } catch (e) {}
 }
 
+/* Weather particles for Powder and Bluebird.
+   Built once and reused. Particle counts are deliberately low: this runs on
+   phones outdoors in the cold, and a hundred animated nodes is how you cook a
+   battery. All motion is transform-only so it stays on the compositor and
+   never triggers layout during a scroll. */
+const WEATHER_SPECS = {
+  powder:    { count: 400, build: buildFlake },
+  bluebird:  { count: 7,   build: buildCloud },
+  alpenglow: { count: 1,   build: buildBloom }
+};
+
+/* 400 flakes measured flat at 120fps in a desktop browser, but that proves
+   nothing about a four-year-old iPhone in the cold. The animation is
+   transform-only so it stays on the compositor, and the real risk is battery
+   rather than dropped frames. Scale down on devices that tell us they are
+   small. Both hints are advisory and often absent, so the default is the full
+   count and this only ever reduces. */
+function weatherScale() {
+  try {
+    const cores = navigator.hardwareConcurrency;
+    const mem = navigator.deviceMemory;
+    if ((mem && mem <= 2) || (cores && cores <= 2)) return 0.3;
+    if ((mem && mem <= 4) || (cores && cores <= 4)) return 0.6;
+  } catch (e) {}
+  return 1;
+}
+
+function rand(min, max) { return min + Math.random() * (max - min); }
+
+function buildFlake() {
+  const el = document.createElement('div');
+  el.className = 'flake';
+  // Dan's settings from the live tuner: dense, fat, slow, straight down.
+  // Drift is deliberately zero. Wind made it read as rain.
+  const size = rand(2, 9);
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.style.left = rand(-5, 100) + 'vw';
+  // Small flakes read as far away, so they sit fainter.
+  el.style.opacity = String(rand(0.35, 0.9));
+  el.style.setProperty('--drift', '0px');
+  el.style.animationDuration = rand(11.5, 17.5) + 's';
+  // Negative delay starts each flake mid-fall, so the screen is already
+  // snowing on the first frame instead of filling from the top.
+  el.style.animationDelay = '-' + rand(0, 17.5) + 's';
+  return el;
+}
+
+function buildCloud() {
+  const el = document.createElement('div');
+  el.className = 'cloud';
+  const w = rand(120, 300);
+  el.style.width = w + 'px';
+  el.style.height = rand(30, 60) + 'px';
+  el.style.top = rand(2, 55) + 'vh';
+  el.style.opacity = String(rand(0.25, 0.6));
+  el.style.animationDuration = rand(50, 110) + 's';
+  el.style.animationDelay = '-' + rand(0, 110) + 's';
+  return el;
+}
+
+function buildBloom() {
+  const el = document.createElement('div');
+  el.className = 'bloom';
+  return el;
+}
+
+function clearWeather() {
+  const layer = document.getElementById('weatherLayer');
+  if (layer) layer.innerHTML = '';
+}
+
+function renderWeather(name) {
+  let layer = document.getElementById('weatherLayer');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'weatherLayer';
+    layer.className = 'weather-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(layer);
+  }
+  layer.innerHTML = '';
+  const spec = WEATHER_SPECS[name];
+  if (!spec) return;
+  // Honour the OS setting here too, not just in CSS, so we never build nodes
+  // that are only going to be hidden.
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  } catch (e) {}
+  const n = Math.max(1, Math.round(spec.count * weatherScale()));
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < n; i++) frag.appendChild(spec.build());
+  layer.appendChild(frag);
+}
+
 function toggleMode(name) {
   const wasOn = activeMode() === name;
   setMode(wasOn ? null : name);
+  renderWeather(wasOn ? null : name);
   const m = SUMMIT_MODES[name];
   if (wasOn) {
     addMessage(`${m.emoji} ${m.label} mode off. Back to the normal layout.`, 'bot');
@@ -4528,11 +4716,15 @@ function showModesMenu(skipPush) {
 
   // Order by what the calendar says is plausible. In winter nobody wants the
   // Bluebird card first, and in July the Powder card is noise.
-  const order = season === 'winter'
-    ? ['powder', 'bluebird', 'skibum']
-    : season === 'summer'
-      ? ['bluebird', 'powder', 'skibum']
-      : ['skibum', 'bluebird', 'powder'];
+  // Derived from SUMMIT_MODES rather than hand-listed. A hardcoded list here
+  // silently referenced a deleted mode once and threw on m.season, taking the
+  // whole menu down. Sorting by season match cannot go stale.
+  const rank = m => {
+    if (SUMMIT_MODES[m].season === season) return 0;  // in season, first
+    if (SUMMIT_MODES[m].season === null)   return 1;  // year-round, middle
+    return 2;                                          // out of season, last
+  };
+  const order = Object.keys(SUMMIT_MODES).sort((a, b) => rank(a) - rank(b));
 
   order.forEach(name => {
     const m = SUMMIT_MODES[name];
@@ -4555,17 +4747,28 @@ function showModesMenu(skipPush) {
   function tag() {
     if (!document.body) return false;
     const m = activeMode();
-    if (m) document.body.classList.add(SUMMIT_MODES[m].cls);
+    if (m) {
+      document.body.classList.add(SUMMIT_MODES[m].cls);
+      renderWeather(m);
+    }
     return true;
   }
   if (!tag()) document.addEventListener('DOMContentLoaded', tag);
 })();
+
+// Stop animating while the app is backgrounded. Without this the flakes keep
+// running behind a locked screen, which is pure battery for nothing.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearWeather();
+  else { const m = activeMode(); if (m) renderWeather(m); }
+});
 
 function showThingsToDoMenu(skipPush) {
   if (!skipPush) pushMenu('do');
   const season = currentSeason();
 
   const winterFirst = [
+    '\u2744\ufe0f Snow report',
     '\u26f7\ufe0f Skiing & snowboarding',
     '\ud83c\udfbf Ski & gear rentals',
     '\ud83d\udef7 Sleigh rides & snowmobiles',
@@ -10538,6 +10741,94 @@ async function maybeShowRoadAlertBanner() {
   } catch (e) {
     // Silent. A road banner that cannot load should never block the app.
   }
+}
+
+/* Snow report. Backed by api/weather.js?feed=snow, which models snowfall at
+   mid-mountain elevation for the four resorts.
+
+   The wording here is deliberate and should stay that way. This is a weather
+   model, not a snow stake. Vail Resorts and A-Basin measure real totals at a
+   real plot and will disagree with these numbers, sometimes by a lot. Every
+   string below says forecast, and the card links out to the official reports
+   so nobody plans a powder day on our number alone. */
+let cachedSnowData = null;
+
+async function fetchSnowReport() {
+  const r = await fetch(`${API_BASE}/api/weather?feed=snow`, { signal: AbortSignal.timeout(9000) });
+  if (!r.ok) throw new Error(`snow ${r.status}`);
+  const data = await r.json();
+  if (!data.ok) throw new Error(data.error || 'snow unavailable');
+  cachedSnowData = data;
+  return data;
+}
+
+const RESORT_SNOW_LINKS = {
+  'Keystone':        'https://www.keystoneresort.com/the-mountain/mountain-conditions/snow-and-weather-report.aspx',
+  'Arapahoe Basin':  'https://www.arapahoebasin.com/snow-conditions/',
+  'Breckenridge':    'https://www.breckenridge.com/the-mountain/mountain-conditions/snow-and-weather-report.aspx',
+  'Copper Mountain': 'https://www.coppercolorado.com/the-mountain/mountain-conditions/snow-report'
+};
+
+async function showSnowReport() {
+  addMessage('❄️ Checking the snow forecast...', 'bot');
+  let data;
+  try {
+    data = cachedSnowData || await fetchSnowReport();
+  } catch (e) {
+    addMessage(
+      `Could not reach the snow feed. Try <a href="https://opensnow.com/state/CO" target="_blank" rel="noopener">OpenSnow</a> or the resort reports directly.`,
+      'bot', true
+    );
+    return;
+  }
+
+  const resorts = (data.resorts || []).slice().sort((a, b) => (b.past24h || 0) - (a.past24h || 0));
+  if (!resorts.length) {
+    addMessage('No snow data came back. Try again in a bit.', 'bot');
+    return;
+  }
+
+  // Headline. In summer every number is zero, and saying "0 inches at four
+  // resorts" in July is worse than saying nothing useful, so say the season.
+  const anySnow = resorts.some(r => (r.past24h || 0) > 0 || (r.next24h || 0) > 0);
+  if (data.isPowderDay && data.best) {
+    addMessage(`Powder day. ${data.best.inches}" forecast at ${data.best.name} in the last 24 hours.`, 'bot');
+  } else if (data.stormComing && data.incoming) {
+    addMessage(`Storm coming in. ${data.incoming.inches}" forecast at ${data.incoming.name} over the next 24 hours.`, 'bot');
+  } else if (!anySnow) {
+    addMessage('No snow in the forecast at any of the four resorts, in either direction.', 'bot');
+  } else {
+    addMessage('Some snow around, but nothing that counts as a powder day yet.', 'bot');
+  }
+
+  const rows = resorts.map(r => {
+    const past = Number(r.past24h || 0);
+    const next = Number(r.next24h || 0);
+    const strong = past >= (data.thresholdInches || 6);
+    const feet = r.elevationMeters ? Math.round(r.elevationMeters * 3.28084 / 50) * 50 : null;
+    const link = RESORT_SNOW_LINKS[r.name];
+    return `<div style="padding:9px 0;border-bottom:1px solid #eee;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+        <span style="font-weight:700;color:${strong ? '#1e3a5f' : '#333'};">${r.name}</span>
+        <span style="font-weight:700;font-size:16px;color:${strong ? '#1e3a5f' : '#666'};">${past}"</span>
+      </div>
+      <div style="font-size:12px;color:#666;margin-top:2px;">
+        Past 24h${next > 0 ? ` · ${next}" more forecast` : ''}${feet ? ` · modeled at ~${feet.toLocaleString()} ft` : ''}
+      </div>
+      ${link ? `<a href="${link}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:12px;">Official ${r.name} report</a>` : ''}
+    </div>`;
+  }).join('');
+
+  addMessage(`<div class="card" style="border-left:4px solid #1e3a5f;">
+    <div class="card-title">❄️ Snow forecast</div>
+    <div class="card-meta">Four resorts, modeled at mid-mountain</div>
+    ${rows}
+    <div class="card-desc" style="font-size:12px;color:#666;margin-top:10px;">
+      These are <strong>forecast</strong> numbers from a weather model, not official resort snow reports. Resorts measure real totals at a fixed plot and will often disagree. Check the resort links above before you commit to a drive.
+    </div>
+  </div>`, 'bot', true);
+
+  addQuickReplies(['🚧 Road conditions', '⛷️ Skiing & snowboarding', 'Weather', '← Main menu']);
 }
 
 async function showRoadConditions() {

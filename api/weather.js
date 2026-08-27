@@ -201,8 +201,113 @@ async function roadConditions(req, res) {
   }
 }
 
+/* ---- Snowfall -------------------------------------------------------------
+   Powers Powder Day mode. Rides on this existing function via ?feed=snow
+   because the Vercel Hobby plan caps us at 12 serverless functions and we are
+   at 12; a new file under api/ breaks the deploy.
+
+   Source is Open-Meteo: no key, no quota, and it takes an elevation override.
+   That last part is the whole reason it is used here. The county centroid sits
+   near 9,265 ft, but nobody cares how much snow fell in the parking lot. These
+   are approximate mid-mountain elevations, which is the height that decides
+   whether a day is worth taking off work.
+
+   IMPORTANT: this is a weather model, not a snow stake. Resorts measure real
+   totals at a real plot and will disagree with it. Anything shown to a user
+   from this must be labelled as a forecast, never as a resort snow report.
+--------------------------------------------------------------------------- */
+const SNOW_RESORTS = [
+  { name: 'Keystone',        lat: 39.6053, lng: -105.9437, elevation: 3353 },
+  { name: 'Arapahoe Basin',  lat: 39.6425, lng: -105.8719, elevation: 3627 },
+  { name: 'Breckenridge',    lat: 39.4800, lng: -106.0680, elevation: 3444 },
+  { name: 'Copper Mountain', lat: 39.5010, lng: -106.1520, elevation: 3353 }
+];
+
+// Enough fresh snow that a normal person would change their plans.
+const POWDER_THRESHOLD_INCHES = 6;
+
+function sumWindow(times, values, fromMs, toMs) {
+  let total = 0;
+  for (let i = 0; i < times.length; i++) {
+    // Open-Meteo returns local wall-clock stamps with no offset, e.g.
+    // "2026-08-25T04:00". Date.parse treats those as local to the server,
+    // which on Vercel is UTC. Compare in the same frame by parsing both ends
+    // the same way rather than trying to reconstruct a timezone here.
+    const t = Date.parse(times[i] + 'Z');
+    if (!Number.isFinite(t) || t < fromMs || t > toMs) continue;
+    const v = Number(values[i]);
+    if (Number.isFinite(v)) total += v;
+  }
+  return Math.round(total * 10) / 10;
+}
+
+async function snowfall(req, res) {
+  try {
+    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    url.searchParams.set('latitude',  SNOW_RESORTS.map(r => r.lat).join(','));
+    url.searchParams.set('longitude', SNOW_RESORTS.map(r => r.lng).join(','));
+    url.searchParams.set('elevation', SNOW_RESORTS.map(r => r.elevation).join(','));
+    url.searchParams.set('hourly', 'snowfall');
+    url.searchParams.set('past_days', '1');
+    url.searchParams.set('forecast_days', '2');
+    url.searchParams.set('timezone', 'UTC');
+    url.searchParams.set('precipitation_unit', 'inch');
+
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!r.ok) {
+      return res.status(502).json({ ok: false, error: 'snow feed unavailable' });
+    }
+    const body = await r.json();
+    // A single location returns an object; several return an array. We always
+    // ask for four, but normalise so one bad edit upstream cannot crash this.
+    const list = Array.isArray(body) ? body : [body];
+
+    const now = Date.now();
+    const DAY = 86400000;
+
+    const resorts = list.map((loc, i) => {
+      const meta = SNOW_RESORTS[i] || {};
+      const times = loc?.hourly?.time || [];
+      const vals  = loc?.hourly?.snowfall || [];
+      return {
+        name: meta.name || `Location ${i + 1}`,
+        elevationMeters: loc?.elevation ?? meta.elevation ?? null,
+        past24h: sumWindow(times, vals, now - DAY, now),
+        next24h: sumWindow(times, vals, now, now + DAY)
+      };
+    });
+
+    const best = resorts.reduce(
+      (a, b) => (b.past24h > (a?.past24h ?? -1) ? b : a),
+      null
+    );
+    const incoming = resorts.reduce(
+      (a, b) => (b.next24h > (a?.next24h ?? -1) ? b : a),
+      null
+    );
+
+    res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate');
+    return res.status(200).json({
+      ok: true,
+      source: 'open-meteo',
+      disclaimer: 'Modeled forecast, not an official resort snow report.',
+      thresholdInches: POWDER_THRESHOLD_INCHES,
+      isPowderDay: !!best && best.past24h >= POWDER_THRESHOLD_INCHES,
+      stormComing: !!incoming && incoming.next24h >= POWDER_THRESHOLD_INCHES,
+      best: best ? { name: best.name, inches: best.past24h } : null,
+      incoming: incoming ? { name: incoming.name, inches: incoming.next24h } : null,
+      resorts,
+      updated: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('[snow] error', e);
+    return res.status(500).json({ ok: false, error: 'internal server error' });
+  }
+}
+
 export default async function handler(req, res) {
   if (req.query.feed === 'roads') return roadConditions(req, res);
+  if (req.query.feed === 'snow') return snowfall(req, res);
 
   const { lat = 39.5744, lng = -106.0975 } = req.query;
 
