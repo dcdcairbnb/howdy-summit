@@ -1680,12 +1680,16 @@ async function apiSearchEvents(keyword, classificationName) {
   }
 }
 
-async function apiSearchPlaces(q, type) {
+// opts.strict limits results to the Summit County line itself, dropping the
+// 35-mile courtesy radius the API otherwise applies. Use it for errands, where
+// a shop two counties over is noise rather than a helpful extra option.
+async function apiSearchPlaces(q, type, opts) {
   if (!apiServices.google) return null;
   try {
     const url = new URL(`${API_BASE}/api/places/search`, window.location.origin);
     url.searchParams.set('q', q);
     if (type) url.searchParams.set('type', type);
+    if (opts && opts.strict) url.searchParams.set('strict', '1');
     if (userLocation) {
       url.searchParams.set('lat', userLocation.lat);
       url.searchParams.set('lng', userLocation.lng);
@@ -9145,7 +9149,7 @@ function showGasStations() {
   showStoreType('gas station', 'gas_station', 'gas stations');
 }
 
-async function showStoreType(query, type, label) {
+async function showStoreType(query, type, label, opts) {
   if (!apiServices.google) {
     addMessage(`Live nearby search isn't switched on yet. Here's a Google Maps search for ${label} instead.`, 'bot');
     const fallbackUrl = userLocation
@@ -9159,7 +9163,7 @@ async function showStoreType(query, type, label) {
   } else {
     addMessage(`Finding ${label} near you...`, 'bot');
   }
-  const list = await apiSearchPlaces(query, type);
+  const list = await apiSearchPlaces(query, type, opts);
   if (!list || !list.length) {
     addMessage(`No ${label} found nearby. Try sharing your location or check Google Maps.`, 'bot');
     return;
@@ -9240,7 +9244,7 @@ function showDispensaries() {
   // Verified live: this returns 9 dispensaries across Frisco, Silverthorne,
   // Dillon and Breckenridge. Plain 'dispensary' returns 14 but drags in smoke
   // shops that do not sell cannabis.
-  showStoreType('cannabis dispensary', 'store', 'dispensaries');
+  showStoreType('cannabis dispensary', 'store', 'dispensaries', { strict: true });
 }
 
 function showGroceries() {

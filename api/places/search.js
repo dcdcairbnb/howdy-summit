@@ -43,6 +43,19 @@ const MAX_MILES_FROM_COUNTY = 35;
 // line, so the radius alone would cut them.
 const ALLOWED_OUTSIDE = /loveland ski|arapahoe basin|a-basin|cataract|hanging lake|rifle falls|georgetown|idaho springs|kremmling|leadville|vail|minturn|red cliff/i;
 
+/* Strict mode: county line only, no radius fallback and no ALLOWED_OUTSIDE.
+   The 35-mile net is right for things people will drive to on purpose, like
+   hot springs or a jeep trail just over the line. It is wrong for errands.
+   A dispensary in Fairplay is 25 miles away over Hoosier Pass, and one in
+   Avon is in Eagle County; neither is any use to somebody standing in Frisco
+   looking for the nearest shop. Callers opt in with ?strict=1. */
+function strictlySummitCounty(place) {
+  const addr = place.address || place.formattedAddress || '';
+  if (/\b(breckenridge|frisco|dillon|silverthorne|keystone|copper mountain|blue river|montezuma|heeney)\b/i.test(addr)) return true;
+  if (/\b(80424|80443|80435|80498|80497)\b/.test(addr)) return true;
+  return false;
+}
+
 function withinSummitCounty(place) {
   const addr = place.address || place.formattedAddress || '';
   // Fast path: a Summit County town or ZIP in the address is proof enough.
@@ -122,7 +135,8 @@ export default async function handler(req, res) {
     }));
 
     // Drop anything Google returned from outside the county.
-    const localResults = results.filter(withinSummitCounty);
+    const strict = req.query.strict === '1' || req.query.strict === 'true';
+    const localResults = results.filter(strict ? strictlySummitCounty : withinSummitCounty);
     const dropped = results.length - localResults.length;
     if (dropped) console.log(`[places_search] dropped ${dropped} out-of-county result(s) for "${q}"`);
 
