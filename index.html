@@ -470,6 +470,38 @@
   body.powder-mode .bottom-btn:hover:not(:disabled) { background: #1e3a5f !important; color: #fff !important; }
   body.powder-mode .disclaimer-bar a:hover { color: #1e3a5f !important; }
 
+  /* Monsoon: the dark green-grey of a Colorado afternoon storm cell. */
+  body.monsoon-mode .header { background: linear-gradient(135deg, #16323b 0%, #6b8b96 100%) !important; }
+  body.monsoon-mode .user { background: #1f4d5c !important; }
+  body.monsoon-mode .quick-reply { border-color: #1f4d5c !important; color: #1f4d5c !important; }
+  body.monsoon-mode .quick-reply:hover { background: #1f4d5c !important; color: #fff !important; }
+  body.monsoon-mode .card-title { color: #1f4d5c !important; }
+  body.monsoon-mode .card a:hover { background: #1f4d5c !important; }
+  body.monsoon-mode .input-area input:focus { border-color: #1f4d5c !important; }
+  body.monsoon-mode .input-area button { background: #1f4d5c !important; }
+  body.monsoon-mode .bottom-btn:hover:not(:disabled) { background: #1f4d5c !important; color: #fff !important; }
+  body.monsoon-mode .disclaimer-bar a:hover { color: #1f4d5c !important; }
+  /* Summer photo with the light pulled hard down, the way it goes under a
+     cell. The first pass used roughly half these opacities and the photo's
+     bright bluebird sky won, so the rain read as scratches on a sunny day.
+     A monsoon cell is genuinely dark; the scrim has to commit. */
+  body.monsoon-mode .messages {
+    background-image:
+      linear-gradient(180deg, rgba(14,34,42,0.74) 0%, rgba(28,50,60,0.66) 45%, rgba(52,76,86,0.58) 100%),
+      url('/summit-summer.jpg') !important;
+  }
+
+  /* Rain reuses the snow keyframes. The difference is shape and speed: thin
+     tall streaks falling roughly ten times faster, on a slight angle. Round
+     slow dots read as snow no matter what colour they are. */
+  .drop {
+    position: absolute; top: -12vh;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(214,234,242,0.85) 100%);
+    border-radius: 1px; will-change: transform;
+    animation-name: snowfall; animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
   /* Bluebird: the clear sky itself. Sky blue at the top, washing to white. */
   body.bluebird-mode .header { background: linear-gradient(135deg, #0284c7 0%, #bae6fd 100%) !important; }
   body.bluebird-mode .user { background: #0369a1 !important; }
@@ -509,17 +541,6 @@
     to   { transform: translate3d(var(--drift, 12px), 118vh, 0); }
   }
 
-  .cloud {
-    position: absolute; border-radius: 999px;
-    background: rgba(255,255,255,0.72); filter: blur(9px);
-    will-change: transform;
-    animation-name: clouddrift; animation-timing-function: linear;
-    animation-iteration-count: infinite;
-  }
-  @keyframes clouddrift {
-    from { transform: translate3d(-40vw, 0, 0); }
-    to   { transform: translate3d(120vw, 0, 0); }
-  }
 
   /* Anyone who has asked their OS to stop moving things gets a still scene.
      The palette still changes, so the mode is not lost, just calm. */
@@ -538,22 +559,27 @@
   body.alpenglow-mode .input-area button { background: #b03a5b !important; }
   body.alpenglow-mode .bottom-btn:hover:not(:disabled) { background: #b03a5b !important; color: #fff !important; }
   body.alpenglow-mode .disclaimer-bar a:hover { color: #b03a5b !important; }
-  body.alpenglow-mode .weather-layer { display: block; background: linear-gradient(180deg, rgba(251,146,60,0.20) 0%, rgba(59,30,84,0.13) 100%); }
 
-  /* No particles for Alpenglow. Light does not fall, it sits and slowly shifts.
-     A single very slow bloom reads as changing light without ever competing
-     with the text underneath it. */
-  .bloom {
-    position: absolute; left: 50%; top: 8%;
-    width: 150vw; height: 70vh; margin-left: -75vw;
-    border-radius: 50%; filter: blur(48px);
-    background: radial-gradient(ellipse at center, rgba(253,186,116,0.5) 0%, rgba(253,164,175,0.22) 45%, rgba(255,255,255,0) 72%);
-    will-change: opacity, transform;
-    animation: bloomshift 22s ease-in-out infinite alternate;
+  /* Alpenglow has NO overlay layer, and that is the whole fix.
+     The first version painted a warm wash on .weather-layer at z-index 5,
+     which sits above the chat. It tinted the white message bubbles and the
+     pills a dirty pink and read as a broken colour filter over the app rather
+     than as evening light. The warm light now lives inside the .messages
+     background stack: over the photo, under the bubbles. Bubbles stay white,
+     the sky goes violet to orange, and it looks like what it is called.
+
+     Two rules because background-image is one property, so changing the
+     gradient means restating the photo. Alpenglow happens every evening of
+     the year, so the photo still follows the season like everywhere else. */
+  body.alpenglow-mode .messages {
+    background-image:
+      linear-gradient(180deg, rgba(59,30,84,0.55) 0%, rgba(157,58,92,0.42) 38%, rgba(251,146,60,0.40) 72%, rgba(253,186,116,0.34) 100%),
+      url('/summit-summer.jpg') !important;
   }
-  @keyframes bloomshift {
-    from { opacity: 0.55; transform: translate3d(-4vw, 0, 0) scale(1); }
-    to   { opacity: 0.95; transform: translate3d(4vw, -3vh, 0) scale(1.09); }
+  body.alpenglow-mode.season-winter .messages {
+    background-image:
+      linear-gradient(180deg, rgba(59,30,84,0.55) 0%, rgba(157,58,92,0.42) 38%, rgba(251,146,60,0.40) 72%, rgba(253,186,116,0.34) 100%),
+      url('/summit-winter.webp') !important;
   }
   .message {
     max-width: 80%;
@@ -4524,6 +4550,23 @@ const SUMMIT_MODES = {
     // Every one of these pills already exists in the router. Nothing new to build.
     pills: ['❄️ Snow report', '🚧 Road conditions', '⛷️ Skiing & snowboarding', '🎿 Ski & gear rentals', 'Apres-ski bars', 'Weather']
   },
+  /* The summer counterpart to Powder Day. Colorado's monsoon runs roughly
+     mid-June to early September and peaks mid-July through August: sunny
+     mornings, storms building over the high country by early afternoon.
+     It is the summer condition that actually changes plans, the same way a
+     storm does in winter, which is why it earns a mode and Bluebird does not
+     get particles. */
+  monsoon: {
+    cls: 'monsoon-mode',
+    emoji: '⛈️',
+    label: 'Monsoon',
+    color: '#1f4d5c',
+    gradient: 'linear-gradient(135deg,#16323b 0%,#6b8b96 100%)',
+    season: 'summer',
+    pitch: 'Afternoon storms building. Get up early, get down early.',
+    on: 'Storm clock. Above treeline in the morning, under a roof by mid-afternoon.',
+    pills: ['🥾 Hiking trails', '🚧 Road conditions', 'Weather', 'Apres-ski bars', 'Spas & hot springs', 'Live music tonight']
+  },
   bluebird: {
     cls: 'bluebird-mode',
     emoji: '🌤️',
@@ -4579,9 +4622,12 @@ function setMode(name) {
    battery. All motion is transform-only so it stays on the compositor and
    never triggers layout during a scroll. */
 const WEATHER_SPECS = {
-  powder:    { count: 400, build: buildFlake },
-  bluebird:  { count: 7,   build: buildCloud },
-  alpenglow: { count: 1,   build: buildBloom }
+  powder:  { count: 400, build: buildFlake },
+  monsoon: { count: 260, build: buildDrop }
+  // Bluebird and Alpenglow have no particles on purpose. A clear day has no
+  // visible weather, and the drifting clouds that used to be here were
+  // invisible against a background photo that is already mostly cloud.
+  // Alpenglow does its work in the .messages background instead.
 };
 
 /* 400 flakes measured flat at 120fps in a desktop browser, but that proves
@@ -4621,22 +4667,19 @@ function buildFlake() {
   return el;
 }
 
-function buildCloud() {
+function buildDrop() {
   const el = document.createElement('div');
-  el.className = 'cloud';
-  const w = rand(120, 300);
-  el.style.width = w + 'px';
-  el.style.height = rand(30, 60) + 'px';
-  el.style.top = rand(2, 55) + 'vh';
-  el.style.opacity = String(rand(0.25, 0.6));
-  el.style.animationDuration = rand(50, 110) + 's';
-  el.style.animationDelay = '-' + rand(0, 110) + 's';
-  return el;
-}
-
-function buildBloom() {
-  const el = document.createElement('div');
-  el.className = 'bloom';
+  el.className = 'drop';
+  // Thin and tall. A raindrop at speed is a streak, not a dot.
+  const len = rand(12, 30);
+  el.style.width = rand(1, 2.2).toFixed(1) + 'px';
+  el.style.height = len + 'px';
+  el.style.left = rand(-8, 100) + 'vw';
+  el.style.opacity = String(rand(0.25, 0.7));
+  // A consistent lean, not random both ways: rain in a cell falls on an angle.
+  el.style.setProperty('--drift', rand(-90, -30) + 'px');
+  el.style.animationDuration = rand(0.55, 1.15) + 's';
+  el.style.animationDelay = '-' + rand(0, 1.15) + 's';
   return el;
 }
 
