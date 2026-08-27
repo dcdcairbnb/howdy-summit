@@ -2359,6 +2359,7 @@ function goBack() {
   else if (target === 'do') showThingsToDoMenu(true);
   else if (target === 'around') showGetAroundMenu(true);
   else if (target === 'essentials') showEssentialsMenu(true);
+  else if (target === 'cannabis') showCannabisRules(true);
   else if (target === 'grouptrip') showGroupTrip(true);
   else if (target === 'family') showFamilyFriendly(true);
   else if (target === 'saved') showSavedSpots();
@@ -2406,6 +2407,7 @@ function navigateToSavedMenu(menuName) {
   else if (menuName === 'do') showThingsToDoMenu(true);
   else if (menuName === 'around') showGetAroundMenu(true);
   else if (menuName === 'essentials') showEssentialsMenu(true);
+  else if (menuName === 'cannabis') showCannabisRules(true);
   else if (menuName === 'saved') showSavedSpots();
   else if (menuName === 'grouptrip') showGroupTrip(true);
   else if (menuName === 'family') showFamilyFriendly(true);
@@ -2820,6 +2822,11 @@ function routeIntent(text) {
 
   if (matches(lower, ['liquor', 'wine store', 'whiskey shop', 'booze', 'beer store', 'package store'])) {
     showLiquorStores();
+    return;
+  }
+
+  if (matches(lower, ['cannabis', 'cannabis rules', '🌿 cannabis rules', 'weed', 'marijuana', 'dispensary', 'dispensaries', 'pot shop', 'edibles', 'is weed legal', 'can i smoke'])) {
+    showCannabisRules();
     return;
   }
 
@@ -4439,8 +4446,28 @@ function showEssentialsMenu(skipPush) {
     'Pharmacy',
     'ATMs',
     '🚻 Restrooms',
+    '🌿 Cannabis rules',
     '← Main menu'
   ]);
+}
+
+// Deliberately the rules rather than a shop directory. Listing dispensaries
+// would push the App Store age rating from 13+ to 18+, which would cut the
+// family audience this app is built for. The questions visitors actually have
+// are about where they can use it and what happens at the airport, and those
+// are answerable without becoming a directory.
+function showCannabisRules(skipPush) {
+  if (!skipPush) pushMenu('cannabis');
+  const html = `<div class="card">
+    <div class="card-title">🌿 Cannabis in Summit County</div>
+    <p style="margin:8px 0;">Recreational cannabis is legal in Colorado for 21 and over. Bring a government ID, every dispensary checks.</p>
+    <p style="margin:8px 0;"><strong>Where you cannot use it.</strong> Public consumption is illegal, and that covers Main Street, the gondola, lifts, trailheads, parks, and the ski areas. Resorts sit on federal land, where it is still a federal offense.</p>
+    <p style="margin:8px 0;"><strong>Where you are staying probably bans it too.</strong> Most hotels, condos and short-term rentals here prohibit smoking of any kind, and cleaning fees for it are steep. Check your booking before you buy.</p>
+    <p style="margin:8px 0;"><strong>Altitude changes things.</strong> At 9,000 feet edibles hit harder and later than people expect, and they mix badly with dehydration and a first day at elevation. If you are new to altitude, day one is the wrong day.</p>
+    <p style="margin:8px 0;"><strong>You cannot take it home.</strong> Crossing a state line is federal trafficking, and DIA prohibits it entirely. There are amnesty boxes at the airport. Driving impaired is a DUI, and I-70 is patrolled hard on weekends.</p>
+  </div>`;
+  addMessage(html, 'bot', true);
+  addQuickReplies(['🛒 Essentials', '← Main menu']);
 }
 
 const CURATED_RESTROOMS = [
