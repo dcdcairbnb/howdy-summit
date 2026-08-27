@@ -430,6 +430,50 @@
       linear-gradient(180deg, rgba(247,247,249,0.42) 0%, rgba(247,247,249,0.62) 100%),
       url('/summit-winter.webp');
   }
+
+  /* ---- Trip modes -------------------------------------------------------
+     Three mutually exclusive themes. Powder and Bluebird are the seasonal
+     pair; Ski Bum is a year-round budget lens. Each one only recolours the
+     brand red (#d62828) surfaces, so anything not listed here keeps its own
+     colour on purpose: Uber stays black, Lyft stays pink, Maps stays green.
+     Those are other companies' brands and must not be themed.
+     ---------------------------------------------------------------------- */
+
+  /* Powder Day: storm blue into fresh-snow white. */
+  body.powder-mode .header { background: linear-gradient(135deg, #0b3a7a 0%, #6fa8dc 100%) !important; }
+  body.powder-mode .user { background: #1d50a2 !important; }
+  body.powder-mode .quick-reply { border-color: #1d50a2 !important; color: #1d50a2 !important; }
+  body.powder-mode .quick-reply:hover { background: #1d50a2 !important; color: #fff !important; }
+  body.powder-mode .card-title { color: #1d50a2 !important; }
+  body.powder-mode .card a:hover { background: #1d50a2 !important; }
+  body.powder-mode .input-area input:focus { border-color: #1d50a2 !important; }
+  body.powder-mode .input-area button { background: #1d50a2 !important; }
+  body.powder-mode .bottom-btn:hover:not(:disabled) { background: #1d50a2 !important; color: #fff !important; }
+  body.powder-mode .disclaimer-bar a:hover { color: #1d50a2 !important; }
+
+  /* Bluebird: alpine green into high-country gold. */
+  body.bluebird-mode .header { background: linear-gradient(135deg, #0a8754 0%, #e8a317 100%) !important; }
+  body.bluebird-mode .user { background: #0a8754 !important; }
+  body.bluebird-mode .quick-reply { border-color: #0a8754 !important; color: #0a8754 !important; }
+  body.bluebird-mode .quick-reply:hover { background: #0a8754 !important; color: #fff !important; }
+  body.bluebird-mode .card-title { color: #0a8754 !important; }
+  body.bluebird-mode .card a:hover { background: #0a8754 !important; }
+  body.bluebird-mode .input-area input:focus { border-color: #0a8754 !important; }
+  body.bluebird-mode .input-area button { background: #0a8754 !important; }
+  body.bluebird-mode .bottom-btn:hover:not(:disabled) { background: #0a8754 !important; color: #fff !important; }
+  body.bluebird-mode .disclaimer-bar a:hover { color: #0a8754 !important; }
+
+  /* Ski Bum: faded retro-poster rust and amber. */
+  body.skibum-mode .header { background: linear-gradient(135deg, #7c2d12 0%, #d97706 100%) !important; }
+  body.skibum-mode .user { background: #b45309 !important; }
+  body.skibum-mode .quick-reply { border-color: #b45309 !important; color: #b45309 !important; }
+  body.skibum-mode .quick-reply:hover { background: #b45309 !important; color: #fff !important; }
+  body.skibum-mode .card-title { color: #b45309 !important; }
+  body.skibum-mode .card a:hover { background: #b45309 !important; }
+  body.skibum-mode .input-area input:focus { border-color: #b45309 !important; }
+  body.skibum-mode .input-area button { background: #b45309 !important; }
+  body.skibum-mode .bottom-btn:hover:not(:disabled) { background: #b45309 !important; color: #fff !important; }
+  body.skibum-mode .disclaimer-bar a:hover { color: #b45309 !important; }
   .message {
     max-width: 80%;
     padding: 12px 16px;
@@ -2618,6 +2662,18 @@ function routeIntent(text) {
     return;
   }
 
+  if (lower === '🎨 trip modes' || matches(lower, ['trip mode', 'trip modes', 'powder day mode', 'bluebird mode', 'ski bum mode', 'change the theme', 'change theme', 'app theme', 'color mode', 'colour mode'])) {
+    showModesMenu();
+    return;
+  }
+
+  // Must sit above the flight tracker match. "shuttle from denver airport"
+  // contains "denver airport", so the tracker would otherwise swallow it.
+  if (lower === '✈️ airport shuttles' || matches(lower, ['airport shuttle', 'shuttle from den', 'shuttle to den', 'shuttle from the airport', 'shuttle', 'get from den', 'get from the airport', 'airport transfer', 'bustang', 'epic mountain express', 'peak 1 express', 'summit express', 'how do i get here', 'how do i get to summit', 'summit stage', 'free bus', 'public bus', 'public transit', 'bus between towns'])) {
+    showAirportShuttles();
+    return;
+  }
+
   if (lower === 'den flight tracker' || matches(lower, ['flight tracker', 'flights', 'den airport', 'denver airport', 'airport arrival', 'airport departure', 'flight status'])) {
     showFlights();
     return;
@@ -3351,6 +3407,7 @@ function showMainMenu() {
     'Sports',
     '★ My saved',
     'Local tips',
+    '🎨 Trip modes',
     '📧 Free 3-day guide'
   ];
   // Conditional holiday pill. Surfaces only the week of each holiday.
@@ -4355,6 +4412,155 @@ function currentSeason(d) {
   if (!tag()) document.addEventListener('DOMContentLoaded', tag);
 })();
 
+/* ===== Trip modes =========================================================
+   Nash splits its modes by who the group is (pink for bachelorette, bourbon
+   for bachelor). Summit has no equivalent split, so these are keyed to what
+   the trip actually is: Powder for a storm day, Bluebird for summer, Ski Bum
+   for anyone trying not to spend money. One key holds the active mode rather
+   than three booleans, which makes them mutually exclusive by construction
+   instead of by three remembered removeItem calls.
+   ========================================================================== */
+
+const MODE_KEY = 'howdy-summit-mode';
+
+const SUMMIT_MODES = {
+  powder: {
+    cls: 'powder-mode',
+    emoji: '❄️',
+    label: 'Powder Day',
+    color: '#1d50a2',
+    gradient: 'linear-gradient(135deg,#0b3a7a 0%,#6fa8dc 100%)',
+    season: 'winter',
+    pitch: 'Storm-day layout. Snow, lifts, roads, and the bar after.',
+    on: 'Layout is built around a ski day. Roads and lifts come first.',
+    // Every one of these pills already exists in the router. Nothing new to build.
+    pills: ['🚧 Road conditions', '⛷️ Skiing & snowboarding', '🎿 Ski & gear rentals', 'Apres-ski bars', '🛷 Sleigh rides & snowmobiles', 'Weather']
+  },
+  bluebird: {
+    cls: 'bluebird-mode',
+    emoji: '🌤️',
+    label: 'Bluebird',
+    color: '#0a8754',
+    gradient: 'linear-gradient(135deg,#0a8754 0%,#e8a317 100%)',
+    season: 'summer',
+    pitch: 'Summer layout. Trails, water, and a patio at the end.',
+    on: 'Layout is built around a summer day. Trails and water come first.',
+    pills: ['🥾 Hiking trails', '🚲 Bike trails', '💦 Waterfalls & alpine lakes', 'Fishing', 'Photo spots', 'Decks & patios']
+  },
+  skibum: {
+    cls: 'skibum-mode',
+    emoji: '💸',
+    label: 'Ski Bum',
+    color: '#b45309',
+    gradient: 'linear-gradient(135deg,#7c2d12 0%,#d97706 100%)',
+    season: null, // year-round
+    pitch: 'Broke-in-a-resort-town layout. Free things first, then cheap ones.',
+    on: 'Free and cheap things come first. The bus is free, so is most of the good stuff.',
+    pills: ['Free things to do', '✈️ Airport shuttles', 'Apres-ski bars', '🚻 Restrooms', '🥾 Hiking trails', '💰 Split Costs']
+  }
+};
+
+function activeMode() {
+  try {
+    const m = localStorage.getItem(MODE_KEY);
+    return SUMMIT_MODES[m] ? m : null;
+  } catch (e) { return null; }
+}
+
+function setMode(name) {
+  // Clear all three first, then apply. Cheaper to reason about than pairwise
+  // removal, and it self-heals if a fourth mode is added later.
+  Object.values(SUMMIT_MODES).forEach(m => document.body.classList.remove(m.cls));
+  try {
+    if (name && SUMMIT_MODES[name]) {
+      localStorage.setItem(MODE_KEY, name);
+      document.body.classList.add(SUMMIT_MODES[name].cls);
+    } else {
+      localStorage.removeItem(MODE_KEY);
+    }
+  } catch (e) {}
+}
+
+function toggleMode(name) {
+  const wasOn = activeMode() === name;
+  setMode(wasOn ? null : name);
+  const m = SUMMIT_MODES[name];
+  if (wasOn) {
+    addMessage(`${m.emoji} ${m.label} mode off. Back to the normal layout.`, 'bot');
+    showMainMenu();
+  } else {
+    addMessage(`${m.emoji} ${m.label} mode on. ${m.on}`, 'bot');
+    addQuickReplies(m.pills.concat(['🎨 Trip modes', '← Main menu']));
+  }
+  refreshModeCards();
+}
+
+// Re-render any visible mode card so its label and colour match the new state.
+function refreshModeCards() {
+  const cur = activeMode();
+  document.querySelectorAll('.mode-card').forEach(card => {
+    const name = card.getAttribute('data-mode');
+    const m = SUMMIT_MODES[name];
+    if (!m) return;
+    const on = cur === name;
+    card.style.background = on ? m.gradient : '#fff';
+    card.style.color = on ? '#fff' : '#222';
+    card.style.border = on ? 'none' : `1.5px solid ${m.color}`;
+    const title = card.querySelector('.mode-card-title');
+    const desc = card.querySelector('.mode-card-desc');
+    const btn = card.querySelector('.mode-card-btn');
+    if (title) title.textContent = on ? `${m.emoji} ${m.label} mode is ON` : `${m.emoji} ${m.label} mode`;
+    if (desc) desc.textContent = on ? m.on : m.pitch;
+    if (btn) {
+      btn.textContent = on ? 'Turn off' : `Turn on ${m.label}`;
+      btn.style.background = on ? '#fff' : m.color;
+      btn.style.color = on ? m.color : '#fff';
+    }
+  });
+}
+
+function showModesMenu(skipPush) {
+  if (!skipPush) pushMenu('modes');
+  const season = currentSeason();
+  const cur = activeMode();
+
+  addMessage("Trip modes retheme the app and put the right stuff on top. One at a time.", 'bot');
+
+  // Order by what the calendar says is plausible. In winter nobody wants the
+  // Bluebird card first, and in July the Powder card is noise.
+  const order = season === 'winter'
+    ? ['powder', 'bluebird', 'skibum']
+    : season === 'summer'
+      ? ['bluebird', 'powder', 'skibum']
+      : ['skibum', 'bluebird', 'powder'];
+
+  order.forEach(name => {
+    const m = SUMMIT_MODES[name];
+    const on = cur === name;
+    const offSeason = m.season && m.season !== season
+      ? `<div class="card-meta" style="opacity:0.75;">Off-season right now, but it still works.</div>` : '';
+    addMessage(`<div class="card mode-card" data-mode="${name}" style="background:${on ? m.gradient : '#fff'};color:${on ? '#fff' : '#222'};border:${on ? 'none' : '1.5px solid ' + m.color};">
+      <div class="mode-card-title" style="font-weight:700;font-size:15px;margin-bottom:4px;">${on ? `${m.emoji} ${m.label} mode is ON` : `${m.emoji} ${m.label} mode`}</div>
+      ${offSeason}
+      <div class="mode-card-desc" style="font-size:13px;line-height:1.5;margin-bottom:8px;">${on ? m.on : m.pitch}</div>
+      <button class="mode-card-btn" onclick="toggleMode('${name}')" style="background:${on ? '#fff' : m.color};color:${on ? m.color : '#fff'};border:none;padding:10px 16px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;">${on ? 'Turn off' : `Turn on ${m.label}`}</button>
+    </div>`, 'bot', true);
+  });
+
+  addQuickReplies(['← Main menu']);
+}
+
+// Apply the saved mode before first paint so there is no red-then-blue flash.
+(function applySavedMode() {
+  function tag() {
+    if (!document.body) return false;
+    const m = activeMode();
+    if (m) document.body.classList.add(SUMMIT_MODES[m].cls);
+    return true;
+  }
+  if (!tag()) document.addEventListener('DOMContentLoaded', tag);
+})();
+
 function showThingsToDoMenu(skipPush) {
   if (!skipPush) pushMenu('do');
   const season = currentSeason();
@@ -4422,6 +4628,7 @@ function showGetAroundMenu(skipPush) {
   addMessage("Where are you headed?", 'bot');
   addQuickReplies([
     '🚧 Road conditions',
+    '✈️ Airport shuttles',
     'Hotels nearby',
     'Vacation rentals',
     'Get a ride',
@@ -8417,6 +8624,83 @@ function renderDenInfoCard() {
     <a href="https://kiwitaxi.com/USA/transfer-from-Denver-Airport-Breckenridge" target="_blank" rel="noopener" style="background:#ffb800;color:#000;">Kiwitaxi (fixed-price transfer)</a>
     <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Tip: The drive is 2 hours in good conditions and 4-plus in a storm or Sunday traffic. If you rent a car in winter, Colorado's Traction Law can require snow tires or 4WD on I-70. Uber and Lyft do not reliably serve Summit County from DEN.</div>
   </div>`;
+}
+
+// Airport shuttle operators. Every one of these was checked against the
+// operator's own live site in Aug 2026, not written from memory. If you add
+// one, open its site first and confirm it still serves Summit County.
+// Note mountainshuttle.com IS Peak 1 Express; the brand and the domain differ.
+const SUMMIT_AIRPORT_SHUTTLES = [
+  {
+    name: 'Peak 1 Express',
+    url: 'https://www.mountainshuttle.com/destinations/summit-county/airport-shuttle/',
+    color: '#1d50a2',
+    meta: 'DEN and Eagle (EGE) · from $44 booked online',
+    desc: 'Headquartered in Breckenridge and runs more daily departures than anyone else, which matters if your flight lands at an odd hour. Shared shuttles go either to your lodging or to a cheaper central drop like Breckenridge Station or the Frisco Transfer Center. Serves all six towns.',
+    extra: [{ label: 'Schedules by town', url: 'https://www.mountainshuttle.com/schedules/summit-county/' }]
+  },
+  {
+    name: 'Epic Mountain Express',
+    url: 'https://www.epicmountainexpress.com/summit-county',
+    color: '#0a8754',
+    meta: 'DEN and Eagle (EGE) · roughly $59-$129 per person',
+    desc: 'The biggest operator and the one most resorts hand you at booking. Shared and private, door to door. Winter pricing runs high, and the off-season rate drops to the $59-$89 range.',
+    extra: []
+  },
+  {
+    name: 'Summit Express',
+    url: 'https://www.summitexpress.com/scheduled-shuttle-service/breckenridge-airport-shuttle/',
+    color: '#d62828',
+    meta: 'DEN · from about $54 per person',
+    desc: 'Scheduled service into Breckenridge and Frisco. Worth a price check against the other two, since which one is cheapest moves around by date.',
+    extra: []
+  },
+  {
+    name: 'Fresh Tracks Transportation',
+    url: 'https://freshtrackstransportation.com/airport-shuttles/',
+    color: '#444',
+    meta: 'DEN · private and small group',
+    desc: 'Leans private rather than shared. Usually the better call for a group of four or more, where a private van beats four shared seats on price.',
+    extra: []
+  }
+];
+
+function showAirportShuttles() {
+  addMessage("Getting here without a rental car. Four shuttle companies run DEN to Summit County, plus one budget route most people miss.", 'bot');
+
+  addMessage(`<div class="card" style="border-left:4px solid #d62828;">
+    <div class="card-title">Read this before you book</div>
+    <div class="card-desc">The drive is about 2 hours in good conditions and 4 or more in a storm or in Sunday eastbound traffic. Book the shuttle the same day you book the flight, because winter seats sell out. Uber and Lyft do not reliably run DEN to Summit County, so do not plan on one.</div>
+  </div>`, 'bot', true);
+
+  SUMMIT_AIRPORT_SHUTTLES.forEach(s => {
+    let html = `<div class="card">
+      <div class="card-title">🚐 ${s.name}</div>
+      <div class="card-meta">${s.meta}</div>
+      <div class="card-desc">${s.desc}</div>
+      <a href="${s.url}" target="_blank" rel="noopener" style="background:${s.color};color:#fff;">Book ${s.name}</a>`;
+    s.extra.forEach(e => {
+      html += `<a href="${e.url}" target="_blank" rel="noopener" style="background:#444;color:#fff;">${e.label}</a>`;
+    });
+    html += `</div>`;
+    addMessage(html, 'bot', true);
+  });
+
+  addMessage(`<div class="card" style="border-left:4px solid #1d50a2;">
+    <div class="card-title">💸 The cheap way in</div>
+    <div class="card-meta">Bustang West Line · Frisco Transfer Center, 1010 Meadow Dr</div>
+    <div class="card-desc">CDOT's Bustang is far cheaper than any shuttle, but it leaves from <strong>Denver Union Station, not the airport</strong>. From DEN you ride the A Line train to Union Station first, which is 37 minutes and $10 each way, then catch the bus. It adds time and one transfer, and it only drops in Frisco. From there the Summit Stage is free to anywhere in the county.</div>
+    <a href="https://ridebustang.com/routes/west-line/" target="_blank" rel="noopener" style="background:#1d50a2;color:#fff;">Bustang West Line</a>
+    <a href="https://www.rtd-denver.com/routes-services/airport" target="_blank" rel="noopener" style="background:#444;color:#fff;">A Line: DEN to Union Station</a>
+  </div>`, 'bot', true);
+
+  addMessage(`<div class="card" style="border-left:4px solid #0a8754;">
+    <div class="card-title">🚌 Once you are here, stop paying for rides</div>
+    <div class="card-desc">The Summit Stage is free and connects Breckenridge, Frisco, Dillon, Silverthorne, Keystone, and Copper. Most visitors pay for rides between towns without realizing the bus does it for nothing.</div>
+    <a href="https://www.summitcountyco.gov/185/Summit-Stage" target="_blank" rel="noopener" style="background:#0a8754;color:#fff;">Summit Stage routes and times</a>
+  </div>`, 'bot', true);
+
+  addQuickReplies(['🚧 Road conditions', 'DEN flight tracker', '← Main menu']);
 }
 
 async function showFlights() {
