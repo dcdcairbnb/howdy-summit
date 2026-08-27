@@ -7034,6 +7034,13 @@ let groupMapAttribution = null;
 // around -106.038, and treating town as on-mountain would paint ski runs over
 // the shops. The boxes are also kept from touching each other so a point never
 // matches two resorts.
+// Trail view is finished but not released. With this false the group map
+// behaves exactly as it did before: plain OpenStreetMap tiles, zoom clamped at
+// 14, no piste layer, regardless of where anyone in the group is standing.
+// Flip to true to turn it on. skimap-test.html is unaffected and still renders
+// the trail view for testing, since it does not read this flag.
+const SKI_TRAIL_VIEW_ENABLED = false;
+
 const SKI_RESORT_BOUNDS = [
   { name: 'Keystone',        south: 39.565, north: 39.625, west: -105.995, east: -105.905 },
   { name: 'Arapahoe Basin',  south: 39.626, north: 39.655, west: -105.900, east: -105.840 },
@@ -7074,7 +7081,7 @@ async function renderGroupLiveMap(members) {
     return;
   }
   // If anyone in the group is on a mountain, switch to trail view.
-  const resort = resortForGroup(withCoords);
+  const resort = SKI_TRAIL_VIEW_ENABLED ? resortForGroup(withCoords) : null;
 
   // Init or re-use map
   if (!groupMapInstance) {
