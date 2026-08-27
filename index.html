@@ -1541,6 +1541,14 @@ if (document.readyState === 'loading') {
 // Anything appended to this must keep working with `new URL(path, origin)`
 // callers below, so API_BASE is either '' or a full https origin.
 const PROD_ORIGIN = 'https://www.howdysummitcounty.com';
+/* Dispensary directory feature flag.
+   Declared up here, above both use sites, rather than next to showDispensaries.
+   Every use is inside a function so a later `const` happened to work, but that
+   only held because nothing calls those functions during initial execution.
+   One top-level call would have turned it into a ReferenceError at load.
+   Full rationale and the release order live on showDispensaries below. */
+const DISPENSARY_DIRECTORY_ENABLED = false;
+
 const API_BASE = (function () {
   try {
     const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -2766,6 +2774,13 @@ function routeIntent(text) {
 
   if (lower === 'book a tour' || matches(lower, ['book a tour', 'tours', 'pub crawl', 'day trip', 'viator', 'getyourguide'])) {
     showTours();
+    return;
+  }
+
+  // Gated twice on purpose: the pill is hidden AND the router refuses, so a
+  // typed query cannot reach the directory before the rating ships.
+  if (DISPENSARY_DIRECTORY_ENABLED && (lower === '🌿 dispensaries' || matches(lower, ['dispensary', 'dispensaries', 'cannabis', 'marijuana', 'weed shop', 'recreational pot', 'pot shop']))) {
+    showDispensaries();
     return;
   }
 
@@ -4893,14 +4908,18 @@ function showGetAroundMenu(skipPush) {
 function showEssentialsMenu(skipPush) {
   addMessage("Stocking up?", 'bot');
   if (!skipPush) pushMenu('essentials');
-  addQuickReplies([
+  const pills = [
     'Liquor stores',
     'Groceries',
     'Pharmacy',
     'ATMs',
-    '🚻 Restrooms',
-    '← Main menu'
-  ]);
+    '🚻 Restrooms'
+  ];
+  // Only surfaces once 1.0.3 (18+) is live on the App Store. See the note on
+  // DISPENSARY_DIRECTORY_ENABLED before changing this.
+  if (DISPENSARY_DIRECTORY_ENABLED) pills.splice(1, 0, '🌿 Dispensaries');
+  pills.push('← Main menu');
+  addQuickReplies(pills);
 }
 
 
@@ -9168,6 +9187,60 @@ async function showStoreType(query, type, label) {
 
 function showLiquorStores() {
   showStoreType('liquor store', 'liquor_store', 'liquor stores');
+}
+
+/* ---- Dispensary directory -------------------------------------------------
+   OFF until version 1.0.3 is approved AND released on the App Store.
+
+   Read this before flipping the flag. The Summit app loads the live site, so
+   anything merged to main is on every user's phone within about two minutes.
+   There is no staging gate between a push and a customer. That is exactly how
+   a cannabis card once went live while the store listing still said 13+.
+
+   The order is: 1.0.3 approved -> 1.0.3 RELEASED -> flip this to true -> push.
+   Approved is not enough. Until it is released, the public rating is the old
+   one.
+
+   Apple Guideline 1.4.3 permits apps that provide information about legal,
+   licensed dispensaries. It does NOT permit facilitating a sale, so this
+   stays a directory: names, addresses, hours, a link to Maps. No menus, no
+   ordering, no delivery, no pricing.
+
+   TWO DIFFERENT NUMBERS, do not merge them:
+     - 18+ is the App Store age rating tier.
+     - 21  is Colorado's legal age to buy recreational cannabis.
+   Anything user-facing about the law says 21.
+--------------------------------------------------------------------------- */
+
+function showDispensaries() {
+  if (!DISPENSARY_DIRECTORY_ENABLED) {
+    // Defensive: the pill and the router match are both gated too, so this
+    // should be unreachable. It exists so that a stray link or a cached menu
+    // cannot surface the directory ahead of the rating.
+    showEssentialsMenu();
+    return;
+  }
+
+  addMessage(`<div class="card" style="border-left:4px solid #0a8754;">
+    <div class="card-title">Before you go</div>
+    <div class="card-desc">You must be <strong>21 or older</strong> with a valid government ID to buy recreational cannabis in Colorado. It is legal to buy and legal to consume in a private residence. It is <strong>not</strong> legal to consume in public, in a vehicle, on the ski hill, on National Forest land, or in most lodging. Do not drive after using. Do not carry it across state lines, including to the airport.</div>
+    <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Howdy Summit is a directory only. We do not sell cannabis, take orders, or partner with any dispensary. Hours change often, so call ahead.</div>
+  </div>`, 'bot', true);
+
+  // Live Google Places lookup, same path as liquor stores. Deliberately not a
+  // curated list: dispensary names, owners and hours turn over fast in a
+  // resort town, and a hand-written list goes stale silently. The places API
+  // already geofences results to Summit County.
+  //
+  // The 'store' type is NOT optional and NOT cosmetic. api/places/search.js
+  // defaults an absent type to 'tourist_attraction', so passing null here
+  // searched for dispensaries among tourist attractions and returned exactly
+  // zero, silently, with a 200. Google Places (New) has no cannabis type, so
+  // 'store' is the closest valid one; the text query does the real work.
+  // Verified live: this returns 9 dispensaries across Frisco, Silverthorne,
+  // Dillon and Breckenridge. Plain 'dispensary' returns 14 but drags in smoke
+  // shops that do not sell cannabis.
+  showStoreType('cannabis dispensary', 'store', 'dispensaries');
 }
 
 function showGroceries() {
