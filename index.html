@@ -1541,6 +1541,30 @@ if (document.readyState === 'loading') {
 // Anything appended to this must keep working with `new URL(path, origin)`
 // callers below, so API_BASE is either '' or a full https origin.
 const PROD_ORIGIN = 'https://www.howdysummitcounty.com';
+/* AbortSignal.timeout polyfill. MUST stay above the first fetch that uses it.
+
+   This app ships with IPHONEOS_DEPLOYMENT_TARGET = 15.0, but
+   AbortSignal.timeout did not land until Safari 16 / iOS 16. On an iOS 15
+   device it is undefined, so `AbortSignal.timeout(8000)` throws a TypeError
+   before the request is ever made. There are 17 call sites and none of them
+   guarded it, which means on iOS 15 the weather, road conditions, snow
+   report, storm clock, chat, health check and every Places lookup all failed
+   the same way: caught by a try/catch and reported as a generic error, or
+   nothing at all. In desktop Safari and Chrome it works, which is exactly why
+   this only ever showed up "in the app but not on the web".
+
+   Either this polyfill stays, or the deployment target moves to iOS 16. */
+if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout !== 'function') {
+  AbortSignal.timeout = function (ms) {
+    const controller = new AbortController();
+    setTimeout(function () {
+      try { controller.abort(new DOMException('TimeoutError', 'TimeoutError')); }
+      catch (e) { controller.abort(); }   // older WebKit: abort() took no reason
+    }, ms);
+    return controller.signal;
+  };
+}
+
 /* Dispensary directory feature flag.
    Declared up here, above both use sites, rather than next to showDispensaries.
    Every use is inside a function so a later `const` happened to work, but that
