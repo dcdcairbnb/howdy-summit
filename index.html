@@ -8493,11 +8493,15 @@ function buildVrboUrl() {
   return url;
 }
 
-// Host's Pick card. Dan's real Summit County listing.
+/* Host's Pick card. Dan's real Silverthorne listing.
+   Details pulled from the live Airbnb page, not written from memory. If the
+   listing changes, open it and re-read it rather than editing from guesswork.
+   Deliberately no star rating or review count here: both move, and a hardcoded
+   number goes stale silently and quietly misrepresents the listing. */
 const HOST_PICK = {
-  name: "Dan's Summit County Getaway",
-  area: "Summit County, Colorado",
-  blurb: "The Howdy Summit host's own rental. Booking through this listing supports the guide.",
+  name: "2 King Beds | Hot Tub | 5 Ski Resorts",
+  area: "Silverthorne · 2 bedrooms · 3 beds · 2 baths · sleeps 6",
+  blurb: "The Howdy Summit host's own condo, and a 10-minute walk to the Silverthorne Bus Depot. From there the free Summit Stage runs to five ski resorts, so a group can ski all week without moving a car. Hot tub, full kitchen, Superhost. Booking through this listing supports the guide.",
   image: "",
   url: "https://www.airbnb.com/rooms/1730217053317092168"
 };
@@ -8550,6 +8554,16 @@ function showVacationRentals() {
     <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Parking, hot tub access, and whether the shuttle stops at the building matter more here than square footage. Check all three before booking.</div>
   </div>`;
   addMessage(backups, 'bot', true);
+
+  // Mirror of the Colorado card in Howdy Nash. Same host, other city.
+  const nashvilleTrip = `<div class="card" style="border:2px solid #c8a263;">
+    <div class="card-title">🎸 Heading to Nashville next?</div>
+    <div class="card-desc"><strong>Same host · Germantown, 2 bedroom, sleeps 6</strong></div>
+    <div class="card-desc">Your Howdy Summit host also runs a place in Nashville. Walk to Broadway from Germantown, free parking, and there is a whole guide for that city too.</div>
+    <a href="https://www.airbnb.com/rooms/1546687115825271453" target="_blank" rel="noopener" style="background:#FF5A5F;">View Music City Retreat</a>
+    <a href="https://howdynash.com" target="_blank" rel="noopener" style="background:#444;color:#fff;">Open Howdy Nash</a>
+  </div>`;
+  addMessage(nashvilleTrip, 'bot', true);
 
   if (!userLocation) {
     addMessage("Want me to use your location? Tap 'Share my location' from the main menu.", 'bot');
