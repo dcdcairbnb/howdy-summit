@@ -8544,6 +8544,18 @@ function showVacationRentals() {
   const hostPick = renderHostPickCard();
   if (hostPick) addMessage(hostPick, 'bot', true);
 
+  // Mirror of the Colorado card in Howdy Nash. Same host, other city.
+  // Sits directly under the Host's Pick so both of Dan's listings are together,
+  // above the generic town advice.
+  const nashvilleTrip = `<div class="card" style="border:2px solid #c8a263;">
+    <div class="card-title">🎸 Heading to Nashville next?</div>
+    <div class="card-desc"><strong>Same host · 2 bedrooms · 3 beds · 1 bath · sleeps 6</strong></div>
+    <div class="card-desc">Your Howdy Summit host also runs Music City Retreat in Nashville. Free parking, ranked in the top 5% of homes, and a 10-minute walk to Bicentennial Capitol Mall and Marathon Village. There is a whole guide for that city too.</div>
+    <a href="https://www.airbnb.com/rooms/1546687115825271453" target="_blank" rel="noopener" style="background:#FF5A5F;">View Music City Retreat</a>
+    <a href="https://howdynash.com" target="_blank" rel="noopener" style="background:#444;color:#fff;">Open Howdy Nash</a>
+  </div>`;
+  addMessage(nashvilleTrip, 'bot', true);
+
   // Where to actually look, by town
   const backups = `<div class="card">
     <div class="card-title">Which town should you book?</div>
@@ -8554,16 +8566,6 @@ function showVacationRentals() {
     <div class="card-desc" style="font-size:12px;color:#666;margin-top:8px;">Parking, hot tub access, and whether the shuttle stops at the building matter more here than square footage. Check all three before booking.</div>
   </div>`;
   addMessage(backups, 'bot', true);
-
-  // Mirror of the Colorado card in Howdy Nash. Same host, other city.
-  const nashvilleTrip = `<div class="card" style="border:2px solid #c8a263;">
-    <div class="card-title">🎸 Heading to Nashville next?</div>
-    <div class="card-desc"><strong>Same host · 2 bedrooms · 3 beds · 1 bath · sleeps 6</strong></div>
-    <div class="card-desc">Your Howdy Summit host also runs Music City Retreat in Nashville. Free parking, ranked in the top 5% of homes, and a 10-minute walk to Bicentennial Capitol Mall and Marathon Village. There is a whole guide for that city too.</div>
-    <a href="https://www.airbnb.com/rooms/1546687115825271453" target="_blank" rel="noopener" style="background:#FF5A5F;">View Music City Retreat</a>
-    <a href="https://howdynash.com" target="_blank" rel="noopener" style="background:#444;color:#fff;">Open Howdy Nash</a>
-  </div>`;
-  addMessage(nashvilleTrip, 'bot', true);
 
   if (!userLocation) {
     addMessage("Want me to use your location? Tap 'Share my location' from the main menu.", 'bot');
