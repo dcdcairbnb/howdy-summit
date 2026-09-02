@@ -6,7 +6,8 @@ const UA = 'HowdySummit/1.0 (contact@howdysummitcounty.com)';
 async function fetchAlerts(lat, lng) {
   try {
     const r = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lng}`, {
-      headers: { 'User-Agent': UA, 'Accept': 'application/geo+json' }
+      headers: { 'User-Agent': UA, 'Accept': 'application/geo+json' },
+      signal: AbortSignal.timeout(6000)
     });
     if (!r.ok) return [];
     const data = await r.json();
@@ -131,7 +132,7 @@ function normalise(feature) {
 
 async function fetchCdot(path, key) {
   const url = `https://data.cotrip.org/api/v1/${path}?apiKey=${encodeURIComponent(key)}`;
-  const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+  const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
   if (!r.ok) throw new Error(`${path} returned ${r.status}`);
   return r.json();
 }
@@ -253,7 +254,7 @@ async function snowfall(req, res) {
     url.searchParams.set('timezone', 'UTC');
     url.searchParams.set('precipitation_unit', 'inch');
 
-    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
     if (!r.ok) {
       return res.status(502).json({ ok: false, error: 'snow feed unavailable' });
     }
@@ -334,7 +335,7 @@ async function stormClock(req, res) {
     url.searchParams.set('forecast_days', '1');
     url.searchParams.set('timezone', 'America/Denver');
 
-    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
     if (!r.ok) return res.status(502).json({ ok: false, error: 'storm feed unavailable' });
 
     const body = await r.json();
@@ -400,8 +401,11 @@ export default async function handler(req, res) {
 
   try {
     const [pointsRes, alerts] = await Promise.all([
+      // points -> forecast is sequential, so each leg gets 4s to stay
+      // inside the 10s Hobby limit with room for the alerts call.
       fetch(`https://api.weather.gov/points/${lat},${lng}`, {
-        headers: { 'User-Agent': UA }
+        headers: { 'User-Agent': UA },
+        signal: AbortSignal.timeout(4000)
       }),
       fetchAlerts(lat, lng)
     ]);
@@ -418,7 +422,8 @@ export default async function handler(req, res) {
     }
 
     const forecastRes = await fetch(forecastUrl, {
-      headers: { 'User-Agent': UA }
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(4000)
     });
     if (!forecastRes.ok) {
       return res.status(forecastRes.status).json({ error: 'forecast fetch failed' });

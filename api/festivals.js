@@ -36,6 +36,7 @@ async function fetchVisitMusicCity() {
   return [];
   try {
     const r = await fetch(VMC_URL, {
+      signal: AbortSignal.timeout(6000),
       headers: { 'User-Agent': 'HowdySummit/1.0 (+https://howdysummitcounty.com)', 'Accept': 'text/html' }
     });
     if (!r.ok) return [];
@@ -114,7 +115,7 @@ async function fetchTicketmasterFestivals(lat, lng, classificationName) {
       url.searchParams.set('sort', 'date,asc');
     }
 
-    const r = await fetch(url);
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return [];
     const data = await r.json();
     const userPos = (lat && lng) ? { latitude: Number(lat), longitude: Number(lng) } : null;
@@ -171,7 +172,8 @@ async function fetchEventbriteFestivals(lat, lng) {
       headers: {
         Authorization: `Bearer ${process.env.EVENTBRITE_PRIVATE_TOKEN}`,
         'Content-Type': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(6000)
     });
     if (!r.ok) return [];
     const data = await r.json();
@@ -224,7 +226,7 @@ async function fetchNashvilleSpecialEvents() {
       headers['X-App-Token'] = process.env.NASHVILLE_APP_TOKEN;
     }
 
-    const r = await fetch(url, { headers });
+    const r = await fetch(url, { headers, signal: AbortSignal.timeout(6000) });
     if (!r.ok) return [];
     const data = await r.json();
     return (data || []).map(e => ({
@@ -344,6 +346,9 @@ export default async function handler(req, res) {
       },
       sortedBy: (lat && lng) ? 'distance' : 'date',
       festivals: combined,
+      // Also exposed as `events`: subscribe.js and the ?source=local caller in
+      // index.html read that key and were getting an empty list forever.
+      events: combined,
       total: combined.length
     });
   } catch (e) {

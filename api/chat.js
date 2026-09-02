@@ -68,11 +68,19 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/* Spend is stored as integer "units" of one hundredth of a cent (USD x 10000).
+   It used to be whole cents, and a typical Haiku call (~$0.003) rounded to 0,
+   so the counter never moved and the daily budget guard never tripped. The key
+   name changed too so a stale cent-valued key from before cannot be read as
+   units. */
+const SPEND_UNITS_PER_USD = 10000;
+const spendKey = () => `chatspendu:${todayKey()}`;
+
 async function getTodaySpend() {
   const r = getRedis();
   if (!r) return 0;
   try {
-    const v = await r.get(`chatspend:${todayKey()}`);
+    const v = await r.get(spendKey());
     return Number(v) || 0;
   } catch (e) {
     console.error('redis spend read failed', e.message);
@@ -80,12 +88,12 @@ async function getTodaySpend() {
   }
 }
 
-async function addTodaySpend(deltaCents) {
+async function addTodaySpend(deltaUnits) {
   const r = getRedis();
   if (!r) return 0;
   try {
-    const key = `chatspend:${todayKey()}`;
-    const newVal = await r.incrby(key, deltaCents);
+    const key = spendKey();
+    const newVal = await r.incrby(key, deltaUnits);
     await r.expire(key, 60 * 60 * 48); // 48h auto-expire
     return Number(newVal) || 0;
   } catch (e) {
@@ -602,10 +610,10 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'You have hit the daily chat limit. Try the menu buttons or come back tomorrow.' });
   }
 
-  // Daily dollar budget check. Stored in Redis as cents to keep ints clean.
-  const spentCents = await getTodaySpend();
-  const budgetCents = Math.round(DAILY_BUDGET_USD * 100);
-  if (spentCents >= budgetCents) {
+  // Daily dollar budget check. Stored in Redis as integer spend units.
+  const spentUnits = await getTodaySpend();
+  const budgetUnits = Math.round(DAILY_BUDGET_USD * SPEND_UNITS_PER_USD);
+  if (spentUnits >= budgetUnits) {
     return res.status(429).json({ error: 'The chat is taking a quick break. Try again tomorrow or use the menu buttons for now.' });
   }
 
@@ -679,12 +687,13 @@ The user shared their location and is currently in ${userNeighborhood.name}. Whe
     const outTok = Number(data.usage?.output_tokens || 0);
     const callCostUsd = (inTok / 1_000_000) * model.inputCostPerMtok
                       + (outTok / 1_000_000) * model.outputCostPerMtok;
-    const callCostCents = Math.max(1, Math.round(callCostUsd * 10000) / 100); // store with 0.01 cent precision rounded to whole cent
-    const newTotalCents = await addTodaySpend(Math.round(callCostUsd * 100));
-    const newTotalUsd = newTotalCents / 100;
-    const alertCents = Math.round(DAILY_BUDGET_USD * 100 * ALERT_THRESHOLD_PCT);
-    if (newTotalCents >= alertCents) {
-      const fire = await shouldSendAlert(alertCents);
+    // At least 1 unit so a near-free call still registers as a call.
+    const callCostUnits = Math.max(1, Math.round(callCostUsd * SPEND_UNITS_PER_USD));
+    const newTotalUnits = await addTodaySpend(callCostUnits);
+    const newTotalUsd = newTotalUnits / SPEND_UNITS_PER_USD;
+    const alertUnits = Math.round(DAILY_BUDGET_USD * SPEND_UNITS_PER_USD * ALERT_THRESHOLD_PCT);
+    if (newTotalUnits >= alertUnits) {
+      const fire = await shouldSendAlert(alertUnits);
       if (fire) await sendBudgetAlert(newTotalUsd, DAILY_BUDGET_USD);
     }
 

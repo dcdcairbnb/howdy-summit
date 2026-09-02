@@ -48,7 +48,7 @@ async function fetchTicketmaster(keyword, classificationName, startDateTime, end
     if (startDateTime) url.searchParams.set('startDateTime', startDateTime);
     if (endDateTime) url.searchParams.set('endDateTime', endDateTime);
 
-    const r = await fetch(url);
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return [];
     const data = await r.json();
     const userPos = (lat && lng) ? { latitude: Number(lat), longitude: Number(lng) } : null;
@@ -99,7 +99,7 @@ async function fetchSeatGeek(keyword, lat, lng) {
     url.searchParams.set('sort', 'datetime_local.asc');
     if (keyword) url.searchParams.set('q', keyword);
 
-    const r = await fetch(url);
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return [];
     const data = await r.json();
     const userPos = (lat && lng) ? { latitude: Number(lat), longitude: Number(lng) } : null;
@@ -152,7 +152,8 @@ async function fetchEventbrite(keyword, lat, lng) {
       headers: {
         Authorization: `Bearer ${process.env.EVENTBRITE_PRIVATE_TOKEN}`,
         'Content-Type': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(6000)
     });
     if (!r.ok) return [];
     const data = await r.json();

@@ -59,7 +59,9 @@ const recentErrorFingerprints = new Map();
 // there was gone. Using the Howdy Nash HQ inbox, which exists and is already
 // the Cloudflare account owner, so howdy@howdysummitcounty.com forwards here
 // too and everything arrives in one place.
-const ERROR_REPORTER_TO = 'howdynashhq@gmail.com';
+// Summit's own inbox. This was howdynashhq@gmail.com, a copy-paste from Nash,
+// so every Summit bug report and JS error went to the other app's mailbox.
+const ERROR_REPORTER_TO = 'howdy@howdysummitcounty.com';
 
 function checkErrorRateLimit(ip) {
   const now = Date.now();
@@ -522,12 +524,18 @@ export default async function handler(req, res) {
 
   // Newsletter actions (admin only)
   if (body.action === 'newsletter-preview') {
+    // Admin only. This used to be open and unrated, and it fans out to every
+    // metered upstream on each call.
+    if (!process.env.ADMIN_TOKEN || body.token !== process.env.ADMIN_TOKEN) return res.status(403).json({ error: 'admin token required' });
     const [events, openings] = await Promise.all([fetchThisWeekendEvents(), fetchEaterOpenings()]);
     const html = buildNewsletterHTML(events, openings).replace('{{UNSUB_URL}}', '#preview');
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(html);
   }
   if (body.action === 'eater-debug') {
+    // Admin only. This used to be open and unrated, and it fans out to every
+    // metered upstream on each call.
+    if (!process.env.ADMIN_TOKEN || body.token !== process.env.ADMIN_TOKEN) return res.status(403).json({ error: 'admin token required' });
     // Diagnostic endpoint: try the Summit County food-news feeds and report
     // which respond. Previously listed Eater Nashville and Nashville Scene.
     const urls = [

@@ -336,6 +336,10 @@ export default async function handler(req, res) {
     return bad(res, 400, 'Unknown action');
   } catch (e) {
     console.error('[group] error', e);
-    return res.status(500).json({ error: 'internal server error', detail: (e && e.message) || 'unknown' });
+    // Never echo e.message: it carries raw Upstash/Redis text (WRONGPASS, host
+    // names). Log it server-side, send the client the same bare error every
+    // other handler sends.
+    console.error('[group] unhandled', e && e.message);
+    return res.status(500).json({ error: 'internal server error' });
   }
 }

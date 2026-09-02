@@ -248,8 +248,12 @@
     .container {
       max-width: 100%;
       width: 100%;
-      height: 100vh;
-      height: 100dvh;
+      /* Subtract whatever the fixed top banners occupy. body is overflow:hidden
+         here, so if the container stays a full 100dvh while body gets padded,
+         the bottom of the chat is pushed off-screen with no way to reach it.
+         --banner-h is written by syncBannerOffset(). */
+      height: calc(100vh - var(--banner-h, 0px));
+      height: calc(100dvh - var(--banner-h, 0px));
       max-height: none;
       border-radius: 0;
       box-shadow: none;
@@ -525,8 +529,12 @@
     position: fixed; inset: 0; pointer-events: none; z-index: 5;
     overflow: hidden; display: none;
   }
+  /* Only the modes that actually build particles. Bluebird used to be listed
+     here with an empty layer, and Monsoon was missing, so its 260 raindrops
+     were built into a display:none box and never rendered in production.
+     Keep this list in sync with WEATHER_SPECS. */
   body.powder-mode .weather-layer,
-  body.bluebird-mode .weather-layer { display: block; }
+  body.monsoon-mode .weather-layer { display: block; }
   /* Haze deliberately off. With the winter photo behind it and 400 flakes in
      front, an extra wash just greyed the mountains out for no gain. */
 
@@ -2672,6 +2680,38 @@ function navAction(fn, menuName, fromLabel) {
   setTimeout(() => { suppressAutoScroll = false; }, 2500);
 }
 
+/* Single owner of the space the fixed top banners take up.
+
+   Before this, four places wrote document.body.style.paddingTop on their own
+   (weather banner, road banner, the no-alerts clear, the test-time banner).
+   Two things went wrong:
+
+   1. On phones, body is overflow:hidden with height:100%, and .container is a
+      full 100dvh. Body padding pushed a full-height box down inside a box that
+      cannot scroll, so the bottom of the chat (input, bottom nav, the newest
+      messages) was clipped off-screen. That is why "Details did nothing in the
+      app but worked on the web": the weather cards rendered into the clipped
+      region. Desktop never hits that media query.
+   2. Weather and road each wrote their own height, so whichever refreshed last
+      clobbered the other and the road banner ended up covering the header.
+
+   This measures both banners, sets the total once, and publishes it as a CSS
+   variable so the mobile container can subtract it from its own height. */
+function syncBannerOffset() {
+  const wx   = document.getElementById('weatherAlertBanner');
+  const road = document.getElementById('roadAlertBanner');
+  const test = document.getElementById('testTimeBanner');
+  const vis  = el => el && el.isConnected && el.style.display !== 'none';
+  const wxH   = vis(wx)   ? wx.offsetHeight   : 0;
+  const testH = vis(test) ? test.offsetHeight : 0;
+  // Road banner always sits directly under whatever is above it.
+  if (vis(road)) road.style.top = (wxH + testH) + 'px';
+  const roadH = vis(road) ? road.offsetHeight : 0;
+  const total = wxH + testH + roadH;
+  document.body.style.paddingTop = total ? total + 'px' : '';
+  document.documentElement.style.setProperty('--banner-h', total + 'px');
+}
+
 function scrollToView() {
   // navAction handles its own scroll positioning, don't interfere
   if (suppressAutoScroll) return;
@@ -2785,6 +2825,15 @@ function routeIntent(text) {
     return;
   }
 
+  // Avalanche SAFETY, not the hockey team. This must sit above the sports
+  // guard, whose 'avalanche' keyword used to send "avalanche danger" to a
+  // Colorado Avalanche game schedule. Any phrasing that pairs the word with
+  // a conditions/safety term is a backcountry question.
+  if (/avalanche (danger|condition|conditions|risk|forecast|report|rating|warning|safety)|backcountry (danger|conditions|forecast)|\bcaic\b/.test(lower)) {
+    showAvalancheSafety();
+    return;
+  }
+
   if (lower === 'sports' || matches(lower, ['sports', 'broncos', 'nuggets', 'avalanche', 'rockies', 'rapids', 'denver game', 'hockey', 'football game', 'baseball game', 'basketball game', 'nfl', 'nhl', 'mls', 'mlb', 'nba'])) {
     showSports();
     return;
@@ -2795,12 +2844,14 @@ function routeIntent(text) {
     return;
   }
 
-  if (lower === 'weather' || matches(lower, ['weather', 'forecast', 'temperature', 'rainy today', 'how cold', 'how hot today'])) {
+  if (!/(snow|powder|avalanche|storm) forecast/.test(lower)
+      && (lower === 'weather' || matches(lower, ['weather', 'forecast', 'temperature', 'rainy today', 'how cold', 'how hot today']))) {
     showWeather();
     return;
   }
 
-  if (lower === 'book a tour' || matches(lower, ['book a tour', 'tours', 'pub crawl', 'day trip', 'viator', 'getyourguide'])) {
+  if (!/(distillery|brewery|jeep|walking|sleigh|snowmobile|whiskey|food) tours?\b/.test(lower)
+      && (lower === 'book a tour' || matches(lower, ['book a tour', 'tours', 'pub crawl', 'day trip', 'viator', 'getyourguide']))) {
     showTours();
     return;
   }
@@ -2819,7 +2870,7 @@ function routeIntent(text) {
 
   // Above the ski/snow matches: "how much snow" contains "snow", which the
   // sleigh-rides and skiing guards would otherwise pick up first.
-  if (lower === '❄️ snow report' || matches(lower, ['snow report', 'snow total', 'snow totals', 'how much snow', 'fresh snow', 'powder day', 'is it snowing', 'new snow', 'snowfall', 'did it snow'])) {
+  if (lower === '❄️ snow report' || !lower.includes('powder day mode') && matches(lower, ['snow report', 'snow forecast', 'powder forecast', 'snow total', 'snow totals', 'how much snow', 'fresh snow', 'powder day', 'is it snowing', 'new snow', 'snowfall', 'did it snow'])) {
     showSnowReport();
     return;
   }
@@ -2959,7 +3010,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['breakfast', 'brunch', 'pastry', 'bakery'])) {
+  if (matches(lower, ['breakfast', 'brunch'])) {
     showRestaurants(SUMMIT_DATA.restaurants.filter(r => /breakfast|brunch|cafe/i.test(r.cuisine)), 'Breakfast and brunch spots:');
     return;
   }
@@ -3009,7 +3060,11 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['restaurant', 'eat', 'food', 'dinner', 'lunch', 'where to eat'])) {
+  // 'eat' and 'food' are substrings of amphithEATer, chEAT sheet, uber EATs,
+  // trEATment, bEATen path, whole FOODs, FOOD tour. Exclude those so they reach
+  // their own guards further down instead of dying here as a restaurant query.
+  if (!/(amphitheat|cheat sheet|uber ?eats|order food|food deliver|whole foods|food store|treatment|beaten path|food tour)/.test(lower)
+      && matches(lower, ['restaurant', 'eat', 'food', 'dinner', 'lunch', 'where to eat'])) {
     showRestaurantOptions();
     return;
   }
@@ -3097,7 +3152,7 @@ function routeIntent(text) {
   // list: that button answers "who do I book", this one "where do I ride".
   if (matches(lower, ['🛷 snowmobile trails', 'snowmobile trail', 'snowmobile trails',
                       'snowmobile area', 'snowmobile areas', 'where to snowmobile',
-                      'where can i snowmobile', 'vail pass', 'shrine bowl',
+                      'where can i snowmobile', 'shrine bowl',
                       'machinegun ridge', 'camp hale', 'snowmobile riding'])) {
     showSnowmobileTrails();
     return;
@@ -3108,7 +3163,7 @@ function routeIntent(text) {
   }
 
   if (matches(lower, ['ski rental', 'ski rentals', 'snowboard rental', 'board rental', 'rent skis',
-                      'rent a snowboard', 'gear rental', 'gear rentals', 'ski shop', 'ski shops',
+                      'rent a snowboard', 'gear rental', 'gear rentals',
                       'demo skis', 'boot fitting', 'bike rental', 'bike rentals', 'rent a bike',
                       '\ud83c\udfbf ski & gear rentals', 'ski and gear rentals', 'where to rent'])) {
     showGearDelivery();
@@ -3139,7 +3194,7 @@ function routeIntent(text) {
   }
   if (matches(lower, ['bike', 'biking', 'bikes', '🚲 bike trails', 'bike trails', 'mountain bike', 'mountain biking',
                       'bike path', 'bike park', 'rec path', 'recpath', 'cycling', 'ride a bike', 'bike rental',
-                      'singletrack', 'vail pass', 'boreas pass', 'blue river bikeway'])) {
+                      'singletrack', 'boreas pass', 'blue river bikeway'])) {
     showBikeTrails();
     return;
   }
@@ -3264,7 +3319,7 @@ function routeIntent(text) {
     showNeighborhoodsExplorer();
     return;
   }
-  if (matches(lower, ['neighborhood', 'town', 'area', 'where to stay', 'breckenridge', 'frisco', 'dillon', 'silverthorne', 'keystone', 'copper mountain'])) {
+  if (matches(lower, ['neighborhood', 'town', 'area', 'breckenridge', 'frisco', 'dillon', 'silverthorne', 'keystone', 'copper mountain'])) {
     showNeighborhoods(lower);
     return;
   }
@@ -3275,7 +3330,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['uber', 'lyft', 'ride', 'taxi', 'get a ride', 'rideshare'])) {
+  if (!/uber ?eats/.test(lower) && matches(lower, ['uber', 'lyft', 'ride', 'taxi', 'get a ride', 'rideshare'])) {
     showRideOptions();
     return;
   }
@@ -4358,7 +4413,13 @@ async function sendTripSummary() {
   }
   // Mark the trip as having sent the summary and bump the version so a
   // future resend identifies itself as an UPDATE in the email.
-  if (sentCount > 0) {
+  //
+  // Only when EVERY send succeeded. This used to flip on sentCount > 0, so
+  // one bounced email out of five still set summarySentAt, and End trip then
+  // said "Each person has their email. Safe to end." before wiping the
+  // expense data the missing person never received. A partial send keeps
+  // the hard warning in place until a resend reaches everyone.
+  if (sentCount > 0 && errCount === 0) {
     trip.summarySentAt = Date.now();
     trip.summaryVersion = (trip.summaryVersion || 0) + 1;
     saveTrip(trip);
@@ -5118,7 +5179,13 @@ function neighborhoodCoords(neighborhood) {
 // curated entry (24h "HH:MM" format).
 function defaultClosingTime(label) {
   const l = (label || '').toLowerCase();
-  if (l.includes('apres') || l.includes('main street')) return '02:00';
+  // Apres bars deliberately get NO default. The list mixes 2am Main Street
+  // bars with slopeside decks that close when the lifts do (T-Bar, The Maggie,
+  // The Beach at A-Basin), and there is no per-venue closesAt data. A 2am
+  // default produced "Last call in 30m" at 1am for a bar that shut at 5pm.
+  // No badge beats a wrong badge. Venues with an explicit closesAt still get one.
+  if (l.includes('apres')) return null;
+  if (l.includes('main street')) return '02:00';
   if (l.includes('rooftop')) return '00:00'; // most rooftops close midnight
   if (l.includes('cocktail')) return '02:00';
   if (l.includes('brewery')) return '23:00';
@@ -5145,7 +5212,28 @@ function getSimulatedNow() {
       return d;
     }
   } catch (e) {}
-  return new Date();
+  return mountainNow();
+}
+
+/* A Date whose local getters (getHours, setHours...) read as Summit County
+   wall-clock time, whatever zone the phone is in. Everything downstream
+   (minutesUntilClose, getTimeContext, closing badges, the evening greeting)
+   used plain new Date(), so someone planning from Nashville at 11pm ET saw
+   "Quiet mountain night" and CLOSED badges two hours early. Intl with
+   timeZone is supported back to iOS 15, which is the deployment target. */
+function mountainNow() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Denver', hourCycle: 'h23',
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: 'numeric', second: 'numeric'
+    }).formatToParts(new Date());
+    const g = t => Number((parts.find(p => p.type === t) || {}).value);
+    const d = new Date(g('year'), g('month') - 1, g('day'), g('hour') % 24, g('minute'), g('second'));
+    return isNaN(d) ? new Date() : d;
+  } catch (e) {
+    return new Date();
+  }
 }
 
 // Show a yellow banner at the top of the screen when test-time override is
@@ -5162,7 +5250,7 @@ function maybeShowTestTimeBanner() {
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#fff;padding:6px 12px;font-size:12px;font-weight:700;text-align:center;z-index:99998;letter-spacing:0.3px;';
     banner.innerHTML = `🧪 TEST MODE: simulating ${timeStr}. <a href="${window.location.pathname}" style="color:#fff;text-decoration:underline;">exit</a>`;
     document.body.appendChild(banner);
-    document.body.style.paddingTop = '24px';
+    requestAnimationFrame(syncBannerOffset);
   } catch (e) {}
 }
 if (document.readyState === 'loading') {
@@ -5288,7 +5376,11 @@ function renderCuratedCard(s, label, liveMatch) {
     ${trailBadges}
     <div class="card-desc">${s.desc || ''}</div>`;
   if (s.url) html += `<a href="${s.url}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
-  const mapsUrl = liveMatch?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(s.name + ' Summit County CO')}`;
+  // Use the entry's own town when it has one. Day-trip entries like Hanging
+  // Lake or Rifle Falls carry "Glenwood Canyon (2 hours west)" here, and a
+  // Maps search for "Rifle Falls Summit County CO" lands nowhere near Rifle.
+  const mapsPlace = (s.neighborhood || 'Summit County').replace(/\(.*?\)/g, '').trim() + ' CO';
+  const mapsUrl = liveMatch?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(s.name + ' ' + mapsPlace)}`;
   html += `<a href="${mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
   const safeName = jsAttr(s.name);
   html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
@@ -5522,7 +5614,11 @@ function getActiveHoliday() {
 function showHolidayBrunch(key) {
   const holiday = CURATED_HOLIDAY_BRUNCH[key];
   if (!holiday) { addMessage("That holiday isn't loaded yet.", 'bot'); return; }
-  const dateStr = holiday.getDate(new Date().getFullYear()).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  // Roll to next year once this year's date has passed, otherwise typing
+  // "mother's day" in September announces a date four months gone as upcoming.
+  let holidayDate = holiday.getDate(new Date().getFullYear());
+  if (holidayDate < new Date()) holidayDate = holiday.getDate(new Date().getFullYear() + 1);
+  const dateStr = holidayDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   addMessage(`${holiday.emoji} ${holiday.label} is ${dateStr}.`, 'bot');
   addMessage(holiday.intro, 'bot');
   paginateMessages(holiday.spots, s => {
@@ -7190,6 +7286,18 @@ function showGroupSession(code, memberId, isLeader, name) {
     }
     if (!r.ok) {
       updateLastPollLabel(`Server ${r.status || '?'}`);
+      // Only a definitive "gone" answer ends the session. The API sends 404
+      // for a missing group and 410 for an ended one. Anything in the 5xx
+      // range, or a 429, is the server having a moment, and one cold-start
+      // 502 on a 10-second poll used to tear down a live group for everyone:
+      // stop sharing, wipe the saved code, "Group ended." Keep polling
+      // instead; the next tick almost always succeeds.
+      const gone = r.status === 404 || r.status === 410;
+      if (!gone) {
+        const status = document.getElementById('group-status');
+        if (status) status.textContent = `Reconnecting (server ${r.status})…`;
+        return;
+      }
       const status = document.getElementById('group-status');
       if (status) status.textContent = `Group ended or expired.`;
       stopGroupSession();
@@ -8409,7 +8517,7 @@ function showGroupTrip(skipPush) {
 }
 
 function getTimeContext() {
-  const h = new Date().getHours();
+  const h = getSimulatedNow().getHours();   // Mountain time, see mountainNow()
   // Colorado bars can serve until 2am, but most Summit County bars close earlier.
   if (h >= 0 && h < 3) return { mode: 'last_call', greeting: 'Howdy. Last call hour. Cecilia\'s in Breck is usually the last one standing. Drink water before bed, altitude doubles a hangover.' };
   if (h >= 3 && h < 5) return { mode: 'late_night', greeting: 'Howdy night owl. Nothing is open in the county at this hour, and that is normal up here. Breakfast places start opening around 7. Want me to line up a morning?' };
@@ -9346,7 +9454,9 @@ function daysUntilFestival(festival) {
   // Strip time so comparisons are date-only.
   today.setHours(0, 0, 0, 0);
   // Look for an explicit day number in the month string ("June 4" -> 4).
-  const dayMatch = (festival.month || '').match(/(\d{1,2})/);
+  // The day number lives in `dates` ("July 4 (annual)"), never in `month`
+  // ("July"). Reading month meant every festival was treated as the 15th.
+  const dayMatch = (festival.dates || festival.month || '').match(/(\d{1,2})/);
   const festivalDay = dayMatch ? parseInt(dayMatch[1], 10) : 15;
   const thisYear = today.getFullYear();
   // Build a Date for the festival in the current year first.
@@ -9448,7 +9558,7 @@ async function showFestivals() {
   let distStr = '';
   if (dist != null) {
     if (approx && dist < 1) {
-      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+      distStr = f.neighborhood ? ` · 📍 in ${f.neighborhood}` : ' · 📍 nearby';
     } else {
       // Distance only means something once you are actually in the county.
       // Planning from home, every card read "1068.5 mi (approx)", which is
@@ -10046,7 +10156,7 @@ async function showEvents() {
   let distStr = '';
   if (dist != null) {
     if (approx && dist < 1) {
-      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+      distStr = e.neighborhood ? ` · 📍 in ${e.neighborhood}` : ' · 📍 nearby';
     } else {
       // Distance only means something once you are actually in the county.
       // Planning from home, every card read "1068.5 mi (approx)", which is
@@ -10129,7 +10239,7 @@ async function showAttractions() {
   let distStr = '';
   if (dist != null) {
     if (approx && dist < 1) {
-      distStr = s.neighborhood ? ` · 📍 in ${s.neighborhood}` : ' · 📍 nearby';
+      distStr = a.neighborhood ? ` · 📍 in ${a.neighborhood}` : ' · 📍 nearby';
     } else {
       // Distance only means something once you are actually in the county.
       // Planning from home, every card read "1068.5 mi (approx)", which is
@@ -10722,7 +10832,7 @@ async function maybeShowWeatherAlertBanner() {
     if (!alerts.length) {
       const existing = document.getElementById('weatherAlertBanner');
       if (existing) existing.remove();
-      document.body.style.paddingTop = '';
+      syncBannerOffset();
       return;
     }
     // Sort by severity, show the most severe.
@@ -10757,10 +10867,7 @@ async function maybeShowWeatherAlertBanner() {
     }
     banner.style.background = bg;
     // Push the rest of the page down so the banner does not cover the header.
-    requestAnimationFrame(() => {
-      const h = banner.offsetHeight || 56;
-      document.body.style.paddingTop = h + 'px';
-    });
+    requestAnimationFrame(syncBannerOffset);
     const safeEvent = (top.event || 'Weather Alert').replace(/</g, '&lt;');
     const safeHeadline = (top.headline || '').slice(0, 140).replace(/</g, '&lt;');
     banner.innerHTML = `
@@ -10770,7 +10877,7 @@ async function maybeShowWeatherAlertBanner() {
         <div style="font-size:12px;font-weight:500;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeHeadline}</div>
       </div>
       <button onclick="event.stopPropagation(); openWeatherDetails(); return false;" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;cursor:pointer;">Details</button>
-      <button onclick="event.stopPropagation(); sessionStorage.setItem('${dismissedKey}', '1'); document.getElementById('weatherAlertBanner').remove(); document.body.style.paddingTop=''; return false;" aria-label="Dismiss" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
+      <button onclick="event.stopPropagation(); sessionStorage.setItem('${dismissedKey}', '1'); document.getElementById('weatherAlertBanner').remove(); syncBannerOffset(); return false;" aria-label="Dismiss" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
     `;
     // Tapping the banner body itself opens the details panel without removing the banner.
     banner.onclick = (e) => {
@@ -10884,8 +10991,7 @@ async function maybeShowRoadAlertBanner() {
       const wxH = wx ? wx.offsetHeight : 0;
       banner.style.top = wxH + 'px';
       if (!wx) banner.style.paddingTop = 'calc(12px + env(safe-area-inset-top, 0px))';
-      const total = wxH + (banner.offsetHeight || 48);
-      document.body.style.paddingTop = total + 'px';
+      syncBannerOffset();
     });
 
     const routes = [...new Set(closures.map(c => c.route))].join(', ');
@@ -10900,10 +11006,10 @@ async function maybeShowRoadAlertBanner() {
         <div style="font-weight:700;">${headline.replace(/</g, '&lt;')}</div>
         <div style="font-size:12px;font-weight:500;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${detail}</div>
       </div>
-      <button onclick="event.stopPropagation(); showRoadConditions(); return false;" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;cursor:pointer;">Details</button>
-      <button onclick="event.stopPropagation(); try{sessionStorage.setItem('${dismissedKey}','${dismissUntil}');}catch(e){} document.getElementById('roadAlertBanner').remove(); document.body.style.paddingTop=(document.getElementById('weatherAlertBanner')?document.getElementById('weatherAlertBanner').offsetHeight+'px':''); return false;" aria-label="Dismiss for 30 minutes" title="Hide for 30 minutes" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
+      <button onclick="event.stopPropagation(); openRoadDetails(); return false;" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;cursor:pointer;">Details</button>
+      <button onclick="event.stopPropagation(); try{sessionStorage.setItem('${dismissedKey}','${dismissUntil}');}catch(e){} document.getElementById('roadAlertBanner').remove(); syncBannerOffset(); return false;" aria-label="Dismiss for 30 minutes" title="Hide for 30 minutes" style="background:none;border:none;color:#fff;font-size:18px;font-weight:600;padding:0 4px;cursor:pointer;line-height:1;">&times;</button>
     `;
-    banner.onclick = (e) => { if (e.target.closest('button')) return; showRoadConditions(); };
+    banner.onclick = (e) => { if (e.target.closest('button')) return; openRoadDetails(); };
   } catch (e) {
     // Silent. A road banner that cannot load should never block the app.
   }
@@ -10917,6 +11023,14 @@ async function maybeShowRoadAlertBanner() {
    real plot and will disagree with these numbers, sometimes by a lot. Every
    string below says forecast, and the card links out to the official reports
    so nobody plans a powder day on our number alone. */
+/* Snow and storm caches carry a timestamp and expire after 30 minutes.
+   They used to be `cached || fetch()` with no TTL at all, and in the
+   Capacitor app the webview lives for days, so a Monday snow report was still
+   being replayed on Wednesday, and a 7am storm clock at 11am. The storm clock
+   is lightning-safety content, which is the last place to serve stale data. */
+const WEATHER_CACHE_TTL_MS = 30 * 60 * 1000;
+function cacheFresh(entry) { return !!(entry && entry.data && (Date.now() - entry.at) < WEATHER_CACHE_TTL_MS); }
+
 let cachedSnowData = null;
 
 async function fetchSnowReport() {
@@ -10924,7 +11038,7 @@ async function fetchSnowReport() {
   if (!r.ok) throw new Error(`snow ${r.status}`);
   const data = await r.json();
   if (!data.ok) throw new Error(data.error || 'snow unavailable');
-  cachedSnowData = data;
+  cachedSnowData = { data, at: Date.now() };
   return data;
 }
 
@@ -10935,11 +11049,27 @@ const RESORT_SNOW_LINKS = {
   'Copper Mountain': 'https://www.coppercolorado.com/the-mountain/mountain-conditions/snow-report'
 };
 
+/* Avalanche safety. This exists because "avalanche danger" used to return
+   the Colorado Avalanche hockey schedule. The app does not forecast avalanche
+   risk and must not pretend to; it points at CAIC, which does, and states the
+   one rule that matters. */
+function showAvalancheSafety() {
+  addMessage("Backcountry avalanche conditions. This is the one thing in the app I will not guess at.", 'bot');
+  addMessage(`<div class="card" style="border-left:4px solid #7c0a02;">
+    <div class="card-title">⚠️ Check CAIC before you leave the resort boundary</div>
+    <div class="card-meta">Colorado Avalanche Information Center · state forecast, updated daily by 4:30pm</div>
+    <div class="card-desc">CAIC issues the official backcountry avalanche forecast for every zone in Colorado, including Vail &amp; Summit County. Read the danger rating and the problem types for your zone the morning you go, not the night before. Conditions change overnight.</div>
+    <a href="https://avalanche.state.co.us/forecasts" target="_blank" rel="noopener" style="background:#7c0a02;color:#fff;">CAIC forecast map</a>
+    <div class="card-desc" style="font-size:12px;color:#666;margin-top:10px;">Inside a resort boundary, ski patrol controls avalanche terrain and you do not need this. The moment you duck a rope, cross a backcountry gate, or ride a sled off a groomed road, you are in uncontrolled terrain and this forecast is the only one that counts. Carry a beacon, probe and shovel, and know how to use them.</div>
+  </div>`, 'bot', true);
+  addQuickReplies(['❄️ Snow report', '🚧 Road conditions', '⛷️ Skiing & snowboarding', '← Main menu']);
+}
+
 async function showSnowReport() {
   addMessage('❄️ Checking the snow forecast...', 'bot');
   let data;
   try {
-    data = cachedSnowData || await fetchSnowReport();
+    data = cacheFresh(cachedSnowData) ? cachedSnowData.data : await fetchSnowReport();
   } catch (e) {
     addMessage(
       `Could not reach the snow feed. Try <a href="https://opensnow.com/state/CO" target="_blank" rel="noopener">OpenSnow</a> or the resort reports directly.`,
@@ -11012,7 +11142,7 @@ async function fetchStormClock() {
   if (!r.ok) throw new Error(`storm ${r.status}`);
   const data = await r.json();
   if (!data.ok) throw new Error(data.error || 'storm unavailable');
-  cachedStormData = data;
+  cachedStormData = { data, at: Date.now() };
   return data;
 }
 
@@ -11027,7 +11157,7 @@ async function showStormClock() {
   addMessage('⛈️ Checking the afternoon storm forecast...', 'bot');
   let data;
   try {
-    data = cachedStormData || await fetchStormClock();
+    data = cacheFresh(cachedStormData) ? cachedStormData.data : await fetchStormClock();
   } catch (e) {
     addMessage(
       `Could not reach the storm feed. Check <a href="https://forecast.weather.gov/MapClick.php?lat=39.48&lon=-106.07" target="_blank" rel="noopener">the NWS point forecast</a> before you go up.`,
@@ -11131,15 +11261,35 @@ async function showRoadConditions() {
 }
 
 // Open the weather details panel (called by banner clicks). Keeps the banner pinned.
+/* Banner "Details" tap.
+
+   The old version called showWeather() directly and then tried to scroll to
+   the bottom after 300ms. That failed three separate ways on a phone: the
+   scroll was skipped whenever suppressAutoScroll was set (the first 2.3s after
+   load, and 2.5s after every menu tap), it scrolled to the last typed message
+   rather than the new cards, and showWeather appended onto whatever section
+   was already on screen with no back-button entry. Combined with the banner
+   clipping the bottom of the chat, the tap looked like it did nothing.
+
+   navAction is what every other section uses. It clears the chat, pushes a
+   menu entry so Back works, and puts the new content at the TOP, so there is
+   nothing to scroll to. */
+let _weatherDetailsInFlight = false;
 function openWeatherDetails() {
-  if (typeof showWeather === 'function') {
-    showWeather();
-    // Make sure the user sees the alert details by scrolling to the bottom of the chat.
-    setTimeout(() => {
-      if (typeof scrollToView === 'function') scrollToView();
-      else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 300);
-  }
+  if (_weatherDetailsInFlight) return;      // double-tap guard
+  if (typeof showWeather !== 'function') return;
+  _weatherDetailsInFlight = true;
+  setTimeout(() => { _weatherDetailsInFlight = false; }, 1500);
+  navAction(showWeather, 'weather', 'Weather alert');
+}
+
+let _roadDetailsInFlight = false;
+function openRoadDetails() {
+  if (_roadDetailsInFlight) return;
+  if (typeof showRoadConditions !== 'function') return;
+  _roadDetailsInFlight = true;
+  setTimeout(() => { _roadDetailsInFlight = false; }, 1500);
+  navAction(showRoadConditions, 'roads', 'Road alert');
 }
 </script>
 <!-- Vercel Web Analytics. Tracks page views, country, city, device, referrer. -->

@@ -117,8 +117,15 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(body)
     });
+    // Status first. A Google 5xx can come back as an HTML page, and parsing
+    // that threw a SyntaxError that hid the real status. When it does parse,
+    // do not forward Google's error object (quota state, project identifiers)
+    // to the browser.
+    if (!r.ok) {
+      console.error('[places_search] upstream', r.status, (await r.text().catch(() => '')).slice(0, 200));
+      return res.status(502).json({ error: 'places lookup failed', results: [] });
+    }
     const data = await r.json();
-    if (!r.ok) return res.status(r.status).json(data);
 
     const userPos = (lat && lng) ? { latitude: Number(lat), longitude: Number(lng) } : null;
     const results = (data.places || []).map(p => ({
