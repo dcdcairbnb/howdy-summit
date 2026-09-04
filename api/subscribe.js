@@ -335,17 +335,8 @@ async function fetchThisWeekendEvents() {
     }
   } catch (e) { /* keep going */ }
 
-  // 2) Visit Music City scraper. Nashville-only source left over from the
-  // conversion. api/festivals.js no longer serves it for Summit, so this
-  // call returns nothing, but the label was misleading when reading the code.
-  let vmcFestivals = [];
-  try {
-    const r = await fetch(`${SITE_URL}/api/festivals?source=visitmusiccity`);
-    if (r.ok) {
-      const data = await r.json();
-      vmcFestivals = (data.events || []).filter(inWindow);
-    }
-  } catch (e) { /* keep going */ }
+  // (A Visit Music City fetch used to sit here. Nashville-only; removed.)
+  const vmcFestivals = [];
 
   // 3) Ticketmaster + SeatGeek + Eventbrite for big concerts and events
   let liveEvents = [];
@@ -425,33 +416,74 @@ function buildNewsletterHTML(events, openings) {
 </body></html>`;
 }
 
+/* Weekly send.
+
+   Batched, idempotent, and bounded.
+   - resend.batch.send takes up to 100 personalised emails per call, so a
+     1,000-row list is ten round trips rather than a thousand. The old serial
+     loop hit Vercel's time limit somewhere past 25 subscribers and was killed
+     mid-list.
+   - Each row is stamped with the issue key (the ISO week) when its send is
+     accepted. A retry of the same issue skips anyone already stamped, so a
+     partial run cannot double-send.
+   - Everything stays inside one function invocation; maxDuration is raised in
+     vercel.json to give it room. */
+const NEWSLETTER_BATCH = 100;
+
+function newsletterIssueKey(d = new Date()) {
+  // ISO week, e.g. 2026-W36. One send per week per subscriber.
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((t - y0) / 86400000) + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
 async function sendWeeklyNewsletter(resend) {
   await ensureTable();
-  const subs = await getPool().query(`SELECT email, name, unsubscribe_token FROM subscribers WHERE unsubscribed_at IS NULL`);
+  await getPool().query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS last_newsletter_key VARCHAR(12)`);
+  const issue = newsletterIssueKey();
+  const subs = await getPool().query(
+    `SELECT email, name, unsubscribe_token FROM subscribers
+     WHERE unsubscribed_at IS NULL
+       AND (last_newsletter_key IS NULL OR last_newsletter_key <> $1)`,
+    [issue]
+  );
   const [events, openings] = await Promise.all([fetchThisWeekendEvents(), fetchEaterOpenings()]);
   const baseHtml = buildNewsletterHTML(events, openings);
   const subject = `This Weekend in Summit County · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
   let sent = 0, failed = 0;
-  for (const row of subs.rows) {
+  const rows = subs.rows;
+  for (let i = 0; i < rows.length; i += NEWSLETTER_BATCH) {
+    const chunk = rows.slice(i, i + NEWSLETTER_BATCH);
+    const payload = chunk.map(row => ({
+      from: FROM_EMAIL,
+      to: row.email,
+      subject,
+      html: baseHtml.replace('{{UNSUB_URL}}', `${SITE_URL}/api/unsubscribe?token=${row.unsubscribe_token}`)
+    }));
     try {
-      const unsubUrl = `${SITE_URL}/api/unsubscribe?token=${row.unsubscribe_token}`;
-      const html = baseHtml.replace('{{UNSUB_URL}}', unsubUrl);
-      // The Resend SDK resolves with { data, error } instead of throwing on an
-      // API rejection, so a bare await counted rejected sends as successes and
-      // the newsletter reported a clean run while delivering nothing.
-      const { error } = await resend.emails.send({ from: FROM_EMAIL, to: row.email, subject, html });
+      // The SDK resolves { data, error }; a rejected batch does not throw.
+      const { data, error } = await resend.batch.send(payload);
       if (error) {
-        failed++;
-        console.error('[newsletter] rejected for', row.email, error.message || error.name || error);
-      } else {
-        sent++;
+        failed += chunk.length;
+        console.error('[newsletter] batch rejected', i / NEWSLETTER_BATCH, error.message || error.name || error);
+        continue;
       }
+      sent += chunk.length;
+      // Stamp the whole chunk as sent for this issue so a retry skips them.
+      await getPool().query(
+        `UPDATE subscribers SET last_newsletter_key = $1 WHERE email = ANY($2::text[])`,
+        [issue, chunk.map(r => r.email)]
+      );
     } catch (e) {
-      failed++;
-      console.error('[newsletter] network failure for', row.email, e.message);
+      failed += chunk.length;
+      console.error('[newsletter] batch network failure', i / NEWSLETTER_BATCH, e.message);
     }
   }
-  return { sent, failed, total: subs.rows.length };
+  return { sent, failed, total: rows.length, issue, skippedAlreadySent: undefined };
 }
 
 export default async function handler(req, res) {

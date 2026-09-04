@@ -397,7 +397,17 @@ export default async function handler(req, res) {
   if (req.query.feed === 'snow') return snowfall(req, res);
   if (req.query.feed === 'storm') return stormClock(req, res);
 
-  const { lat = 39.5744, lng = -106.0975 } = req.query;
+  // Validate before the values reach the weather.gov URL path. Every other
+  // handler does this; this one interpolated req.query straight in.
+  const validCoord = (v, max) => {
+    if (v === undefined || v === null || String(v).trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
+  };
+  const latIn = validCoord(req.query.lat, 90);
+  const lngIn = validCoord(req.query.lng, 180);
+  const lat = latIn !== null && lngIn !== null ? latIn : 39.5744;
+  const lng = latIn !== null && lngIn !== null ? lngIn : -106.0975;
 
   try {
     const [pointsRes, alerts] = await Promise.all([

@@ -1176,7 +1176,6 @@ const SUMMIT_DATA = {
     { name: "Hearthstone Restaurant", cuisine: "Steakhouse", neighborhood: "Breckenridge", price: "$$$$", vibe: "Historic 1886 Victorian house, Rocky Mountain fine dining, sunset views off the porch", booking: { opentable: "https://www.opentable.com/s?term=Hearthstone%20Restaurant%20Breckenridge" } },
     { name: "Bird and Cow", cuisine: "American", neighborhood: "Breckenridge", price: "$$", vibe: "Chicken and beef done simply, on Main Street. Consistently well rated", booking: { walkin: true } },
     { name: "The Gold Pan Saloon", cuisine: "Bar Food", neighborhood: "Breckenridge", price: "$$", vibe: "One of the oldest continuously operating bars west of the Mississippi, on North Main since the gold rush days. Burgers, whiskey, and a lot of history", booking: { walkin: true } },
-    { name: "Aurum Breckenridge", cuisine: "New American", neighborhood: "Breckenridge", price: "$$$", vibe: "Riverside patio on the Blue River, upscale plates. One of the better-rated dinner rooms in town", booking: { walkin: true } },
     { name: "Vue Rooftop", cuisine: "American", neighborhood: "Dillon", price: "$$$", vibe: "Rooftop over Dillon with reservoir and Gore Range views. Worth timing for sunset", booking: { walkin: true } },
     { name: "JJ's Rocky Mountain Tavern", cuisine: "Pub", neighborhood: "Copper Mountain", price: "$$", vibe: "Center Village mainstay at Copper, right at the base", booking: { walkin: true } },
     { name: "Vinny's Euro American Cuisine", cuisine: "European", neighborhood: "Frisco", price: "$$$", vibe: "Upstairs on East Main. European-leaning menu and one of the higher-rated dinner rooms in town", booking: { walkin: true } },
@@ -1370,7 +1369,8 @@ let messageSnapshots = [];
       fetch(`${API_BASE}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'log-error', ...payload })
+        body: JSON.stringify({ action: 'log-error', ...payload }),
+        signal: AbortSignal.timeout(8000)
       }).catch(() => {});
     } catch (e) { /* swallow */ }
   }
@@ -2240,7 +2240,10 @@ async function submitReportIssue() {
         what: what,
         email: (emailEl && emailEl.value || '').trim(),
         url: window.location.href
-      })
+      }),
+      // Without this a stalled connection left the button on "Sending..."
+      // forever, since it was only re-enabled in the catch.
+      signal: AbortSignal.timeout(12000)
     });
     const data = await r.json().catch(() => ({}));
     if (r.ok && data.ok) {
@@ -2863,7 +2866,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (lower === '⛈️ Storm clock' || matches(lower, ['storm clock', 'thunderstorm', 'thunder storm', 'afternoon storm', 'monsoon', 'lightning', 'will it rain', 'is it going to rain', 'storm risk', 'turnaround time', 'safe to hike'])) {
+  if (lower === '⛈️ storm clock' || matches(lower, ['storm clock', 'thunderstorm', 'thunder storm', 'afternoon storm', 'monsoon', 'lightning', 'will it rain', 'is it going to rain', 'storm risk', 'turnaround time', 'safe to hike'])) {
     showStormClock();
     return;
   }
@@ -3097,7 +3100,7 @@ function routeIntent(text) {
   }
 
 
-  if (matches(lower, ['grocery', 'groceries', 'supermarket', 'market', 'food store', 'city market', 'safeway', 'walmart', 'whole foods', 'target'])) {
+  if (!/(farmers|christmas|holiday|craft|art|flea) market/.test(lower) && matches(lower, ['grocery', 'groceries', 'supermarket', 'market', 'food store', 'city market', 'safeway', 'walmart', 'whole foods', 'target'])) {
     showGroceries();
     return;
   }
@@ -3107,7 +3110,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['distillery', 'distilleries', 'winery', 'wineries', 'bourbon tour', 'whiskey tour', 'wine tasting', 'mythology', 'continental divide winery'])) {
+  if (matches(lower, ['distillery', 'whiskey', 'distilleries', 'winery', 'wineries', 'bourbon tour', 'whiskey tour', 'wine tasting', 'mythology', 'continental divide winery'])) {
     showDistilleries();
     return;
   }
@@ -3209,7 +3212,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['group share', '👯 group share', 'share location', 'find my group', 'group location', 'share location with group', 'find friends', 'group sharing', 'find group', 'group map'])) {
+  if (matches(lower, ['group share', '👯 group share', 'find my group', 'group location', 'share location with group', 'find friends', 'group sharing', 'find group', 'group map'])) {
     showFindGroup();
     return;
   }
@@ -3276,7 +3279,7 @@ function routeIntent(text) {
     return;
   }
 
-  if (matches(lower, ['restroom', 'restrooms', 'bathroom', 'bathrooms', 'toilet', 'toilets', '🚻 restrooms', 'public restroom', 'where to pee', 'pee'])) {
+  if (matches(lower, ['restroom', 'restrooms', 'bathroom', 'bathrooms', 'toilet', 'toilets', '🚻 restrooms', 'public restroom', 'where to pee', 'need to pee', 'gotta pee', 'have to pee'])) {
     showRestrooms();
     return;
   }
@@ -3365,23 +3368,13 @@ function routeIntent(text) {
   }
 
   // Catch common questions that map to existing menus before spending an LLM call.
-  if (matches(lower, ['book a hotel', 'find a hotel', 'hotel near', 'best hotel', 'cheap hotel', 'luxury hotel', 'hotel in '])) {
-    showHotels();
-    return;
-  }
-
-  if (matches(lower, ['book a tour', 'tours near', 'best tour', 'whiskey tour', 'brewery tour', 'walking tour', 'jeep tour', 'food tour', 'rafting', 'day trip'])) {
+  if (matches(lower, ['book a tour', 'tours near', 'best tour', 'walking tour', 'food tour', 'rafting', 'day trip'])) {
     showTours();
     return;
   }
 
   if (matches(lower, ['flight', 'arrival', 'departure', 'airport'])) {
     showFlights();
-    return;
-  }
-
-  if (matches(lower, ['vacation rental', 'airbnb', 'vrbo', 'short term rental'])) {
-    showVacationRentals();
     return;
   }
 
@@ -5437,7 +5430,7 @@ async function showCuratedThenLive(curatedList, query, type, label) {
       const star = renderSaveStar({ name: s.name, note: label, address: s.address });
       const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
       let html = `<div class="card">
-        <div class="card-title">${star}${share}${s.name}</div>
+        <div class="card-title">${star}${share}${escapeHtml(s.name)}</div>
         <div class="card-meta">${ratingStr}${reviewStr}${distStr}</div>
         <div class="card-desc">${s.address || ''}</div>`;
       if (s.mapsUrl) html += `<a href="${s.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
@@ -5493,7 +5486,7 @@ const CURATED_APRES_BARS = [
   { name: "Kemosabe at Silverheels", neighborhood: "Frisco", desc: "Long bar in the middle of Frisco Main Street. Southwestern plates and a good tequila list.", url: null },
   { name: "Foundry Cinema + Bowl", neighborhood: "Frisco", desc: "Movie theater, bowling lanes, and a full bar under one roof. The storm-day plan B.", url: null },
   { name: "Dillon Dam Brewery", neighborhood: "Dillon", desc: "One of Colorado's largest brewpubs. House beer, huge menu, easy for big groups.", url: "https://www.dambrewery.com" },
-  { name: "STEEP Brewing Lakeside Tiki Bar", neighborhood: "Dillon", desc: "Open-air tiki bar right on Dillon Reservoir, run by STEEP Brewing since 2026. Best lake view in the county. Summer only.", url: "https://www.townofdillon.com/marina" },
+  { name: "STEEP Brewing Lakeside Tiki Bar", neighborhood: "Dillon", desc: "Open-air tiki bar right on Dillon Reservoir, run by STEEP Brewing. Best lake view in the county. Summer only.", url: "https://www.townofdillon.com/marina" },
   { name: "Cala Pub & Restaurant", neighborhood: "Dillon", desc: "Tiny Irish pub that locals treat as a living room. Shepherd's pie and a properly poured pint.", url: null },
   { name: "Angry James Brewery", neighborhood: "Silverthorne", desc: "Silverthorne taproom with a big patio. Dog-friendly and mostly locals.", url: null },
   { name: "Bluebird Market", neighborhood: "Silverthorne", desc: "Food hall with a central bar. Multiple vendors, outdoor seating, family-friendly.", url: null },
@@ -5975,7 +5968,7 @@ const CURATED_SPAS = [
 
 const CURATED_FISHING = [
   // Fly shops and guide services
-  { name: "Cutthroat Anglers", neighborhood: "Silverthorne", desc: "The county's best-known fly shop, at 400 Blue River Parkway right on the water. Open since 1999 and repeatedly voted the best outfitter in Summit County River Gold Medal water. Wade trips, float trips, gear, and licenses.", url: "https://www.fishcolorado.com" },
+  { name: "Cutthroat Anglers", neighborhood: "Silverthorne", desc: "The county's best-known fly shop, at 400 Blue River Parkway right on the water. Open since 1999 and repeatedly voted the best outfitter in Summit County. Gold Medal water on the Blue right out the door. Wade trips, float trips, gear, and licenses.", url: "https://www.fishcolorado.com" },
   { name: "The Colorado Angler", neighborhood: "Silverthorne", desc: "Full-service fly shop and guide service at 249 Summit Place, a few minutes from the Blue River. Smaller and quieter than Cutthroat, and owner-operated.", url: null },
   { name: "Blue River Anglers", neighborhood: "Breckenridge", desc: "Orvis-endorsed guide service and full fly shop covering the Blue, the Colorado, and the Eagle. Beginner lessons, half-day walk-wades, full-day floats.", url: "https://blueriveranglers.com" },
   { name: "Mountain Angler", neighborhood: "Breckenridge", desc: "Breckenridge fly shop operating since 1984. Guided trips plus access to private water on the Blue.", url: "https://www.mountainangler.com" },
@@ -7252,14 +7245,7 @@ function showGroupSession(code, memberId, isLeader, name) {
       }
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     // Then watch for movement
-    groupGeoWatchId = navigator.geolocation.watchPosition(async (pos) => {
-      await groupApi({
-        action: 'update',
-        code, memberId, name,
-        lat: pos.coords.latitude, lng: pos.coords.longitude
-      });
-    }, (err) => { /* watch errors handled by getCurrentPosition above */ },
-    { enableHighAccuracy: true, maximumAge: 5000 });
+    startGroupGeoWatch(code, memberId, name);
   } else {
     const status = document.getElementById('group-status');
     if (status) status.textContent = `This browser does not support live location.`;
@@ -7587,6 +7573,47 @@ function showAffiliateForElapsed(hoursElapsed, isLeader) {
     </div>`, 'bot', true);
   }
 }
+
+/* GPS watch for a live group. Named so it can be started from
+   showGroupSession AND restarted after the tab comes back from hidden.
+   The update call is wrapped: it used to be a bare awaited promise inside
+   the watch callback, so every tick while offline raised an unhandled
+   rejection. */
+function startGroupGeoWatch(code, memberId, name) {
+  if (!navigator.geolocation) return;
+  if (groupGeoWatchId != null) { try { navigator.geolocation.clearWatch(groupGeoWatchId); } catch (e) {} }
+  groupGeoWatchId = navigator.geolocation.watchPosition((pos) => {
+    groupApi({
+      action: 'update',
+      code, memberId, name,
+      lat: pos.coords.latitude, lng: pos.coords.longitude
+    }).catch(() => { /* offline tick; the next one will land */ });
+  }, (err) => { /* watch errors handled by getCurrentPosition above */ },
+  { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+/* Pause the GPS watch while the page is hidden, restart it on return.
+   High-accuracy GPS on a web tab kept running in the background for the
+   life of the session. iOS suspends the webview anyway, so this is mostly
+   for desktop and Android browsers. The 10s poll is left alone: browsers
+   already throttle background timers, and the visible handler at the top
+   of the file does an immediate refresh on return. */
+let _groupGeoPaused = null;   // { code, memberId, name } while paused
+document.addEventListener('visibilitychange', () => {
+  try {
+    if (document.hidden) {
+      if (groupGeoWatchId != null) {
+        const saved = getSavedGroupSession();
+        _groupGeoPaused = saved ? { code: saved.code, memberId: saved.memberId, name: saved.name } : null;
+        navigator.geolocation.clearWatch(groupGeoWatchId);
+        groupGeoWatchId = null;
+      }
+    } else if (_groupGeoPaused && document.getElementById('group-status')) {
+      const p = _groupGeoPaused; _groupGeoPaused = null;
+      startGroupGeoWatch(p.code, p.memberId, p.name);
+    }
+  } catch (e) {}
+});
 
 function stopGroupSession() {
   if (groupPollTimer) { clearInterval(groupPollTimer); groupPollTimer = null; }
@@ -8903,12 +8930,14 @@ async function showWeather() {
         };
         const bg = colorMap[sev] || '#cc0000';
         const expires = a.expires ? new Date(a.expires).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-        const desc = (a.description || '').slice(0, 400);
-        const instruction = a.instruction ? `<div style="margin-top:8px;font-weight:600;">What to do: ${a.instruction.slice(0, 300)}</div>` : '';
+        // NWS text is third-party. Escape it before it touches innerHTML; the
+        // CDOT banner already does this, this card did not.
+        const desc = escapeHtml((a.description || '').slice(0, 400));
+        const instruction = a.instruction ? `<div style="margin-top:8px;font-weight:600;">What to do: ${escapeHtml(a.instruction.slice(0, 300))}</div>` : '';
         const html = `<div class="card" style="border-left:6px solid ${bg};background:#fff5f5;">
-          <div class="card-title" style="color:${bg};">⚠️ ${a.event}</div>
-          <div class="card-desc" style="font-weight:600;">${a.headline || ''}</div>
-          ${a.areaDesc ? `<div class="card-desc" style="font-size:12px;color:#666;">Area: ${a.areaDesc}</div>` : ''}
+          <div class="card-title" style="color:${bg};">⚠️ ${escapeHtml(a.event)}</div>
+          <div class="card-desc" style="font-weight:600;">${escapeHtml(a.headline || '')}</div>
+          ${a.areaDesc ? `<div class="card-desc" style="font-size:12px;color:#666;">Area: ${escapeHtml(a.areaDesc)}</div>` : ''}
           ${expires ? `<div class="card-desc" style="font-size:12px;color:#666;">Expires: ${expires}</div>` : ''}
           <div class="card-desc" style="font-size:13px;margin-top:6px;">${desc.replace(/\n/g, '<br>')}${a.description && a.description.length > 400 ? '...' : ''}</div>
           ${instruction}
@@ -8963,17 +8992,27 @@ async function showSports() {
     });
   }
 
-  for (const team of teams) {
-    let nextGame = null;
+  // All six lookups at once. They used to run one after another, each with a
+  // 10s timeout, so a slow Ticketmaster meant cards trickled in for up to a
+  // minute. Now the slowest single lookup sets the wait.
+  const lookups = await Promise.all(teams.map(async team => {
     try {
       const r = LIVE_CITY_FEEDS_ENABLED
-        ? await fetch(`${API_BASE}/api/events?keyword=${encodeURIComponent(team.keyword)}&classificationName=Sports`, { signal: AbortSignal.timeout(10000) })
+        ? await fetch(`${API_BASE}/api/events?keyword=${encodeURIComponent(team.keyword)}&classificationName=Sports`, { signal: AbortSignal.timeout(8000) })
         : null;
-      if (r && r.ok) {
-        const data = await r.json();
-        nextGame = (data.events || []).find(e => (e.name || '').toLowerCase().includes(team.keyword.toLowerCase().split(' ')[1]));
-      }
-    } catch (e) {}
+      if (!r || !r.ok) return null;
+      const data = await r.json();
+      // Match on the LAST word of the keyword ("Avalanche", "Broncos",
+      // "Breckenridge"). split(' ')[1] was undefined for the single-word
+      // Breckenridge entry, so it searched event names for the literal
+      // string "undefined" and the race calendar never showed a game.
+      const needle = team.keyword.toLowerCase().split(' ').pop();
+      return (data.events || []).find(e => (e.name || '').toLowerCase().includes(needle)) || null;
+    } catch (e) { return null; }
+  }));
+
+  teams.forEach((team, idx) => {
+    const nextGame = lookups[idx];
 
     const dist = userLocation ? haversineMiles(userLocation, team.coords) : null;
     const distStr = dist != null ? ` · 📍 ${dist} mi` : '';
@@ -8998,7 +9037,7 @@ async function showSports() {
       <a href="#" onclick="return rideClick('lyft','${safeName}',event)" style="background:#ff00bf;">Lyft to venue</a>
     </div>`;
     addMessage(html, 'bot', true);
-  }
+  });
 
   addMessage("Tip: Denver tickets often appear last-minute on StubHub or SeatGeek below face value. Check I-70 conditions before committing to a night game in winter.", 'bot');
 }
@@ -9325,9 +9364,9 @@ async function showStoreType(query, type, label, opts) {
     const star = renderSaveStar({ name: s.name, note: label, address: s.address });
     const share = renderShareButton({ name: s.name, desc: label, url: s.website || s.mapsUrl || '' });
     let html = `<div class="card">
-      <div class="card-title">${star}${share}${s.name}</div>
+      <div class="card-title">${star}${share}${escapeHtml(s.name)}</div>
       <div class="card-meta">${ratingStr}${reviewStr}${distStr}</div>
-      <div class="card-desc">${s.address || ''}</div>`;
+      <div class="card-desc">${escapeHtml(s.address || '')}</div>`;
     if (s.mapsUrl) html += `<a href="${s.mapsUrl}" target="_blank" rel="noopener" style="background:#34a853;color:#fff;">Open in Maps</a>`;
     if (s.website) html += `<a href="${s.website}" target="_blank" rel="noopener" style="background:#444;color:#fff;">Menu</a>`;
     html += `<a href="#" onclick="return rideClick('uber','${safeName}',event)" style="background:#000;">Uber here</a>`;
@@ -10038,27 +10077,13 @@ async function showLiveMusic() {
   }
 
   // Render iconic venue calendar (paginated) then chain to always-on venues.
+  // The venue-calendar scraper was a Nashville leftover (Bluebird, Ryman,
+  // Opry) that dead-returned an empty list for Summit and burned one of the
+  // 12 serverless slots. Every call already ended here, so go straight to it.
   function renderVenueCalendarThenAlwaysOn() {
-    (LIVE_CITY_FEEDS_ENABLED ? fetch(`${API_BASE}/api/venue-calendars`).then(r => r.ok ? r.json() : null) : Promise.resolve(null)).then(data => {
-      if (data && data.events && data.events.length) {
-        const slice = data.events.slice(0, 20);
-        addMessage(`Plus ${slice.length} shows scraped from iconic Summit County venues. Showing 5 at a time:`, 'bot');
-        paginateMessages(slice, e => {
-          const dateStr = e.date || 'Date TBA';
-          const sp = `https://open.spotify.com/search/${encodeURIComponent(e.name || '')}`;
-          let html = `<div class="card">
-            <div class="card-title">${e.name}</div>
-            <div class="card-meta">${dateStr} · ${e.venue}${e.neighborhood ? ' · ' + e.neighborhood : ''}</div>`;
-          if (e.url) html += `<a href="${e.url}" target="_blank" rel="noopener">Tickets/info</a>`;
-          html += `<a href="${sp}" target="_blank" rel="noopener" style="background:#1db954;color:#fff;">🎵 Listen on Spotify</a>`;
-          html += `</div>`;
-          return html;
-        }, 5, renderAlwaysOnVenues);
-      } else {
-        renderAlwaysOnVenues();
-      }
-    }).catch(() => renderAlwaysOnVenues());
+    renderAlwaysOnVenues();
   }
+
 
   // Pull API events. If we have any, paginate them and chain via onComplete.
   // If none, skip directly to venue calendar + always-on.
@@ -10166,7 +10191,7 @@ async function showEvents() {
     }
   }
     let html = `<div class="card">
-      <div class="card-title">${e.name}</div>
+      <div class="card-title">${escapeHtml(e.name)}</div>
       <div class="card-meta">${e.date} · ${e.venue}${distStr}</div>`;
     if (e.url) html += `<a href="${e.url}" target="_blank">Tickets & info</a>`;
     html += `</div>`;
@@ -10903,6 +10928,7 @@ async function maybeShowWeatherAlertBanner() {
 // ---------------------------------------------------------------------------
 
 let cachedRoadData = null;
+let roadFetchFailed = false;   // set when CDOT could not be reached; clears on next success
 
 async function fetchRoadConditions() {
   const r = await fetch(`${API_BASE}/api/weather?feed=roads`, { signal: AbortSignal.timeout(9000) });
@@ -10924,7 +10950,17 @@ async function fetchRoadConditions() {
 // wipe the conversation the user is reading.
 function refreshRoadPillLabel() {
   try {
-    if (!cachedRoadData) return;
+    // No data yet. If the fetch actually FAILED, say so on the pill rather
+    // than leaving the neutral label that also means "all clear".
+    if (!cachedRoadData) {
+      if (roadFetchFailed) {
+        document.querySelectorAll('.quick-reply, .quick-replies button, button').forEach(el => {
+          if ((el.textContent || '').trim() === '🚧 Roads') el.textContent = '🚧 Roads (no data)';
+        });
+      }
+      return;
+    }
+    roadFetchFailed = false;
     const shut = (cachedRoadData.items || []).filter(i => i.severity === 'closed');
     const chainLaw = (cachedRoadData.items || []).filter(i => i.severity === 'chains');
     let label = '🚧 Roads';
@@ -10933,7 +10969,7 @@ function refreshRoadPillLabel() {
 
     document.querySelectorAll('.quick-reply, .quick-replies button, button').forEach(el => {
       const t = (el.textContent || '').trim();
-      if (t === '🚧 Roads' || /^🚧 .*CLOSED$/.test(t) || t === '⛓️ Chain law') {
+      if (t === '🚧 Roads' || t === '🚧 Roads (no data)' || /^🚧 .*CLOSED$/.test(t) || t === '⛓️ Chain law') {
         if (t !== label) el.textContent = label;
       }
     });
@@ -11011,6 +11047,9 @@ async function maybeShowRoadAlertBanner() {
     `;
     banner.onclick = (e) => { if (e.target.closest('button')) return; openRoadDetails(); };
   } catch (e) {
+    // Not silent any more: flip the flag so the menu pill can say so.
+    roadFetchFailed = true;
+    try { refreshRoadPillLabel(); } catch (_) {}
     // Silent. A road banner that cannot load should never block the app.
   }
 }

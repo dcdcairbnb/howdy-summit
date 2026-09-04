@@ -385,7 +385,10 @@ function checkRateLimit(ip) {
   return { allowed: true, remaining: RATE_LIMIT_PER_DAY - record.count };
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = 15000) {
+// 20s: vercel.json sets maxDuration 30 for this function, so this abort is
+// reachable (it was not under the 10s default) and still leaves ~6s of
+// headroom for the Places lookup and response serialisation.
+async function fetchWithTimeout(url, options, timeoutMs = 20000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -447,7 +450,10 @@ async function fetchLiveNearby(location) {
         'X-Goog-Api-Key': process.env.GOOGLE_PLACES_KEY,
         'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.primaryTypeDisplayName'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      // Bounded: this runs BEFORE the Claude call and used to have no limit,
+      // so a slow Places response ate the whole function budget.
+      signal: AbortSignal.timeout(4000)
     });
     if (!r.ok) {
       const t = await r.text().catch(() => '');
@@ -664,7 +670,7 @@ The user shared their location and is currently in ${userNeighborhood.name}. Whe
         system: systemPrompt,
         messages
       })
-    }, 15000);
+    }, 20000);
 
     if (!r.ok) {
       const errText = await r.text();

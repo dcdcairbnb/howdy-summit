@@ -142,5 +142,19 @@
         }
       ]
     }
-  ]
+  ],
+  "crons": [
+    {
+      "path": "/api/subscribe?cron=newsletter",
+      "schedule": "0 15 * * 5"
+    }
+  ],
+  "functions": {
+    "api/subscribe.js": {
+      "maxDuration": 30
+    },
+    "api/chat.js": {
+      "maxDuration": 30
+    }
+  }
 }

@@ -8,22 +8,33 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'AVIATIONSTACK_KEY not configured' });
   }
 
-  const { airport = 'DEN', direction = 'arrivals', limit = 20 } = req.query;
+  // Validate at the boundary. A repeated ?airport= param arrives as an array
+  // (so .toUpperCase() threw), and limit was forwarded raw against a
+  // 100-request-per-month free tier.
+  const rawAirport = Array.isArray(req.query.airport) ? req.query.airport[0] : req.query.airport;
+  const airport = /^[A-Za-z]{3}$/.test(String(rawAirport || '')) ? String(rawAirport).toUpperCase() : 'DEN';
+  const direction = req.query.direction === 'departures' ? 'departures' : 'arrivals';
+  const limitN = Number(req.query.limit);
+  const limit = Number.isInteger(limitN) && limitN >= 1 && limitN <= 50 ? limitN : 20;
 
   try {
     const url = new URL('http://api.aviationstack.com/v1/flights');
     url.searchParams.set('access_key', process.env.AVIATIONSTACK_KEY);
     if (direction === 'departures') {
-      url.searchParams.set('dep_iata', airport.toUpperCase());
+      url.searchParams.set('dep_iata', airport);
     } else {
-      url.searchParams.set('arr_iata', airport.toUpperCase());
+      url.searchParams.set('arr_iata', airport);
     }
     url.searchParams.set('limit', String(limit));
 
-    const r = await fetch(url);
+    // AviationStack's free tier is HTTP-only, so the key crosses the wire in
+    // clear. That is a provider limit, not a choice; the upgrade is the fix.
+    // What this code CAN do is stop echoing the upstream body, which restated
+    // the request including the key, back to the browser.
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: 'aviationstack error', detail: text });
+      console.error('[flights] upstream', r.status, (await r.text().catch(() => '')).slice(0, 200));
+      return res.status(502).json({ error: 'flight data unavailable' });
     }
     const data = await r.json();
 

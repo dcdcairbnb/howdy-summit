@@ -294,22 +294,6 @@ export default async function handler(req, res) {
   const { source } = req.query;
   const { lat, lng } = parseLatLng(req.query.lat, req.query.lng);
 
-  // Pure Visit Music City mode: ?source=visitmusiccity returns only the scraped feed.
-  if (source === 'visitmusiccity') {
-    try {
-      const events = await fetchVisitMusicCity();
-      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=7200');
-      return res.status(200).json({
-        source: 'visitmusiccity',
-        url: VMC_URL,
-        total: events.length,
-        events
-      });
-    } catch (e) {
-      console.error('[festivals] visitmusiccity error', e);
-      return res.status(500).json({ error: 'internal server error', events: [] });
-    }
-  }
 
   try {
     // fetchNashvilleSpecialEvents() and fetchVisitMusicCity() are both

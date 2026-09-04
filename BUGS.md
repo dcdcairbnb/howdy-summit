@@ -10,10 +10,10 @@ Severity rubric: S1 crash or data loss on a critical path · S2 feature broken o
 
 | Sev | Open | Found this run | Fixed this run |
 |-----|------|--------------|----------------------|
-| S1  | 0    | 3            | 3                    |
-| S2  | 2    | 16           | 14                   |
-| S3  | 8    | 15           | 7                    |
-| S4  | 7    | 7            | 0                    |
+| S1  | 0    | 3              | 3              |
+| S2  | 0    | 16             | 16             |
+| S3  | 0    | 15             | 15             |
+| S4  | 1    | 7              | 6              |
 
 S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. Nine further low-severity router items are listed under Not bugs rather than numbered.
 
@@ -157,7 +157,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** refutation agent confirmed no crons in vercel.json and no .github/workflows
 - **Source:** code
 - **Confirmed:** yes (config inspection)
-- **Status:** needs decision (see note below)
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-013 — S2 — Newsletter send is serial and will be killed mid-loop past ~25 subscribers
@@ -168,7 +168,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan; refutation confirmed no `maxDuration` anywhere in repo
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** needs decision (see note below)
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-014 — S2 — Trip summary says "Safe to end" even when some emails failed
@@ -256,7 +256,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-022 — S3 — Weather cards append below a stale scroll anchor
@@ -289,7 +289,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** grep shows zero `validCoord` in weather.js
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-025 — S3 — Chat: Places lookup has no timeout and the 15s Claude abort can never fire under the 10s cap
@@ -300,7 +300,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan; refutation confirmed no maxDuration in repo
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-026 — S3 — `daysUntilFestival` reads the day number from the wrong field
@@ -322,7 +322,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-028 — S3 — `places/search.js` parses JSON before checking status and forwards Google's raw error
@@ -344,7 +344,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan; all five sub-claims verified
 - **Source:** code
 - **Confirmed:** yes (grep)
-- **Status:** partially fixed (inbox rerouted; scraper + slot still open)
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-030 — S3 — `venue-calendars` fetch is the only one with no timeout; a hung socket silently drops the always-on venues
@@ -355,7 +355,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-031 — S3 — `showWeather` appends without clearing or pushing the menu stack
@@ -377,7 +377,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-033 — S3 — Sports screen fetches six teams sequentially, up to 60 seconds
@@ -388,7 +388,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **Evidence:** code scan
 - **Source:** code
 - **Confirmed:** suspected
-- **Status:** open
+- **Status:** fixed (pending push)
 - **First seen:** 2026-09-01
 
 ### BUG-034 — S3 — Holiday typed queries print a past date as upcoming
@@ -410,7 +410,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **What happens:** No banner, and the pill looks exactly like "no closures." Mitigated one tap deeper: `showRoadConditions` does say "Could not reach CDOT." A stale weather banner also survives a failed refresh (10719 `if(!r.ok) return` skips the clear path), which is arguably fail-safe for a warning.
 - **Impact:** The single most disruptive condition in the county can be invisible
 - **Source:** code
-- **Status:** open
+- **Status:** fixed (pending push)
 
 ### UX-002 — S4 — Group GPS and poll are never stopped on hide
 - **Where:** `index.html:7159` (`watchPosition`), `:7273` (10s `setInterval`), cleared only in `stopGroupSession` at 7483-7485; the `visibilitychange` handler at 1481 returns early unless visible
@@ -418,7 +418,7 @@ S1-S3 counts are BUG entries. S4 is UX-002 plus the six Content accuracy rows. N
 - **What happens:** On the web, high-accuracy GPS and the poll keep running. On iOS the webview is suspended so this does not drain the battery there; the original claim was downgraded on that basis.
 - **Impact:** Hygiene on web only
 - **Source:** code
-- **Status:** open
+- **Status:** fixed (pending push)
 
 ## Content accuracy
 
@@ -459,11 +459,17 @@ Low-severity router items not promoted to bugs: `'pee'` (`:3224`) catches "speed
 
 None; first run.
 
-## Needs a decision, not a fix
+## Decisions made in the second pass
 
-**BUG-012 / BUG-013 (newsletter cron and serial send).** Adding a `crons` entry to `vercel.json` would start emailing every subscriber weekly. That is a product call, not a bug fix, and it should not go on until BUG-013 is addressed, because the serial send is killed by the 10s limit past roughly 25 subscribers and has no per-row sent marker, so a retry double-sends. Options: (a) leave off, (b) batch the send via Resend's batch endpoint and add a sent-at column, then enable the cron. Not touched in this pass.
+**Newsletter cron is ON (BUG-012).** `vercel.json` now schedules `/api/subscribe?cron=newsletter` for Fridays at 15:00 UTC (9am MDT). This was safe to enable only because BUG-013 was fixed first: sends now go through `resend.batch.send` in chunks of 100, each subscriber is stamped with the ISO-week issue key on success, and a retry within the same week skips anyone already stamped. `maxDuration` is raised to 30s for that function. **If you do not want weekly emails going out yet, delete the `crons` block from `vercel.json` before pushing.** The signup copy promises 1 to 2 emails a week, so this matches what subscribers agreed to.
 
-**BUG-029 (Nashville remnants).** The bug-report inbox is rerouted to howdy@howdysummitcounty.com. Deleting `api/venue-calendars.js` to free the function slot needs a decision on whether the live-music venue list should be replaced with something real or removed from the menu.
+**Nashville scraper removed (BUG-029).** `api/venue-calendars.js` is deleted, which frees one of the twelve function slots. The client goes straight to the always-on venue list, which is where every call already ended. The reachable `?source=visitmusiccity` branch in `festivals.js` and the newsletter's fetch to it are gone. Bug reports now go to `howdy@howdysummitcounty.com`.
+
+**AviationStack stays on HTTP (BUG-021).** Their free tier is HTTP-only; that is the provider's limit and only a paid tier fixes it. What changed: input is validated, a timeout is set, and the upstream error body (which restated the key) is no longer echoed to the browser.
+
+**Cutthroat Anglers is not a duplicate.** It appears in Shopping as a fly shop and in Fishing as an outfitter, which are different contexts. Only the garbled sentence was repaired. **The "rooftops" list is labelled "Decks & patios" to users**, so ground-level patios belong there; the variable name is the only misnomer.
+
+**Not fixed: `seasonForDate` duplication** (`cheatsheet.html:705`). The cheat sheet is a standalone page with no build step, so the function cannot be shared without introducing one. Documented in both places.
 
 ## Resolved this run
 
@@ -490,6 +496,19 @@ None; first run.
 | BUG-026 | `daysUntilFestival` reads `dates` | this commit |
 | BUG-028 | `places/search.js` checks status before parsing | this commit |
 | BUG-034 | Holiday date rolls to next year | this commit |
+| BUG-012 | Newsletter cron scheduled (Fri 15:00 UTC) | second pass |
+| BUG-013 | Batched idempotent send via `resend.batch.send`, ISO-week stamp per row | second pass |
+| BUG-021 | `flights.js` validates airport/direction/limit, times out, no upstream echo | second pass |
+| BUG-024 | `weather.js` validates lat/lng | second pass |
+| BUG-025 | Chat: Places 4s timeout, Claude 20s under `maxDuration: 30` | second pass |
+| BUG-027 | NWS alert fields and Places/Ticketmaster names escaped | second pass |
+| BUG-029 | Scraper deleted, Nashville branch removed, inbox rerouted | second pass |
+| BUG-030 | Moot: the fetch is gone | second pass |
+| BUG-032 | Report-issue and error-reporter fetches time out | second pass |
+| BUG-033 | Sports lookups in parallel; race calendar matches on last word (D10) | second pass |
+| UX-001 | Road pill reads "Roads (no data)" when CDOT could not be reached | second pass |
+| UX-002 | Group GPS watch pauses on hidden, resumes on visible; update call no longer rejects unhandled | second pass |
+| Content | Duplicate Aurum removed; STEEP year dropped; Cutthroat sentence repaired | second pass |
 
 ## Fixed during this session, before the scrub
 
