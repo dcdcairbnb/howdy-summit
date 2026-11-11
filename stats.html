@@ -81,9 +81,9 @@
 </header>
 <main>
   <div id="login" class="card" hidden>
-    <strong>Enter your admin token</strong>
-    <input id="tok" type="password" placeholder="Admin token" autocomplete="off">
-    <button id="go" type="button">Show stats</button>
+    <strong>Enter your password</strong>
+    <input id="tok" type="password" placeholder="Password" autocomplete="off">
+    <button id="go" type="button">View report</button>
     <div id="msg"></div>
     <div style="margin-top:12px"><a href="?demo=1">See a sample report</a></div>
   </div>
@@ -309,7 +309,7 @@
     if (!tok) { show('login'); return; }
     fetch('/api/stats?days=' + days, { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' })
       .then(function (r) {
-        if (r.status === 401) { setTok(''); $('msg').textContent = 'That token was not accepted.'; show('login'); return null; }
+        if (r.status === 401) { setTok(''); $('msg').textContent = 'That password was not accepted.'; show('login'); return null; }
         if (!r.ok) { return r.json().then(function (j) { throw new Error(j && j.error || ('Error ' + r.status)); }); }
         return r.json();
       })
