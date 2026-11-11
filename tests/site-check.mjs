@@ -9,6 +9,7 @@
 //   EXTRA_PAGES  comma list of more page paths to load
 //   DATA_FILES   comma list of JSON files to validate (default none)
 //   OUT_DIR      where to write report.json and report.html (default .)
+//   ONLY         optional comma list of checks to run: pages, data, links, api, back
 //
 // Checks: pages load with no script errors, data files parse, outbound links in
 // data files are not dead, the health endpoint answers, and the Back button
@@ -28,6 +29,8 @@ const DATA = (process.env.DATA_FILES || '').split(',').map(s => s.trim()).filter
 const OUT = process.env.OUT_DIR || '.';
 if (!BASE) { console.error('BASE_URL is required'); process.exit(2); }
 
+// The live site is slower than a local copy, so wait longer after each tap.
+const TAP_WAIT = Number(process.env.TAP_WAIT || 2200);
 const UA = 'Mozilla/5.0 (compatible; HowdyTestBot/1.0)';
 const started = Date.now();
 const fails = [], warns = [], stats = {};
@@ -172,22 +175,24 @@ async function checkBack() {
       const b = [...document.querySelectorAll('.quick-reply')].find(x => x.textContent.trim() === t);
       if (b) { b.click(); return true; } return false;
     }, t);
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(TAP_WAIT);
     return ok;
   };
   const stack = () => page.evaluate(() => (typeof menuStack !== 'undefined' ? menuStack.slice() : null));
   // A leaf marker or a duplicate of the top entry is not a different screen.
   const norm = s => { const o = []; for (const x of (s || [])) { if (/^leaf-/.test(x)) continue; if (o[o.length - 1] !== x) o.push(x); } return o.join('>'); };
-  const fresh = async () => { await page.goto(BASE + APP, { waitUntil: 'domcontentloaded', timeout: 30000 }); await page.waitForTimeout(1200); };
+  // The app restores its menu stack from sessionStorage, so clear it or a reload is not a fresh start.
+  const fresh = async () => { try { await page.evaluate(() => { sessionStorage.clear(); }); } catch {} await page.goto(BASE + APP, { waitUntil: 'domcontentloaded', timeout: 30000 }); await page.waitForTimeout(1200); };
 
   await fresh();
   const mains = (await labels()).filter(l => !SKIP.test(l) && !/^←/.test(l));
   stats.mainMenu = mains.length;
   let menus = 0, buttons = 0;
+  const tested = [], skipped = [];
   for (const M of mains) {
     current = M;
     await fresh();
-    if (!(await tap(M))) continue;
+    if (!(await tap(M))) { skipped.push(M + ' (button not found)'); continue; }
     const sM = await stack();
     if (!sM) { warn('back', 'menuStack not found on the page, Back test skipped'); break; }
     // Back from a main menu button returns to the main menu.
@@ -196,8 +201,9 @@ async function checkBack() {
     if (norm(sBack) !== 'main') fail('back', `"${M}": Back lands on ${norm(sBack)} instead of main`);
     await fresh(); await tap(M);
     const subs = (await labels()).filter(l => !SKIP.test(l) && !/^←|main menu/i.test(l));
-    if (subs.length < 2) continue;
+    if (subs.length < 2) { skipped.push(M + ' (opens a screen, no sub-buttons)'); continue; }
     menus++;
+    const before = buttons;
     for (const L of subs) {
       current = `${M} > ${L}`;
       if (norm(await stack()) !== norm(sM)) { await fresh(); await tap(M); }
@@ -207,14 +213,19 @@ async function checkBack() {
       const s2 = await stack();
       if (norm(s2) !== norm(sM)) fail('back', `"${M}" > "${L}": one Back lands on ${norm(s2)} instead of ${norm(sM)}`);
     }
+    tested.push(`${M.replace(/^[^A-Za-z0-9]+/, '')} (${buttons - before} of ${subs.length})`);
   }
   stats.backMenus = menus; stats.backButtons = buttons;
+  stats.backDetail = tested.join('; ');
+  stats.backSkipped = skipped.join('; ');
   await page.close();
 }
 
 // ---------------------------------------------------------------- run
 const steps = [['pages', checkPages], ['data', checkData], ['links', checkLinks], ['api', checkApi], ['back', checkBack]];
+const only = (process.env.ONLY || '').split(',').filter(Boolean); // e.g. ONLY=back for a quick run
 for (const [n, fn] of steps) {
+  if (only.length && !only.includes(n)) continue;
   try { await fn(); } catch (e) { fail(n, 'check crashed: ' + e.message.split('\n')[0]); }
 }
 await browser.close(); await api.dispose();
@@ -229,6 +240,7 @@ const html = `<div style="font-family:Arial,sans-serif;max-width:640px;line-heig
 <h2 style="margin:0 0 6px">${esc(NAME)} nightly check: <span style="color:${color}">${status}</span></h2>
 <p style="color:#555;margin:0 0 14px">${esc(BASE)} &middot; ${today} &middot; ${secs}s</p>
 <p><b>${stats.pages || 0}</b> pages loaded &middot; <b>${stats.links || 0}</b> outbound links checked &middot; <b>${stats.backButtons || 0}</b> menu buttons tested for Back across <b>${stats.backMenus || 0}</b> menus &middot; ${stats.dataFiles || 0} data files</p>
+<p style="color:#555;font-size:13px">Back test menus: ${esc(stats.backDetail || 'none')}<br>Not tested as menus: ${esc(stats.backSkipped || 'none')}</p>
 <h3 style="margin:16px 0 4px">Failures (${fails.length})</h3>${li(fails)}
 <h3 style="margin:16px 0 4px">Notes (${warns.length})</h3>${li(warns)}
 </div>`;

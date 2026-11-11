@@ -19,7 +19,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Decide whether to run today
         id: gate
@@ -69,6 +69,9 @@ jobs:
           SITE_NAME: 'Howdy Summit County'
           APP_PATH: '/'
           OUT_DIR: ${{ github.workspace }}/report
+          TAP_WAIT: '1600'
+          APP_BUDGET_MS: '600000'
+          POOL: '3'
         run: |
           cp tests/site-check.mjs /tmp/pw/site-check.mjs
           cd /tmp/pw && node site-check.mjs
