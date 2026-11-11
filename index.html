@@ -11391,6 +11391,168 @@ function openRoadDetails() {
   navAction(showRoadConditions, 'roads', 'Road alert');
 }
 </script>
+<!-- Howdy Summit usage tracking. Anonymous counts only: a random visitor id kept
+     on the device, taps on menu buttons, a count of typed questions (the text is
+     never sent), and the domain of outbound links. Totals show on /stats. -->
+<script>
+(function () {
+  try {
+    if (navigator.webdriver || /HeadlessChrome|bot|crawl|spider/i.test(navigator.userAgent)) return;
+    var native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    var plat = native ? 'app' : 'web';
+
+    // Anonymous visitor id.
+    var vid = '', isNew = false;
+    try {
+      vid = localStorage.getItem('hs_vid') || '';
+      if (!vid) {
+        vid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : 'v' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('hs_vid', vid);
+        isNew = true;
+      }
+    } catch (e) {
+      vid = 'v' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      isNew = true;
+    }
+
+    var queue = [];
+    var timer = null;
+    function endpoint() {
+      var base = '';
+      try { base = (typeof API_BASE !== 'undefined') ? API_BASE : ''; } catch (e) {}
+      return base + '/api/stats';
+    }
+    function flush(useBeacon) {
+      if (!queue.length) return;
+      var body = JSON.stringify({ v: vid, p: plat, nu: isNew ? 1 : 0, e: queue.splice(0, 20) });
+      try {
+        if (useBeacon && navigator.sendBeacon) {
+          navigator.sendBeacon(endpoint(), new Blob([body], { type: 'text/plain' }));
+        } else {
+          fetch(endpoint(), { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain' }, keepalive: true, credentials: 'omit' }).catch(function () {});
+        }
+      } catch (e) {}
+      if (queue.length) schedule();
+    }
+    function schedule() {
+      if (timer) return;
+      timer = setTimeout(function () { timer = null; flush(false); }, 6000);
+    }
+    function track(t, k) {
+      queue.push({ t: t, k: k ? String(k).replace(/\s+/g, ' ').trim().slice(0, 80) : '' });
+      schedule();
+    }
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(true); });
+    window.addEventListener('pagehide', function () { flush(true); });
+
+    // One session event per browser session.
+    var started = false;
+    try { started = !!sessionStorage.getItem('hs_sid'); sessionStorage.setItem('hs_sid', '1'); } catch (e) {}
+    if (!started) {
+      var src = 'direct';
+      if (native) {
+        src = 'app';
+      } else {
+        var q = new URLSearchParams(location.search);
+        var utm = q.get('utm_source');
+        if (utm) {
+          src = utm;
+        } else if (document.referrer) {
+          try {
+            var h = new URL(document.referrer).hostname.replace(/^www\./, '');
+            if (h && h !== location.hostname.replace(/^www\./, '')) src = h;
+          } catch (e) {}
+        }
+      }
+      track('session', src);
+    }
+
+    // Menu taps vs typed questions. Buttons call handleUserMessage with their label.
+    var typed = false, lastBtn = '', lastBtnAt = 0;
+    document.addEventListener('click', function (ev) {
+      var el = ev.target && ev.target.closest ? ev.target.closest('button, .quick-reply') : null;
+      if (el) { lastBtn = (el.textContent || '').replace(/\s+/g, ' ').trim(); lastBtnAt = Date.now(); }
+    }, true);
+    if (typeof window.handleSend === 'function') {
+      var origSend = window.handleSend;
+      window.handleSend = function () {
+        typed = true;
+        try { return origSend.apply(this, arguments); } finally { typed = false; }
+      };
+    }
+    if (typeof window.handleUserMessage === 'function') {
+      var origMsg = window.handleUserMessage;
+      window.handleUserMessage = function (text) {
+        try {
+          var t = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+          if (typed) track('ask', '');
+          else if (lastBtn && t === lastBtn && Date.now() - lastBtnAt < 1500) track('menu', t);
+          else track('other', '');
+        } catch (e) {}
+        return origMsg.apply(this, arguments);
+      };
+    }
+
+    // Outbound clicks. Records only the domain or the link type, never the full address.
+    function outLabel(href) {
+      try {
+        var u = new URL(href, location.href);
+        if (u.protocol === 'http:' || u.protocol === 'https:') {
+          var h = u.hostname.replace(/^www\./, '');
+          return h === location.hostname.replace(/^www\./, '') ? '' : h;
+        }
+        if (u.protocol === 'javascript:' || u.protocol === 'blob:' || u.protocol === 'data:') return '';
+        return u.protocol;
+      } catch (e) { return ''; }
+    }
+    // Booking pages, tap-to-call and place cards get their own counts. Booking
+    // links also carry a utm_source so venues can see Howdy Summit as the source.
+    var BOOK_RE = /(^|\.)(resy|opentable|sevenrooms|spoton|exploretock|tock)\.com$/i;
+    document.addEventListener('click', function (ev) {
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      var card = a.closest ? a.closest('.card') : null;
+      var tEl = card ? card.querySelector('.card-title') : null;
+      var where = ((tEl ? tEl.textContent : a.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (href.indexOf('tel:') === 0) { if (where) track('call', where); return; }
+      var label = outLabel(href);
+      if (!label) return;
+      if (BOOK_RE.test(label)) {
+        try {
+          var bu = new URL(a.href, location.href);
+          if (!bu.searchParams.has('utm_source')) {
+            bu.searchParams.set('utm_source', 'howdysummit');
+            bu.searchParams.set('utm_medium', 'app');
+            bu.searchParams.set('utm_campaign', 'howdysummit');
+            a.href = bu.toString();
+          }
+        } catch (e) {}
+        track('book', where || label);
+        return;
+      }
+      if (tEl && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(label)) track('item', label + ' > ' + (tEl.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 50));
+      track('out', label);
+    }, true);
+    // Ride buttons call rideClick('uber' | 'lyft' | ...). Count the service, then run the original.
+    if (typeof window.rideClick === 'function') {
+      var origRide = window.rideClick;
+      window.rideClick = function (service) {
+        try { if (service) track('ride', service); } catch (e) {}
+        return origRide.apply(this, arguments);
+      };
+    }
+    var origOpen = window.open;
+    if (typeof origOpen === 'function') {
+      window.open = function (url) {
+        try { var l = url ? outLabel(String(url)) : ''; if (l) track('out', l); } catch (e) {}
+        return origOpen.apply(window, arguments);
+      };
+    }
+  } catch (e) { /* tracking must never break the app */ }
+})();
+</script>
 <!-- Vercel Web Analytics. Tracks page views, country, city, device, referrer. -->
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };

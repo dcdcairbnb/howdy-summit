@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#d62828">
+<title>Howdy Summit · Site Report</title>
+<style>
+  :root { --bg:#f5f5f5; --card:#fff; --ink:#1f2328; --ink2:#5c6470; --mute:#6b7280; --line:#e5e7eb; --grid:#eceef1; --bar:#d62828; --red:#d62828; --warn-bg:#fff6e0; --warn-ink:#6b4e12; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121212; --card:#1d1d1f; --ink:#f2f2f3; --ink2:#c2c4c9; --mute:#8d9097; --line:#2d2e31; --grid:#2a2b2e; --bar:#ef5350; --warn-bg:#33290f; --warn-ink:#e8cf98; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:linear-gradient(135deg,#d62828 0%,#f77f00 100%); color:#fff; padding:18px 16px; }
+  .hwrap { max-width:1080px; margin:0 auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .logo { width:44px; height:44px; border-radius:50%; overflow:hidden; background:#fff2; flex:none; }
+  .logo img { width:100%; height:100%; object-fit:cover; display:block; }
+  header h1 { margin:0; font-size:21px; font-weight:700; }
+  header p { margin:2px 0 0; font-size:13px; opacity:.92; }
+  main { max-width:1080px; margin:0 auto; padding:16px; }
+  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .bar button { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:8px; font:inherit; font-size:14px; cursor:pointer; }
+  .bar button.on { background:var(--ink); color:var(--card); border-color:var(--ink); }
+  .bar .stamp { margin-left:auto; font-size:12px; color:var(--mute); }
+  .banner { background:var(--warn-bg); color:var(--warn-ink); border-radius:10px; padding:10px 14px; font-size:13.5px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card .n { font-size:28px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .card .l { font-size:12.5px; color:var(--ink2); margin-top:2px; }
+  .card .s { font-size:12px; color:var(--mute); }
+  .wide { margin-bottom:12px; }
+  .wide h2, .cols h2 { font-size:15px; margin:0 0 2px; }
+  .sub { font-size:12.5px; color:var(--mute); margin-bottom:10px; }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-bottom:16px; }
+  .cols .card { min-width:0; }
+  .seg { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px; }
+  .seg button { background:none; border:1px solid var(--grid); color:var(--ink2); padding:5px 12px; border-radius:999px; font:inherit; font-size:13px; cursor:pointer; }
+  .seg button[aria-pressed="true"] { background:var(--red); border-color:var(--red); color:#fff; font-weight:600; }
+  .chart { position:relative; }
+  .chart svg { display:block; width:100%; height:200px; }
+  .tip { position:absolute; pointer-events:none; background:var(--ink); color:var(--card); font-size:12.5px; padding:6px 9px; border-radius:6px; white-space:nowrap; transform:translate(-50%,-110%); opacity:0; transition:opacity .08s; }
+  .rows { list-style:none; margin:0; padding:0; }
+  .rows li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 10px; padding:7px 0; border-top:1px solid var(--grid); font-size:14px; }
+  .rows li:first-child { border-top:0; }
+  .rows .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rows .ct { font-variant-numeric:tabular-nums; color:var(--ink2); }
+  .rows .nt { grid-column:1/-1; font-size:12px; color:var(--mute); margin-top:-2px; }
+  .rows .meter { grid-column:1/-1; height:4px; background:var(--grid); border-radius:2px; overflow:hidden; }
+  .rows .meter i { display:block; height:100%; background:var(--bar); border-radius:2px; }
+  .funnel { list-style:none; margin:8px 0 0; padding:0; }
+  .funnel li { display:grid; grid-template-columns:110px minmax(0,1fr) 190px; gap:10px; align-items:center; padding:6px 0; font-size:14px; }
+  .funnel .fb { height:18px; background:var(--grid); border-radius:4px; overflow:hidden; }
+  .funnel .fb i { display:block; height:100%; background:var(--bar); border-radius:4px; }
+  .funnel .ct { white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums; color:var(--ink2); }
+  @media (max-width:560px) { .funnel li { grid-template-columns:1fr auto; } .funnel .fb { grid-column:1/-1; } }
+  .split { display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--grid); margin:8px 0 6px; }
+  .split span { display:block; height:100%; }
+  .legend { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--mute); }
+  .empty { color:var(--mute); font-size:13.5px; padding:6px 0; }
+  details { margin-top:10px; font-size:13px; color:var(--ink2); }
+  details table { width:100%; border-collapse:collapse; margin-top:8px; font-variant-numeric:tabular-nums; }
+  details td, details th { text-align:left; padding:4px 6px; border-top:1px solid var(--grid); }
+  #login { max-width:360px; margin:40px auto; }
+  #login input { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; margin:10px 0; background:var(--bg); color:var(--ink); }
+  #login button { width:100%; padding:12px; font-size:16px; border:0; border-radius:8px; background:var(--red); color:#fff; font-weight:600; cursor:pointer; }
+  #login a { color:var(--red); font-size:13.5px; }
+  #msg { color:var(--red); font-size:13px; min-height:18px; }
+  .note { font-size:12px; color:var(--mute); margin-top:20px; line-height:1.5; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="logo"><img src="/logo.png" alt=""></div>
+    <div>
+      <h1>Howdy Summit</h1>
+      <p>Site Report &middot; web and iPhone app &middot; days run on Mountain time</p>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="login" class="card" hidden>
+    <strong>Enter your admin token</strong>
+    <input id="tok" type="password" placeholder="Admin token" autocomplete="off">
+    <button id="go" type="button">Show stats</button>
+    <div id="msg"></div>
+    <div style="margin-top:12px"><a href="?demo=1">See a sample report</a></div>
+  </div>
+
+  <div id="view" hidden>
+    <div id="demoBanner" class="banner" hidden>Sample report with made-up numbers. Live numbers appear once visitors use the site.</div>
+    <div class="bar">
+      <button data-d="7" type="button">7 days</button>
+      <button data-d="30" type="button" class="on">30 days</button>
+      <button data-d="90" type="button">90 days</button>
+      <button id="out" type="button">Sign out</button>
+      <span class="stamp" id="stamp"></span>
+    </div>
+    <div class="grid" id="cards"></div>
+    <div class="card wide">
+      <h2 id="chartH">Visitors per day</h2>
+      <div class="sub" id="chartSub"></div>
+      <div class="seg" id="seg"></div>
+      <div class="chart" id="chart"><svg id="svg" role="img" aria-label="Bar chart per day"></svg><div class="tip" id="tip"></div></div>
+      <details><summary>View as table</summary><div id="tbl"></div></details>
+    </div>
+    <div class="card wide"><h2>Guest path</h2><div class="sub">Total taps in the period, not unique guests</div><div id="funnel"></div></div>
+    <div class="card wide"><h2>App and web</h2><div id="split"></div></div>
+    <div class="cols">
+      <div class="card"><h2>What guests open</h2><div class="sub">Top menu taps</div><div id="tMenu"></div></div>
+      <div class="card"><h2>Top places</h2><div class="sub">Place taps, plus bookings and calls that match the name</div><div id="tVenue"></div></div>
+      <div class="card"><h2>Reservations</h2><div class="sub">Booking page opened, by restaurant</div><div id="tBook"></div></div>
+      <div class="card"><h2>Calls</h2><div class="sub">Tap-to-call by place</div><div id="tCall"></div></div>
+      <div class="card"><h2>Rides</h2><div class="sub">Taps by service</div><div id="tRide"></div></div>
+      <div class="card"><h2>Where guests go next</h2><div class="sub">Outbound links by site</div><div id="tOut"></div></div>
+      <div class="card"><h2>Traffic sources</h2><div class="sub">Where sessions start</div><div id="tSrc"></div></div>
+    </div>
+    <p class="note">Visitors are counted by a random id kept on each device, so one person on two devices counts twice and a cleared browser counts as new. Typed questions are counted but their text is never saved. Booking taps mean a reservation page was opened, not that a table was booked. Counts start the day tracking went live.</p>
+  </div>
+</main>
+<script>
+(function () {
+  var KEY = 'hs_stats_token';
+  var params = new URLSearchParams(location.search);
+  var demo = params.get('demo') === '1';
+  var days = 30;
+  var last = null;
+  var seriesName = 'Visitors';
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var num = function (n) { return Number(n || 0).toLocaleString('en-US'); };
+
+  function getTok() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+  function setTok(t) { try { if (t) localStorage.setItem(KEY, t); else localStorage.removeItem(KEY); } catch (e) {} }
+  function show(which) { $('login').hidden = which !== 'login'; $('view').hidden = which !== 'view'; }
+
+  // A link ending in #key=... signs this browser in once and hides the key from the address bar.
+  (function takeHashKey() {
+    var k = new URLSearchParams(location.hash.replace(/^#/, '')).get('key');
+    if (!k) return;
+    setTok(k.trim());
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  })();
+
+  function rowsHtml(list, limit, emptyMsg) {
+    if (!list || !list.length) return '<div class="empty">' + emptyMsg + '</div>';
+    var max = list[0][1] || 1;
+    return '<ul class="rows">' + list.slice(0, limit).map(function (r) {
+      return '<li><span class="nm" title="' + esc(r[0]) + '">' + esc(r[0]) + '</span><span class="ct">' + num(r[1]) + '</span><span class="meter"><i style="width:' + Math.max(2, r[1] / max * 100) + '%"></i></span></li>';
+    }).join('') + '</ul>';
+  }
+
+  var norm = function (x) { return String(x).toLowerCase().replace(/[^a-z0-9]/g, ''); };
+  var hit = function (a, b) { a = norm(a); b = norm(b); return a.length > 3 && b.length > 3 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0); };
+
+  function venuesHtml(d) {
+    var map = {};
+    (d.top.item || []).forEach(function (r) {
+      var i = r[0].indexOf(' > ');
+      var name = i > 0 ? r[0].slice(i + 3) : r[0];
+      var v = map[name] || (map[name] = { name: name, taps: 0, book: 0, call: 0 });
+      v.taps += r[1];
+    });
+    var list = Object.keys(map).map(function (k) { return map[k]; });
+    (d.top.book || []).forEach(function (r) { list.forEach(function (v) { if (hit(r[0], v.name)) v.book += r[1]; }); });
+    (d.top.call || []).forEach(function (r) { list.forEach(function (v) { if (hit(r[0], v.name)) v.call += r[1]; }); });
+    list.sort(function (a, b) { return (b.taps + b.book + b.call) - (a.taps + a.book + a.call); });
+    if (!list.length) return '<div class="empty">No place taps yet.</div>';
+    var max = list[0].taps + list[0].book + list[0].call || 1;
+    return '<ul class="rows">' + list.slice(0, 10).map(function (v) {
+      var t = v.taps + v.book + v.call;
+      var bits = [v.taps + ' place tap' + (v.taps === 1 ? '' : 's')];
+      if (v.book) bits.push(v.book + ' booking');
+      if (v.call) bits.push(v.call + ' call' + (v.call === 1 ? '' : 's'));
+      return '<li><span class="nm" title="' + esc(v.name) + '">' + esc(v.name) + '</span><span class="ct">' + num(t) + '</span><span class="nt">' + esc(bits.join(' · ')) + '</span><span class="meter"><i style="width:' + Math.max(2, t / max * 100) + '%"></i></span></li>';
+    }).join('') + '</ul>';
+  }
+
+  function card(label, value, sub) {
+    return '<div class="card"><div class="n">' + esc(value) + '</div><div class="l">' + esc(label) + '</div>' + (sub ? '<div class="s">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+
+  var NS = 'http://www.w3.org/2000/svg';
+  function drawChart(values, labels, name) {
+    var svg = $('svg'), tip = $('tip'), box = $('chart');
+    var W = Math.max(280, box.clientWidth), H = 200, L = 34, R = 6, T = 10, B = 24;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var max = Math.max(4, Math.max.apply(null, values));
+    var mag = Math.pow(10, Math.floor(Math.log10(max)));
+    var step = mag * (max / mag > 5 ? 2 : 1);
+    var top = Math.ceil(max / step) * step;
+    var y = function (v) { return T + (H - T - B) * (1 - v / top); };
+    var bw = (W - L - R) / values.length, gap = Math.min(2, bw * 0.25);
+    var g = '';
+    for (var v = 0; v <= top; v += step) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--grid)"/><text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--mute)">' + v + '</text>';
+    var every = Math.ceil(values.length / 6);
+    values.forEach(function (n, i) {
+      var x = L + i * bw + gap / 2, w = Math.max(1, bw - gap), h = Math.max(0, y(0) - y(n));
+      g += '<rect x="' + x + '" y="' + y(n) + '" width="' + w + '" height="' + h + '" rx="2" fill="var(--bar)" data-i="' + i + '"/>';
+      g += '<rect x="' + (L + i * bw) + '" y="' + T + '" width="' + bw + '" height="' + (H - T - B) + '" fill="transparent" data-i="' + i + '"/>';
+      if (i % every === 0) g += '<text x="' + (x + w / 2) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="11" fill="var(--mute)">' + esc(labels[i].slice(5)) + '</text>';
+    });
+    svg.innerHTML = g;
+    var bars = svg.querySelectorAll('rect[fill="var(--bar)"]');
+    svg.onmousemove = function (e) {
+      var i = e.target.getAttribute && e.target.getAttribute('data-i');
+      if (i === null || i === undefined) return;
+      bars.forEach(function (b, j) { b.style.opacity = j == i ? 1 : 0.45; });
+      tip.innerHTML = '<b>' + num(values[i]) + '</b> ' + esc(name.toLowerCase()) + ' · ' + esc(labels[i]);
+      tip.style.left = Math.min(Math.max(L + (+i + 0.5) * bw, 80), W - 80) + 'px';
+      tip.style.top = y(values[i]) + 'px';
+      tip.style.opacity = 1;
+    };
+    svg.onmouseleave = function () { tip.style.opacity = 0; bars.forEach(function (b) { b.style.opacity = 1; }); };
+  }
+
+  var SERIES = {
+    'Visitors': function (r) { return r.visitors; },
+    'Sessions': function (r) { return r.session; },
+    'Menu taps': function (r) { return r.menu; },
+    'Place taps': function (r) { return r.item; },
+    'Booking taps': function (r) { return r.book; }
+  };
+
+  function drawSeries() {
+    if (!last) return;
+    var f = SERIES[seriesName];
+    var labels = last.series.map(function (r) { return r.date; });
+    $('chartH').textContent = seriesName + ' per day';
+    $('chartSub').textContent = 'Last ' + last.days + ' days';
+    $('svg').setAttribute('aria-label', 'Bar chart of ' + seriesName.toLowerCase() + ' per day');
+    drawChart(last.series.map(f), labels, seriesName);
+  }
+
+  function render(d) {
+    last = d;
+    var t = d.totals;
+    var ret = t.session ? Math.round(100 * (t.session - t.newsess) / t.session) : 0;
+    var per = t.session ? (Math.round(10 * (t.menu + t.ask + t.other) / t.session) / 10) : 0;
+    $('cards').innerHTML =
+      card('Unique visitors', num(t.uniqueVisitors)) +
+      card('Sessions', num(t.session), 'Web and app visits') +
+      card('Returning sessions', ret + '%') +
+      card('Menu taps', num(t.menu), 'Buttons guests opened') +
+      card('Typed questions', num(t.ask), 'Text is never saved') +
+      card('Booking taps', num(t.book), 'Opened a reservation page') +
+      card('Ride taps', num(t.ride), 'Uber, Lyft and others') +
+      card('Calls', num(t.call), 'Tap-to-call') +
+      card('Outbound clicks', num(t.out), 'Tickets, tours, links') +
+      card('Chat actions per session', String(per));
+
+    $('seg').innerHTML = Object.keys(SERIES).map(function (n) { return '<button type="button" data-s="' + n + '" aria-pressed="' + (n === seriesName) + '">' + n + '</button>'; }).join('');
+    $('seg').querySelectorAll('button').forEach(function (b) {
+      b.onclick = function () { seriesName = b.getAttribute('data-s'); $('seg').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); drawSeries(); };
+    });
+    $('tbl').innerHTML = '<table><thead><tr><th>Day</th><th>Visitors</th><th>Sessions</th><th>Menu taps</th><th>Place taps</th><th>Booking taps</th></tr></thead><tbody>' +
+      d.series.slice().reverse().map(function (r) { return '<tr><td>' + esc(r.date) + '</td><td>' + num(r.visitors) + '</td><td>' + num(r.session) + '</td><td>' + num(r.menu) + '</td><td>' + num(r.item) + '</td><td>' + num(r.book) + '</td></tr>'; }).join('') + '</tbody></table>';
+    drawSeries();
+
+    var steps = [['Sessions', t.session], ['Menu taps', t.menu], ['Place taps', t.item], ['Booking taps', t.book]];
+    var fmax = Math.max.apply(null, steps.map(function (x) { return x[1]; }).concat([1]));
+    $('funnel').innerHTML = '<ul class="funnel">' + steps.map(function (s, i) {
+      return '<li><span>' + s[0] + '</span><span class="fb"><i style="width:' + Math.max(s[1] ? 2 : 0, s[1] / fmax * 100) + '%"></i></span><span class="ct">' + num(s[1]) + (i && t.session ? ' &middot; ' + Math.round(100 * s[1] / t.session) + '% of sessions' : '') + '</span></li>';
+    }).join('') + '</ul>';
+
+    var sp = $('split'), total = t.sess_app + t.sess_web;
+    if (!total) sp.innerHTML = '<div class="empty">No data yet.</div>';
+    else sp.innerHTML = '<div class="split"><span style="width:' + (100 * t.sess_app / total) + '%;background:#d62828"></span><span style="width:' + (100 * t.sess_web / total) + '%;background:#2563eb"></span></div>' +
+      '<div class="legend"><span>iOS app: ' + num(t.sess_app) + ' sessions, ' + num(t.uniqueApp) + ' visitors</span><span>Web: ' + num(t.sess_web) + ' sessions, ' + num(t.uniqueWeb) + ' visitors</span></div>';
+
+    $('tMenu').innerHTML = rowsHtml(d.top.menu, 8, 'No taps yet.');
+    $('tVenue').innerHTML = venuesHtml(d);
+    $('tBook').innerHTML = rowsHtml(d.top.book, 6, 'No booking taps yet.');
+    $('tCall').innerHTML = rowsHtml(d.top.call, 6, 'No calls yet.');
+    $('tRide').innerHTML = rowsHtml(d.top.ride, 6, 'No ride taps yet.');
+    $('tOut').innerHTML = rowsHtml(d.top.out, 6, 'No outbound clicks yet.');
+    $('tSrc').innerHTML = rowsHtml(d.top.src, 8, 'No data yet.');
+    $('stamp').textContent = 'Updated ' + new Date(d.generatedAt).toLocaleTimeString();
+  }
+
+  // Sample data for demo mode. Deterministic so screenshots match.
+  function sample(n) {
+    var seed = 11;
+    var rnd = function () { return (seed = (seed * 9301 + 49297) % 233280) / 233280; };
+    var series = [], tot = { session: 0, menu: 0, ask: 0, other: 0, out: 0, book: 0, call: 0, ride: 0, item: 0, newsess: 0, sess_app: 0, sess_web: 0 };
+    for (var i = n - 1; i >= 0; i--) {
+      var dt = new Date(Date.now() - i * 86400000);
+      var wk = [0, 5, 6].indexOf(dt.getDay()) >= 0 ? 1.4 : 1;
+      var s = Math.round((40 + rnd() * 30) * wk);
+      var row = { date: dt.toLocaleDateString('en-CA'), visitors: Math.round(s * 0.8), session: s, menu: Math.round(s * 1.6), ask: Math.round(s * 0.3), other: Math.round(s * 0.1), out: Math.round(s * 0.35), book: Math.round(s * 0.12), call: Math.round(s * 0.05), ride: Math.round(s * 0.06), item: Math.round(s * 0.5), newsess: Math.round(s * 0.55), sess_app: Math.round(s * 0.4), sess_web: s - Math.round(s * 0.4) };
+      Object.keys(tot).forEach(function (k) { tot[k] += row[k]; });
+      series.push(row);
+    }
+    tot.uniqueVisitors = Math.round(tot.session * 0.7); tot.uniqueApp = Math.round(tot.uniqueVisitors * 0.4); tot.uniqueWeb = tot.uniqueVisitors - tot.uniqueApp;
+    return { generatedAt: new Date().toISOString(), days: n, totals: tot, series: series, top: {
+      menu: [['🍽️ Restaurants', 220], ['⛷️ Ski & Snowboard', 180], ['🏔️ Things to Do', 120], ['🚗 Roads & Weather', 90]],
+      item: [['opentable.com > Sapphire Room', 40], ['viator.com > Breckenridge ghost tour', 31], ['summitdaily.com > Local events', 18]],
+      book: [['Sapphire Room', 34], ['Pug Ryan\'s', 21], ['Hearthstone', 15]],
+      call: [['Sapphire Room', 9], ['Dillon Dam Brewery', 6]],
+      ride: [['uber', 28], ['lyft', 17]],
+      out: [['viator.com', 38], ['opentable.com', 34], ['ticketmaster.com', 20]],
+      src: [['direct', 150], ['app', 110], ['instagram.com', 60], ['google.com', 45]] } };
+  }
+
+  function load() {
+    if (demo) { $('demoBanner').hidden = false; show('view'); render(sample(days)); return; }
+    var tok = getTok();
+    if (!tok) { show('login'); return; }
+    fetch('/api/stats?days=' + days, { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { setTok(''); $('msg').textContent = 'That token was not accepted.'; show('login'); return null; }
+        if (!r.ok) { return r.json().then(function (j) { throw new Error(j && j.error || ('Error ' + r.status)); }); }
+        return r.json();
+      })
+      .then(function (d) { if (d) { show('view'); render(d); } })
+      .catch(function (e) { $('msg').textContent = e.message || 'Could not load stats.'; show('login'); });
+  }
+
+  $('go').addEventListener('click', function () { setTok($('tok').value.trim()); $('tok').value = ''; $('msg').textContent = ''; load(); });
+  $('tok').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('go').click(); });
+  $('out').addEventListener('click', function () { setTok(''); if (demo) { location.href = location.pathname; return; } show('login'); });
+  document.querySelectorAll('.bar button[data-d]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      days = parseInt(b.getAttribute('data-d'), 10);
+      document.querySelectorAll('.bar button[data-d]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      load();
+    });
+  });
+  var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(drawSeries, 200); });
+  load();
+})();
+</script>
+</body>
+</html>

@@ -17,6 +17,10 @@
       "destination": "/support.html"
     },
     {
+      "source": "/stats",
+      "destination": "/stats.html"
+    },
+    {
       "source": "/denver-to-breckenridge",
       "destination": "/denver-to-breckenridge.html"
     }
@@ -69,6 +73,19 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/stats.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
         }
       ]
     },

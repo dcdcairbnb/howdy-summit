@@ -1,7 +1,7 @@
 // Howdy Summit service worker. Caches static assets for offline use.
 // Bump CACHE_VERSION when deploying changes you want users to see immediately.
 
-const CACHE_VERSION = 'howdysummit-v47';
+const CACHE_VERSION = 'howdysummit-v48';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_ASSETS = [
@@ -38,6 +38,12 @@ self.addEventListener('fetch', event => {
   }
 
   const url = new URL(event.request.url);
+
+  // The private stats page is not part of the app. Keep it out of the cache so
+  // it never replaces the saved app shell.
+  if (url.pathname === '/stats' || url.pathname === '/stats.html') {
+    return;
+  }
 
   // Never cache API responses (they need to be fresh).
   if (url.pathname.startsWith('/api/')) {

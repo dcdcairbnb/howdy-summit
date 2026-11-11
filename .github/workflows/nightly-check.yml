@@ -68,6 +68,7 @@ jobs:
           BASE_URL: ${{ steps.site.outputs.base }}
           SITE_NAME: 'Howdy Summit County'
           APP_PATH: '/'
+          EXTRA_PAGES: '/stats.html?demo=1'
           OUT_DIR: ${{ github.workspace }}/report
           TAP_WAIT: '1600'
           APP_BUDGET_MS: '600000'

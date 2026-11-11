@@ -202,30 +202,73 @@ async function roadConditions(req, res) {
   }
 }
 
-/* ---- Snowfall -------------------------------------------------------------
-   Powers Powder Day mode. Rides on this existing function via ?feed=snow
-   because the Vercel Hobby plan caps us at 12 serverless functions and we are
-   at 12; a new file under api/ breaks the deploy.
+/* ---- Snow tracker ---------------------------------------------------------
+   Powers the snow report card and Powder Day mode. Rides on this function via
+   ?feed=snow because the Hobby plan caps us at 12 serverless functions.
 
-   Source is Open-Meteo: no key, no quota, and it takes an elevation override.
-   That last part is the whole reason it is used here. The county centroid sits
-   near 9,265 ft, but nobody cares how much snow fell in the parking lot. These
-   are approximate mid-mountain elevations, which is the height that decides
-   whether a day is worth taking off work.
+   TWO SOURCES, and the distinction is the whole feature:
 
-   IMPORTANT: this is a weather model, not a snow stake. Resorts measure real
-   totals at a real plot and will disagree with it. Anything shown to a user
-   from this must be labelled as a forecast, never as a resort snow report.
+   1. MEASURED: USDA NRCS SNOTEL stations. These are automated snow pillows on
+      the mountains themselves, public domain, updated daily. Copper Mountain
+      SNOTEL is 1.3 miles from Copper. Grizzly Peak is 0.3 miles from A-Basin.
+      Loveland Basin is half a mile from Loveland. Hoosier Pass is the classic
+      Breckenridge proxy. New overnight snow is today's depth minus yesterday's,
+      which is the same proxy the resorts' own reports are built on. This is
+      the number people want when they ask "how much fell last night".
+
+   2. FORECAST: Open-Meteo, modeled at mid-mountain elevation. Useful for
+      "how much more is coming", useless for "how much fell". Kept as the
+      secondary line.
+
+   OPEN-STATUS GATE: the card only shows resorts that are open. Opening dates
+   are announced days ahead and shift with weather; three of the five have no
+   fixed date at all ("when conditions allow"). So each resort carries:
+     opens   ISO date, or null for "not announced yet"  -> treated as closed
+     closes  ISO date, or null                          -> open through June 30
+     status  'auto' | 'open' | 'closed'                 -> manual override wins
+   Update `opens` the day a resort announces. That is a one-line edit.
+   Closing dates below are typical for each mountain, not confirmed; tighten
+   them in spring.
 --------------------------------------------------------------------------- */
 const SNOW_RESORTS = [
-  { name: 'Keystone',        lat: 39.6053, lng: -105.9437, elevation: 3353 },
-  { name: 'Arapahoe Basin',  lat: 39.6425, lng: -105.8719, elevation: 3627 },
-  { name: 'Breckenridge',    lat: 39.4800, lng: -106.0680, elevation: 3444 },
-  { name: 'Copper Mountain', lat: 39.5010, lng: -106.1520, elevation: 3353 }
+  { name: 'Keystone',        lat: 39.6053, lng: -105.9437, elevation: 3353,
+    station: '505:CO:SNTL', stationName: 'Grizzly Peak', stationFt: 11110,
+    opens: null, closes: '2027-04-12', status: 'auto',
+    report: 'https://www.keystoneresort.com/the-mountain/mountain-conditions/snow-and-weather-report.aspx' },
+  { name: 'Arapahoe Basin',  lat: 39.6425, lng: -105.8719, elevation: 3627,
+    station: '505:CO:SNTL', stationName: 'Grizzly Peak', stationFt: 11110,
+    opens: null, closes: '2027-06-07', status: 'auto',
+    report: 'https://www.arapahoebasin.com/snow-conditions/' },
+  { name: 'Breckenridge',    lat: 39.4800, lng: -106.0680, elevation: 3444,
+    station: '531:CO:SNTL', stationName: 'Hoosier Pass', stationFt: 11600,
+    opens: '2026-11-06', closes: '2027-04-19', status: 'auto',
+    report: 'https://www.breckenridge.com/the-mountain/mountain-conditions/snow-and-weather-report.aspx' },
+  { name: 'Copper Mountain', lat: 39.5010, lng: -106.1520, elevation: 3353,
+    station: '415:CO:SNTL', stationName: 'Copper Mountain', stationFt: 10500,
+    opens: '2026-11-06', closes: '2027-04-19', status: 'auto',
+    report: 'https://www.coppercolorado.com/the-mountain/mountain-conditions/snow-report' },
+  { name: 'Loveland',        lat: 39.6800, lng: -105.8975, elevation: 3475,
+    station: '602:CO:SNTL', stationName: 'Loveland Basin', stationFt: 11410,
+    opens: null, closes: '2027-05-03', status: 'auto',
+    report: 'https://skiloveland.com/snow-report/' }
 ];
 
 // Enough fresh snow that a normal person would change their plans.
 const POWDER_THRESHOLD_INCHES = 6;
+
+function isoDay(d = new Date()) {
+  // Mountain-time calendar day, so the gate flips at midnight in Colorado,
+  // not midnight UTC (which is 5-6pm the previous evening in Summit County).
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+function resortOpen(r, today = isoDay()) {
+  if (r.status === 'open') return true;
+  if (r.status === 'closed') return false;
+  if (!r.opens) return false;                       // not announced = not open
+  const closes = r.closes || `${today.slice(0, 4)}-06-30`;
+  return today >= r.opens && today <= closes;
+}
 
 function sumWindow(times, values, fromMs, toMs) {
   let total = 0;
@@ -242,6 +285,47 @@ function sumWindow(times, values, fromMs, toMs) {
   return Math.round(total * 10) / 10;
 }
 
+/* SNOTEL daily values for every station we use, one call. Returns a map of
+   stationTriplet -> { depths: [{date, in}], temps: [{date, f}] }, last 8 days. */
+async function fetchSnotel() {
+  const triplets = [...new Set(SNOW_RESORTS.map(r => r.station))].join(',');
+  const end = isoDay();
+  const begin = isoDay(new Date(Date.now() - 8 * 86400000));
+  const url = new URL('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data');
+  url.searchParams.set('stationTriplets', triplets);
+  url.searchParams.set('elements', 'SNWD,TOBS');
+  url.searchParams.set('duration', 'DAILY');
+  url.searchParams.set('beginDate', begin);
+  url.searchParams.set('endDate', end);
+  url.searchParams.set('periodRef', 'END');
+  const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+  if (!r.ok) throw new Error(`snotel ${r.status}`);
+  const body = await r.json();
+  const out = {};
+  for (const st of (Array.isArray(body) ? body : [])) {
+    const entry = { depths: [], temps: [] };
+    for (const d of (st.data || [])) {
+      const code = d.stationElement?.elementCode;
+      const vals = (d.values || []).filter(v => v && v.value != null && Number.isFinite(Number(v.value)));
+      if (code === 'SNWD') entry.depths = vals.map(v => ({ date: v.date, in: Number(v.value) }));
+      if (code === 'TOBS') entry.temps  = vals.map(v => ({ date: v.date, f: Number(v.value) }));
+    }
+    out[st.stationTriplet] = entry;
+  }
+  return out;
+}
+
+/* Turn a station's daily depth series into the numbers a skier wants. */
+function measuredFromDepths(depths) {
+  if (!depths || depths.length < 2) return { base: depths?.[0]?.in ?? null, new24: null, new7: null, asOf: depths?.[0]?.date ?? null };
+  const last = depths[depths.length - 1], prev = depths[depths.length - 2];
+  // Depth can DROP overnight from settling and melt; only count gains as new.
+  const new24 = Math.max(0, Math.round(last.in - prev.in));
+  let new7 = 0;
+  for (let i = Math.max(1, depths.length - 7); i < depths.length; i++) new7 += Math.max(0, depths[i].in - depths[i - 1].in);
+  return { base: Math.round(last.in), new24, new7: Math.round(new7), asOf: last.date };
+}
+
 async function snowfall(req, res) {
   try {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -254,50 +338,71 @@ async function snowfall(req, res) {
     url.searchParams.set('timezone', 'UTC');
     url.searchParams.set('precipitation_unit', 'inch');
 
-    const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
-    if (!r.ok) {
-      return res.status(502).json({ ok: false, error: 'snow feed unavailable' });
+    // Both sources in parallel, settled not all: if SNOTEL is down we still
+    // have the forecast, and vice versa. Neither failure blanks the card.
+    const [meteoR, snotelR] = await Promise.allSettled([
+      fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) }).then(r => r.ok ? r.json() : Promise.reject(new Error(`open-meteo ${r.status}`))),
+      fetchSnotel()
+    ]);
+    const meteo  = meteoR.status  === 'fulfilled' ? (Array.isArray(meteoR.value) ? meteoR.value : [meteoR.value]) : [];
+    const snotel = snotelR.status === 'fulfilled' ? snotelR.value : {};
+    if (!meteo.length && !Object.keys(snotel).length) {
+      return res.status(502).json({ ok: false, error: 'snow feeds unavailable' });
     }
-    const body = await r.json();
-    // A single location returns an object; several return an array. We always
-    // ask for four, but normalise so one bad edit upstream cannot crash this.
-    const list = Array.isArray(body) ? body : [body];
 
     const now = Date.now();
     const DAY = 86400000;
+    const today = isoDay();
 
-    const resorts = list.map((loc, i) => {
-      const meta = SNOW_RESORTS[i] || {};
+    const all = SNOW_RESORTS.map((meta, i) => {
+      const loc = meteo[i];
       const times = loc?.hourly?.time || [];
       const vals  = loc?.hourly?.snowfall || [];
+      const st = snotel[meta.station] || {};
+      const m = measuredFromDepths(st.depths);
+      const lastTemp = st.temps?.length ? st.temps[st.temps.length - 1].f : null;
       return {
-        name: meta.name || `Location ${i + 1}`,
+        name: meta.name,
+        open: resortOpen(meta, today),
+        opens: meta.opens,
+        // measured
+        newSnowIn: m.new24,
+        new7DayIn: m.new7,
+        baseDepthIn: m.base,
+        tempF: lastTemp,
+        measuredAsOf: m.asOf,
+        station: meta.stationName,
+        stationFt: meta.stationFt,
+        // forecast
+        forecastPast24h: loc ? sumWindow(times, vals, now - DAY, now) : null,
+        forecastNext24h: loc ? sumWindow(times, vals, now, now + DAY) : null,
         elevationMeters: loc?.elevation ?? meta.elevation ?? null,
-        past24h: sumWindow(times, vals, now - DAY, now),
-        next24h: sumWindow(times, vals, now, now + DAY)
+        report: meta.report
       };
     });
 
-    const best = resorts.reduce(
-      (a, b) => (b.past24h > (a?.past24h ?? -1) ? b : a),
-      null
-    );
-    const incoming = resorts.reduce(
-      (a, b) => (b.next24h > (a?.next24h ?? -1) ? b : a),
-      null
-    );
+    // The card shows OPEN resorts only. Closed ones are listed by name so the
+    // client can say "opens Nov 6" instead of silently omitting them.
+    const resorts = all.filter(r => r.open);
+    const closed  = all.filter(r => !r.open).map(r => ({ name: r.name, opens: r.opens }));
+
+    const pick = (arr, key) => arr.reduce((a, b) => ((b[key] ?? -1) > (a?.[key] ?? -1) ? b : a), null);
+    const best     = pick(resorts, 'newSnowIn');
+    const incoming = pick(resorts, 'forecastNext24h');
 
     res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate');
     return res.status(200).json({
       ok: true,
-      source: 'open-meteo',
-      disclaimer: 'Modeled forecast, not an official resort snow report.',
+      sources: { measured: snotelR.status === 'fulfilled' ? 'usda-snotel' : null, forecast: meteoR.status === 'fulfilled' ? 'open-meteo' : null },
+      disclaimer: 'Measured depth comes from USDA SNOTEL stations near each mountain, not the resort\'s own plot. Forecast is a weather model.',
       thresholdInches: POWDER_THRESHOLD_INCHES,
-      isPowderDay: !!best && best.past24h >= POWDER_THRESHOLD_INCHES,
-      stormComing: !!incoming && incoming.next24h >= POWDER_THRESHOLD_INCHES,
-      best: best ? { name: best.name, inches: best.past24h } : null,
-      incoming: incoming ? { name: incoming.name, inches: incoming.next24h } : null,
+      anyOpen: resorts.length > 0,
+      isPowderDay: !!best && (best.newSnowIn ?? 0) >= POWDER_THRESHOLD_INCHES,
+      stormComing: !!incoming && (incoming.forecastNext24h ?? 0) >= POWDER_THRESHOLD_INCHES,
+      best: best ? { name: best.name, inches: best.newSnowIn } : null,
+      incoming: incoming ? { name: incoming.name, inches: incoming.forecastNext24h } : null,
       resorts,
+      closed,
       updated: new Date().toISOString()
     });
   } catch (e) {
