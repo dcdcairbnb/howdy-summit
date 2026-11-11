@@ -25,6 +25,7 @@ await new Promise(r => srv.listen(0, r));
 process.env.KV_REST_API_URL = 'http://127.0.0.1:' + srv.address().port;
 process.env.KV_REST_API_TOKEN = 'x';
 process.env.ADMIN_TOKEN = 'secret123';
+process.env.STATS_PASSWORD = 'pw456';
 const { default: handler } = await import(new URL('../api/stats.js', import.meta.url).href);
 function call(method, { body, headers = {}, query = {} } = {}) {
   return new Promise(resolve => {
@@ -44,6 +45,8 @@ console.log('report', r.code, JSON.stringify(r.json.totals), JSON.stringify(r.js
 const t = r.json.totals, tp = r.json.top;
 console.log('new totals ok:', t.book === 1 && t.call === 1 && t.ride === 1 && t.item === 1);
 console.log('new top ok:', JSON.stringify(tp.book) === '[["Sapphire Room",1]]' && JSON.stringify(tp.ride) === '[["uber",1]]' && JSON.stringify(tp.item) === '[["viator.com > Ghost tour",1]]' && JSON.stringify(tp.call) === '[["Sapphire Room",1]]');
+console.log('stats password ok:', (await call('GET', { headers: { authorization: 'Bearer pw456' }, query: { days: '7' } })).code === 200);
+console.log('wrong password rejected:', (await call('GET', { headers: { authorization: 'Bearer pw457' } })).code === 401);
 let limited = 0; for (let i = 0; i < 65; i++) { if ((await call('POST', { body: { v: 'visitor-cccc3333', e: [ev('menu', 'x')] } })).code === 429) limited++; }
 console.log('rate limited after cap:', limited > 0);
 srv.close();

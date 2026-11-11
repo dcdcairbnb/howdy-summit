@@ -2,7 +2,7 @@
 //
 //   POST /api/stats            Public. The app sends anonymous event batches here.
 //                              No IP address, no names, no typed text is stored.
-//   GET  /api/stats?days=30    Needs "Authorization: Bearer <ADMIN_TOKEN>".
+//   GET  /api/stats?days=30    Needs "Authorization: Bearer <STATS_PASSWORD or ADMIN_TOKEN>".
 //                              Returns the totals the /stats page draws.
 //
 // Storage: Upstash Redis (KV_REST_API_URL, KV_REST_API_TOKEN), the same store
@@ -142,11 +142,12 @@ function top(obj, limit) {
 }
 
 async function handleReport(req, res, r) {
-  const expected = String(process.env.ADMIN_TOKEN || '').trim();
-  if (!expected) return res.status(503).json({ error: 'ADMIN_TOKEN is not set on the server' });
+  // The report opens with STATS_PASSWORD (its own password) or ADMIN_TOKEN.
+  const allowed = [process.env.STATS_PASSWORD, process.env.ADMIN_TOKEN].map(v => String(v || '').trim()).filter(Boolean);
+  if (!allowed.length) return res.status(503).json({ error: 'STATS_PASSWORD is not set on the server' });
   const auth = String(req.headers.authorization || '');
   const given = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!given || !safeEqual(given, expected)) return res.status(401).json({ error: 'wrong token' });
+  if (!given || !allowed.some(a => safeEqual(given, a))) return res.status(401).json({ error: 'wrong password' });
 
   const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
   const list = lastDays(days); // newest first
