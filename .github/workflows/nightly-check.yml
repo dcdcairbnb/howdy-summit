@@ -1,0 +1,102 @@
+name: Nightly site check
+
+# Tests the live site every other day and emails a report.
+#   Schedule  2am Central Standard Time (08:00 UTC). 3am while daylight saving time is on.
+#   Every other day: runs when the day of the year (Central time) is even.
+#   Report    one email per run to the shared Howdy inbox, sent by the site's own
+#             /api/subscribe endpoint. Needs the repo secret ADMIN_TOKEN to match
+#             ADMIN_TOKEN in Vercel.
+#   Manual    Actions tab > Nightly site check > Run workflow. A manual run always
+#             tests, whatever the day.
+# The site is reached on its Vercel address first. The custom domain can sit
+# behind Cloudflare, which challenges GitHub runners as bots.
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Decide whether to run today
+        id: gate
+        run: |
+          DOY=$((10#$(TZ=America/Chicago date +%j)))
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ $((DOY % 2)) -eq 0 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Day $DOY is an off day. Next run tomorrow."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - name: Find the live site
+        if: steps.gate.outputs.run == 'true'
+        id: site
+        run: |
+          for u in https://howdy-summit.vercel.app https://www.howdysummitcounty.com https://howdysummitcounty.com; do
+            code=$(curl -s -m 25 -A "HowdyTestBot/1.0" -o /tmp/h.json -w "%{http_code}" "$u/api/health" || true)
+            echo "$u -> HTTP $code"
+            if [ "$code" = "200" ] && head -c 1 /tmp/h.json | grep -q '{'; then
+              echo "base=$u" >> "$GITHUB_OUTPUT"
+              break
+            fi
+          done
+          if [ -z "$(grep base= "$GITHUB_OUTPUT")" ]; then echo "No address answered /api/health"; exit 1; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 20
+
+      - name: Install the test browser
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          mkdir -p /tmp/pw && cd /tmp/pw
+          npm init -y >/dev/null
+          npm i playwright@1.49.1 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+
+      - name: Run the checks
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE_URL: ${{ steps.site.outputs.base }}
+          SITE_NAME: 'Howdy Summit County'
+          APP_PATH: '/'
+          OUT_DIR: ${{ github.workspace }}/report
+        run: |
+          cp tests/site-check.mjs /tmp/pw/site-check.mjs
+          cd /tmp/pw && node site-check.mjs
+
+      - name: Email the report
+        if: steps.gate.outputs.run == 'true' && always()
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          BASE: ${{ steps.site.outputs.base }}
+        run: |
+          if [ ! -f report/report.json ]; then
+            html="<p>The nightly check crashed before it made a report. Open the run in the Actions tab.</p><p>${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}</p>"
+            subject="[Howdy Summit] Nightly check crashed"
+          else
+            status=$(jq -r .status report/report.json)
+            f=$(jq '.fails|length' report/report.json); w=$(jq '.warns|length' report/report.json)
+            subject="[Howdy Summit] Nightly check: $status ($f failures, $w notes)"
+            html="$(cat report/report.html)<p style=\"color:#777;font-size:12px\"><a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Full run log</a></p>"
+          fi
+          body=$(jq -n --arg t "$ADMIN_TOKEN" --arg s "$subject" --arg h "$html" '{action:"test-report",token:$t,subject:$s,html:$h}')
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST "$BASE/api/subscribe" -H "Content-Type: application/json" -d "$body")
+          echo "HTTP $code"; cat /tmp/resp.json
+          test "$code" = "200"
+
+      - name: Keep the report
+        if: steps.gate.outputs.run == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-check-report
+          path: report/
+          if-no-files-found: ignore

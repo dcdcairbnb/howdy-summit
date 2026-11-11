@@ -606,6 +606,28 @@ export default async function handler(req, res) {
     }
   }
 
+  // POST { action:'test-report', token, subject, html }
+  // Used by the nightly site check (.github/workflows/nightly-check.yml) to
+  // email its report to the shared Howdy inbox.
+  if (body.action === 'test-report') {
+    const serverToken = String(process.env.ADMIN_TOKEN || '').trim();
+    if (!serverToken) return res.status(503).json({ error: 'ADMIN_TOKEN is not set on the server' });
+    if (String(body.token || '').trim() !== serverToken) return res.status(403).json({ error: 'admin token does not match' });
+    const subject = String(body.subject || 'Nightly site check').slice(0, 200);
+    const html = String(body.html || '').slice(0, 100000);
+    if (!html) return res.status(400).json({ error: 'html is required' });
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const to = process.env.ALERT_EMAIL || ERROR_REPORTER_TO;
+      const { error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+      if (error) return res.status(502).json({ error: 'email failed' });
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error('test-report error', e);
+      return res.status(500).json({ error: 'report email failed' });
+    }
+  }
+
   // Client-side error reporter. Browser POSTs window.onerror events here.
   // Dedupes by error fingerprint over a 1-hour window to avoid email floods.
   // Quiet in production logs (no console.error spam) but emails on first hit.
