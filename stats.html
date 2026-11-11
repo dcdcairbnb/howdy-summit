@@ -22,6 +22,11 @@
   .bar button { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:8px; font:inherit; font-size:14px; cursor:pointer; }
   .bar button.on { background:var(--ink); color:var(--card); border-color:var(--ink); }
   .bar .stamp { margin-left:auto; font-size:12px; color:var(--mute); }
+  .dates { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:-6px 0 16px; font-size:13.5px; color:var(--ink2); }
+  .dates input[type=date] { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:7px 10px; border-radius:8px; font:inherit; font-size:14px; }
+  .dates button { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:8px; font:inherit; font-size:14px; cursor:pointer; }
+  .dates button.go { background:var(--red); border-color:var(--red); color:#fff; font-weight:600; }
+  .dates .dmsg { color:var(--red); font-size:12.5px; }
   .banner { background:var(--warn-bg); color:var(--warn-ink); border-radius:10px; padding:10px 14px; font-size:13.5px; margin-bottom:16px; }
   .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
@@ -97,6 +102,14 @@
       <button id="out" type="button">Sign out</button>
       <span class="stamp" id="stamp"></span>
     </div>
+    <div class="dates">
+      <label>From <input type="date" id="dFrom"></label>
+      <label>To <input type="date" id="dTo"></label>
+      <button type="button" class="go" id="dGo">Show dates</button>
+      <button type="button" id="dYest">Yesterday</button>
+      <button type="button" id="dClear">Clear</button>
+      <span class="dmsg" id="dMsg"></span>
+    </div>
     <div class="grid" id="cards"></div>
     <div class="card wide">
       <h2 id="chartH">Visitors per day</h2>
@@ -125,6 +138,7 @@
   var params = new URLSearchParams(location.search);
   var demo = params.get('demo') === '1';
   var days = 30;
+  var range = null; // { from, to } when a date range is picked
   var last = null;
   var seriesName = 'Visitors';
   var $ = function (id) { return document.getElementById(id); };
@@ -228,7 +242,7 @@
     var f = SERIES[seriesName];
     var labels = last.series.map(function (r) { return r.date; });
     $('chartH').textContent = seriesName + ' per day';
-    $('chartSub').textContent = 'Last ' + last.days + ' days';
+    $('chartSub').textContent = range ? (range.from === range.to ? range.from : range.from + ' to ' + range.to) : 'Last ' + last.days + ' days';
     $('svg').setAttribute('aria-label', 'Bar chart of ' + seriesName.toLowerCase() + ' per day');
     drawChart(last.series.map(f), labels, seriesName);
   }
@@ -280,12 +294,12 @@
   }
 
   // Sample data for demo mode. Deterministic so screenshots match.
-  function sample(n) {
+  function sample(n, endAgo) {
     var seed = 11;
     var rnd = function () { return (seed = (seed * 9301 + 49297) % 233280) / 233280; };
     var series = [], tot = { session: 0, menu: 0, ask: 0, other: 0, out: 0, book: 0, call: 0, ride: 0, item: 0, newsess: 0, sess_app: 0, sess_web: 0 };
     for (var i = n - 1; i >= 0; i--) {
-      var dt = new Date(Date.now() - i * 86400000);
+      var dt = new Date(Date.now() - (i + (endAgo || 0)) * 86400000);
       var wk = [0, 5, 6].indexOf(dt.getDay()) >= 0 ? 1.4 : 1;
       var s = Math.round((40 + rnd() * 30) * wk);
       var row = { date: dt.toLocaleDateString('en-CA'), visitors: Math.round(s * 0.8), session: s, menu: Math.round(s * 1.6), ask: Math.round(s * 0.3), other: Math.round(s * 0.1), out: Math.round(s * 0.35), book: Math.round(s * 0.12), call: Math.round(s * 0.05), ride: Math.round(s * 0.06), item: Math.round(s * 0.5), newsess: Math.round(s * 0.55), sess_app: Math.round(s * 0.4), sess_web: s - Math.round(s * 0.4) };
@@ -304,10 +318,10 @@
   }
 
   function load() {
-    if (demo) { $('demoBanner').hidden = false; show('view'); render(sample(days)); return; }
+    if (demo) { $('demoBanner').hidden = false; show('view'); render(range ? sample(spanDays(range), agoDays(range.to)) : sample(days, 0)); return; }
     var tok = getTok();
     if (!tok) { show('login'); return; }
-    fetch('/api/stats?days=' + days, { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' })
+    fetch('/api/stats?' + (range ? 'from=' + range.from + '&to=' + range.to : 'days=' + days), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' })
       .then(function (r) {
         if (r.status === 401) { setTok(''); $('msg').textContent = 'That password was not accepted.'; show('login'); return null; }
         if (!r.ok) { return r.json().then(function (j) { throw new Error(j && j.error || ('Error ' + r.status)); }); }
@@ -317,12 +331,37 @@
       .catch(function (e) { $('msg').textContent = e.message || 'Could not load stats.'; show('login'); });
   }
 
+  function dayMs(s) { return Date.parse(s + 'T00:00:00Z'); }
+  function spanDays(r) { return Math.round((dayMs(r.to) - dayMs(r.from)) / 86400000) + 1; }
+  function todayStr() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' }); }
+  function agoDays(s) { return Math.max(0, Math.round((dayMs(todayStr()) - dayMs(s)) / 86400000)); }
+  function setRange(from, to) {
+    var m = $('dMsg'); m.textContent = '';
+    if (!from || !to) { m.textContent = 'Pick both dates.'; return; }
+    if (from > to) { m.textContent = 'The first date must come before the second.'; return; }
+    if (spanDays({ from: from, to: to }) > 90) { m.textContent = 'Pick 90 days or fewer.'; return; }
+    range = { from: from, to: to };
+    $('dFrom').value = from; $('dTo').value = to;
+    document.querySelectorAll('.bar button[data-d]').forEach(function (x) { x.classList.remove('on'); });
+    load();
+  }
+  function ymdAgo(n) { return new Date(Date.now() - n * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Denver' }); }
+  $('dGo').addEventListener('click', function () { setRange($('dFrom').value, $('dTo').value); });
+  $('dYest').addEventListener('click', function () { var y = ymdAgo(1); setRange(y, y); });
+  $('dClear').addEventListener('click', function () {
+    range = null; $('dFrom').value = ''; $('dTo').value = ''; $('dMsg').textContent = '';
+    document.querySelectorAll('.bar button[data-d]').forEach(function (x) { x.classList.toggle('on', x.getAttribute('data-d') === String(days)); });
+    load();
+  });
+  $('dFrom').max = $('dTo').max = todayStr();
+
   $('go').addEventListener('click', function () { setTok($('tok').value.trim()); $('tok').value = ''; $('msg').textContent = ''; load(); });
   $('tok').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('go').click(); });
   $('out').addEventListener('click', function () { setTok(''); if (demo) { location.href = location.pathname; return; } show('login'); });
   document.querySelectorAll('.bar button[data-d]').forEach(function (b) {
     b.addEventListener('click', function () {
       days = parseInt(b.getAttribute('data-d'), 10);
+      range = null; $('dFrom').value = ''; $('dTo').value = ''; $('dMsg').textContent = '';
       document.querySelectorAll('.bar button[data-d]').forEach(function (x) { x.classList.toggle('on', x === b); });
       load();
     });

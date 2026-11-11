@@ -47,6 +47,14 @@ console.log('new totals ok:', t.book === 1 && t.call === 1 && t.ride === 1 && t.
 console.log('new top ok:', JSON.stringify(tp.book) === '[["Sapphire Room",1]]' && JSON.stringify(tp.ride) === '[["uber",1]]' && JSON.stringify(tp.item) === '[["viator.com > Ghost tour",1]]' && JSON.stringify(tp.call) === '[["Sapphire Room",1]]');
 console.log('stats password ok:', (await call('GET', { headers: { authorization: 'Bearer pw456' }, query: { days: '7' } })).code === 200);
 console.log('wrong password rejected:', (await call('GET', { headers: { authorization: 'Bearer pw457' } })).code === 401);
+const dayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+const rr = await call('GET', { headers: { authorization: 'Bearer secret123' }, query: { from: dayStr, to: dayStr } });
+console.log('single day range ok:', rr.code === 200 && rr.json.days === 1 && rr.json.series.length === 1 && rr.json.series[0].date === dayStr && rr.json.totals.session === 2);
+const past = await call('GET', { headers: { authorization: 'Bearer secret123' }, query: { from: '2026-01-01', to: '2026-01-03' } });
+console.log('past range ok:', past.code === 200 && past.json.series.length === 3 && past.json.totals.session === 0 && past.json.from === '2026-01-01' && past.json.to === '2026-01-03');
+console.log('range too long rejected:', (await call('GET', { headers: { authorization: 'Bearer secret123' }, query: { from: '2026-01-01', to: '2026-06-01' } })).code === 400);
+console.log('backwards range rejected:', (await call('GET', { headers: { authorization: 'Bearer secret123' }, query: { from: '2026-02-01', to: '2026-01-01' } })).code === 400);
+console.log('bad date rejected:', (await call('GET', { headers: { authorization: 'Bearer secret123' }, query: { from: '2026-02-31', to: '2026-03-01' } })).code === 400);
 let limited = 0; for (let i = 0; i < 65; i++) { if ((await call('POST', { body: { v: 'visitor-cccc3333', e: [ev('menu', 'x')] } })).code === 429) limited++; }
 console.log('rate limited after cap:', limited > 0);
 srv.close();

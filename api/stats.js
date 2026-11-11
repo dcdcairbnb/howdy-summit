@@ -149,8 +149,21 @@ async function handleReport(req, res, r) {
   const given = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!given || !allowed.some(a => safeEqual(given, a))) return res.status(401).json({ error: 'wrong password' });
 
-  const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
-  const list = lastDays(days); // newest first
+  // A date range (?from=YYYY-MM-DD&to=YYYY-MM-DD, 90 days at most) or the last N days (?days=).
+  const isDay = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z')) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
+  const rf = String(req.query.from || ''), rt = String(req.query.to || '');
+  let list; // newest first
+  if (rf || rt) {
+    if (!isDay(rf) || !isDay(rt)) return res.status(400).json({ error: 'from and to must be dates like 2026-11-01' });
+    if (rf > rt) return res.status(400).json({ error: 'from must not be after to' });
+    const t0 = Date.parse(rf + 'T00:00:00Z'), t1 = Date.parse(rt + 'T00:00:00Z');
+    if ((t1 - t0) / 86400000 + 1 > 90) return res.status(400).json({ error: 'pick 90 days or fewer' });
+    list = [];
+    for (let t = t1; t >= t0; t -= 86400000) list.push(new Date(t).toISOString().slice(0, 10));
+  } else {
+    list = lastDays(Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30)));
+  }
+  const days = list.length;
 
   const p = r.pipeline();
   for (const d of list) {
@@ -201,6 +214,8 @@ async function handleReport(req, res, r) {
   return res.status(200).json({
     generatedAt: new Date().toISOString(),
     days,
+    from: list[list.length - 1],
+    to: list[0],
     totals: { ...totals, uniqueVisitors, uniqueApp, uniqueWeb },
     series,
     top: { menu: top(menu, 15), out: top(outbound, 15), src: top(src, 15), book: top(book, 15), call: top(calls, 15), ride: top(rides, 15), item: top(items, 40) }
